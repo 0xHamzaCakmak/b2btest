@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Siparislerim | Nebula Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-1: #f3ede0;
+      --bg-2: #d8f0e3;
+      --ink: #13221f;
+      --accent: #e86f51;
+      --card: rgba(255, 255, 255, 0.74);
+      --border: rgba(19, 34, 31, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, #fef6d8 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, #d4f6eb 0%, transparent 35%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      padding: 1.2rem;
+    }
+    .blob {
+      position: fixed;
+      z-index: -1;
+      width: 35vmax;
+      aspect-ratio: 1;
+      border-radius: 42% 58% 70% 30% / 30% 41% 59% 70%;
+      background: color-mix(in srgb, var(--accent) 60%, #fff);
+      filter: blur(30px);
+      opacity: 0.26;
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+    .blob.one { top: -8vmax; left: -10vmax; }
+    .blob.two { bottom: -12vmax; right: -8vmax; animation-delay: 2s; }
+    @keyframes drift {
+      from { transform: translateY(-10px) rotate(0deg); }
+      to { transform: translateY(12px) rotate(18deg); }
+    }
+    .wrap { width: min(1000px, 100%); margin: 0 auto; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: clamp(1rem, 2.2vw, 1.9rem);
+      box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      margin: .7rem 0 .3rem;
+      font-family: "Fraunces", serif;
+      font-size: clamp(1.8rem, 4.4vw, 2.8rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+    .eyebrow {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .3rem .7rem;
+      font-size: .8rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.65);
+    }
+    .nav {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+    }
+    .nav a {
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: .5rem .75rem;
+      background: rgba(255, 255, 255, .72);
+      font-weight: 600;
+    }
+    .list {
+      display: grid;
+      gap: .8rem;
+      margin-top: 1rem;
+    }
+    .order {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .67);
+      padding: .9rem;
+    }
+    .line {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-size: .95rem;
+    }
+    .items {
+      margin-top: .6rem;
+      border-top: 1px dashed rgba(19, 34, 31, .2);
+      padding-top: .55rem;
+      font-size: .92rem;
+    }
+    .badge {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .2rem .5rem;
+      font-size: .82rem;
+      background: rgba(255, 255, 255, .85);
+      font-weight: 600;
+    }
+    .badge.ok {
+      background: rgba(216, 240, 227, .95);
+    }
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      padding: 1rem;
+      background: rgba(255, 255, 255, .6);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <span class="eyebrow">Sube Alani</span>
+          <h1>Siparislerim</h1>
+        </div>
+        <nav class="nav">
+          <a href="profil.html">Profil</a>
+          <a href="siparis.html">Siparis Ver</a>
+          <a href="siparislerim.html">Siparislerim</a>
+          <a href="merkez.html">Merkez Paneli</a>
+          <a href="login.html">Cikis</a>
+        </nav>
+      </div>
+
+      <section class="list" id="orderList"></section>
+    </main>
+  </div>
+
+  <script>
+    const orderList = document.getElementById("orderList");
+
+    function formatTL(value) {
+      return new Intl.NumberFormat("tr-TR").format(value) + " TL";
+    }
+
+    function formatDate(iso) {
+      if (!iso) return "-";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      return d.toLocaleString("tr-TR");
+    }
+
+    function renderOrders() {
+      const raw = localStorage.getItem("branchOrders");
+      const orders = raw ? JSON.parse(raw) : [];
+
+      if (!orders.length) {
+        orderList.innerHTML = '<div class="empty">Henuz siparis bulunmuyor. Once siparis olustur.</div>';
+        return;
+      }
+
+      const html = orders
+        .slice()
+        .reverse()
+        .map(function (order) {
+          const statusText = order.status === "Onaylandi" ? "Onaylandi" : "Onay Bekliyor";
+          const statusClass = statusText === "Onaylandi" ? "badge ok" : "badge";
+          const items = order.items.map(function (item) {
+            return item.name + ": " + item.qty + " tepsi x " + formatTL(item.unitPrice);
+          }).join("<br>");
+
+          return '' +
+            '<article class="order">' +
+            '  <div class="line"><strong>Siparis No: ' + order.orderNo + '</strong><span class="' + statusClass + '">' + statusText + '</span></div>' +
+            '  <div class="line"><span>Teslimat: ' + (order.deliveryDate || "-") + ' ' + (order.deliveryTime || "") + '</span><span>Olusturma: ' + formatDate(order.createdAt) + '</span></div>' +
+            '  <div class="line"><span>Toplam Tepsi: ' + order.totalTray + '</span><strong>Toplam: ' + formatTL(order.totalAmount) + '</strong></div>' +
+            '  <div class="items">' + items + '</div>' +
+            '</article>';
+        })
+        .join("");
+
+      orderList.innerHTML = html;
+    }
+
+    renderOrders();
+    window.addEventListener("storage", renderOrders);
+    setInterval(renderOrders, 4000);
+  </script>
+</body>
+</html>

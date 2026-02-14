@@ -1,0 +1,459 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merkez Urunler | Nebula Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-1: #f3ede0;
+      --bg-2: #d8f0e3;
+      --ink: #13221f;
+      --accent: #e86f51;
+      --card: rgba(255, 255, 255, 0.74);
+      --border: rgba(19, 34, 31, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, #fef6d8 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, #d4f6eb 0%, transparent 35%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      padding: 1.2rem;
+    }
+    .blob {
+      position: fixed;
+      z-index: -1;
+      width: 35vmax;
+      aspect-ratio: 1;
+      border-radius: 42% 58% 70% 30% / 30% 41% 59% 70%;
+      background: color-mix(in srgb, var(--accent) 60%, #fff);
+      filter: blur(30px);
+      opacity: 0.26;
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+    .blob.one { top: -8vmax; left: -10vmax; }
+    .blob.two { bottom: -12vmax; right: -8vmax; animation-delay: 2s; }
+    @keyframes drift {
+      from { transform: translateY(-10px) rotate(0deg); }
+      to { transform: translateY(12px) rotate(18deg); }
+    }
+    .wrap { width: min(980px, 100%); margin: 0 auto; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: clamp(1rem, 2.2vw, 1.8rem);
+      box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .eyebrow {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .3rem .7rem;
+      font-size: .8rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.65);
+    }
+    h1 {
+      margin: .7rem 0 .4rem;
+      font-family: "Fraunces", serif;
+      font-size: clamp(1.85rem, 4.3vw, 2.9rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+    .nav {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+      align-content: flex-start;
+    }
+    .nav a {
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: .5rem .75rem;
+      background: rgba(255, 255, 255, .72);
+      font-weight: 600;
+      height: fit-content;
+    }
+    form {
+      display: grid;
+      gap: .9rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: .8rem;
+    }
+    .item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .65);
+      padding: .8rem;
+    }
+    label {
+      display: block;
+      font-size: .92rem;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .85);
+      border-radius: 12px;
+      padding: .7rem .8rem;
+      font: inherit;
+      margin-top: .35rem;
+      outline: none;
+    }
+    .actions {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: .82rem 1.05rem;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: var(--ink);
+      color: #fff;
+    }
+    .btn.ghost {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .8);
+      color: var(--ink);
+    }
+    .msg {
+      display: none;
+      border: 1px solid rgba(19, 34, 31, .2);
+      background: rgba(216, 240, 227, .75);
+      border-radius: 12px;
+      padding: .75rem .85rem;
+      font-weight: 600;
+    }
+    .inline-form {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr auto;
+      gap: .6rem;
+      align-items: end;
+    }
+    @media (max-width: 760px) {
+      .inline-form {
+        grid-template-columns: 1fr;
+      }
+    }
+    .hint {
+      margin: 0;
+      font-size: .88rem;
+      color: rgba(19, 34, 31, .75);
+    }
+    .status-row {
+      margin-top: .55rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .5rem;
+      font-size: .86rem;
+      font-weight: 600;
+    }
+    .status-badge {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .15rem .55rem;
+      background: rgba(216, 240, 227, .8);
+    }
+    .status-badge.passive {
+      background: rgba(255, 226, 226, .85);
+      border-color: rgba(171, 47, 47, .35);
+      color: #6e1f1f;
+    }
+    .toggle-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      white-space: nowrap;
+    }
+    .toggle-wrap input[type="checkbox"] {
+      margin: 0;
+      width: auto;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <span class="eyebrow">Merkez Rolu</span>
+          <h1>Urunler</h1>
+        </div>
+        <nav class="nav">
+          <a href="merkez.html">Merkez Paneli</a>
+          <a href="merkez-urun-fiyat.html">Urunler</a>
+          <a href="merkez-subeler.html">Subeler</a>
+          <a href="login.html">Cikis</a>
+        </nav>
+      </div>
+
+      <form id="priceForm">
+        <section class="item">
+          <div class="inline-form">
+            <label>Yeni Urun Adi
+              <input type="text" id="newProductName" placeholder="Orn: Pogaca" maxlength="48">
+            </label>
+            <label>Baslangic Fiyati (TL)
+              <input type="number" id="newProductPrice" min="1" step="1" value="500">
+            </label>
+            <button class="btn ghost" type="button" id="addProductBtn">Urun Ekle</button>
+          </div>
+          <p class="hint">Eklenen urunler fiyat listesine ve sube siparis ekranina otomatik yansir.</p>
+        </section>
+
+        <section class="grid" id="productGrid"></section>
+
+        <div class="actions">
+          <button class="btn ghost" type="button" id="allActiveBtn">Tumunu Aktif Yap</button>
+          <button class="btn ghost" type="button" id="allPassiveBtn">Tumunu Pasif Yap</button>
+          <button class="btn primary" type="submit">Fiyatlari Kaydet</button>
+          <button class="btn ghost" type="button" id="resetBtn">Varsayilana Don</button>
+        </div>
+        <div class="msg" id="saveMsg">Fiyatlar guncellendi. Subeler yeni fiyatlari gorecek.</div>
+      </form>
+    </main>
+  </div>
+
+  <script>
+    const priceForm = document.getElementById("priceForm");
+    const resetBtn = document.getElementById("resetBtn");
+    const saveMsg = document.getElementById("saveMsg");
+    const productGrid = document.getElementById("productGrid");
+    const addProductBtn = document.getElementById("addProductBtn");
+    const allActiveBtn = document.getElementById("allActiveBtn");
+    const allPassiveBtn = document.getElementById("allPassiveBtn");
+    const newProductName = document.getElementById("newProductName");
+    const newProductPrice = document.getElementById("newProductPrice");
+    const defaultProducts = [
+      { key: "su_boregi", name: "Su Boregi", price: 700 },
+      { key: "peynirli_borek", name: "Peynirli Borek", price: 650 },
+      { key: "kiymali_borek", name: "Kiymali Borek", price: 730 },
+      { key: "patatesli_borek", name: "Patatesli Borek", price: 610 },
+      { key: "ispanakli_borek", name: "Ispanakli Borek", price: 640 },
+      { key: "kasarli_borek", name: "Kasarli Borek", price: 680 },
+      { key: "kol_boregi", name: "Kol Boregi", price: 760 },
+      { key: "karisik_borek", name: "Karisik Borek", price: 790 }
+    ];
+    const defaultPrices = defaultProducts.reduce(function (acc, product) {
+      acc[product.key] = product.price;
+      return acc;
+    }, {});
+    const defaultCatalog = defaultProducts.reduce(function (acc, product) {
+      acc[product.key] = product.name;
+      return acc;
+    }, {});
+    const defaultAvailability = defaultProducts.reduce(function (acc, product) {
+      acc[product.key] = true;
+      return acc;
+    }, {});
+
+    function getLivePrices() {
+      const raw = localStorage.getItem("productPrices");
+      const custom = raw ? JSON.parse(raw) : {};
+      return Object.assign({}, defaultPrices, custom);
+    }
+
+    function saveCatalog(catalog) {
+      localStorage.setItem("productCatalog", JSON.stringify(catalog));
+    }
+
+    function getCatalog() {
+      const raw = localStorage.getItem("productCatalog");
+      const custom = raw ? JSON.parse(raw) : {};
+      return Object.assign({}, defaultCatalog, custom);
+    }
+
+    function getAvailability() {
+      const raw = localStorage.getItem("productAvailability");
+      const custom = raw ? JSON.parse(raw) : {};
+      return Object.assign({}, defaultAvailability, custom);
+    }
+
+    function saveAvailability(data) {
+      localStorage.setItem("productAvailability", JSON.stringify(data));
+    }
+
+    function slugify(text) {
+      return String(text || "")
+        .toLowerCase()
+        .replaceAll("ğ", "g")
+        .replaceAll("ü", "u")
+        .replaceAll("ş", "s")
+        .replaceAll("ı", "i")
+        .replaceAll("ö", "o")
+        .replaceAll("ç", "c")
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    }
+
+    function showMessage(message) {
+      saveMsg.style.display = "block";
+      saveMsg.textContent = message;
+      setTimeout(function () {
+        saveMsg.style.display = "none";
+        saveMsg.textContent = "Fiyatlar guncellendi. Subeler yeni fiyatlari gorecek.";
+      }, 2300);
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function renderPriceInputs() {
+      const prices = getLivePrices();
+      const catalog = getCatalog();
+      const availability = getAvailability();
+      const html = Object.entries(catalog)
+        .map(function (entry) {
+          const key = entry[0];
+          const name = escapeHtml(entry[1]);
+          const value = Number(prices[key] || defaultPrices[key] || 1);
+          const isActive = availability[key] !== false;
+          return '' +
+            '<article class="item">' +
+            '<label>' + name + ' (TL)<input type="number" min="1" step="1" data-product="' + key + '" value="' + value + '" required></label>' +
+            '<div class="status-row">' +
+            '<span class="status-badge ' + (isActive ? "" : "passive") + '" data-status-badge="' + key + '">' + (isActive ? "Aktif" : "Pasif") + '</span>' +
+            '<label class="toggle-wrap"><input type="checkbox" data-active-toggle="' + key + '"' + (isActive ? " checked" : "") + '> Aktif</label>' +
+            '</div>' +
+            '</article>';
+        })
+        .join("");
+      productGrid.innerHTML = html;
+    }
+
+    function saveForm() {
+      const data = {};
+      const availability = getAvailability();
+      const inputs = productGrid.querySelectorAll("input[data-product]");
+      inputs.forEach(function (input) {
+        const key = input.dataset.product;
+        data[key] = Math.max(1, Number(input.value || 1));
+      });
+      productGrid.querySelectorAll("input[data-active-toggle]").forEach(function (toggle) {
+        availability[toggle.dataset.activeToggle] = toggle.checked;
+      });
+      localStorage.setItem("productPrices", JSON.stringify(data));
+      saveAvailability(availability);
+      showMessage("Fiyatlar guncellendi. Subeler yeni fiyatlari gorecek.");
+    }
+
+    function addNewProduct() {
+      const name = String(newProductName.value || "").trim();
+      const startPrice = Math.max(1, Number(newProductPrice.value || 0));
+      if (!name || Number.isNaN(startPrice)) {
+        showMessage("Urun adi ve gecerli bir fiyat girin.");
+        return;
+      }
+      const key = slugify(name);
+      if (!key) {
+        showMessage("Urun adi uygun degil. Lutfen farkli bir ad deneyin.");
+        return;
+      }
+
+      const catalog = getCatalog();
+      if (catalog[key]) {
+        showMessage("Bu urun zaten mevcut. Fiyatini alttaki listeden guncelleyebilirsiniz.");
+        return;
+      }
+
+      const prices = getLivePrices();
+      const availability = getAvailability();
+      catalog[key] = name;
+      prices[key] = startPrice;
+      availability[key] = true;
+      saveCatalog(catalog);
+      localStorage.setItem("productPrices", JSON.stringify(prices));
+      saveAvailability(availability);
+      renderPriceInputs();
+      newProductName.value = "";
+      newProductPrice.value = "500";
+      showMessage("Yeni urun eklendi ve fiyat listesine alindi.");
+    }
+
+    function setAllActiveState(isActive) {
+      const availability = getAvailability();
+      const catalog = getCatalog();
+      Object.keys(catalog).forEach(function (key) {
+        availability[key] = isActive;
+      });
+      saveAvailability(availability);
+      renderPriceInputs();
+      showMessage(isActive ? "Tum urunler aktif yapildi." : "Tum urunler pasif yapildi.");
+    }
+
+    priceForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      saveForm();
+    });
+
+    resetBtn.addEventListener("click", function () {
+      const prices = getLivePrices();
+      Object.keys(defaultPrices).forEach(function (key) {
+        prices[key] = defaultPrices[key];
+      });
+      localStorage.setItem("productPrices", JSON.stringify(prices));
+      renderPriceInputs();
+      showMessage("Cekirdek urunler varsayilan fiyata donduruldu.");
+    });
+
+    addProductBtn.addEventListener("click", addNewProduct);
+    allActiveBtn.addEventListener("click", function () { setAllActiveState(true); });
+    allPassiveBtn.addEventListener("click", function () { setAllActiveState(false); });
+    productGrid.addEventListener("change", function (event) {
+      const target = event.target;
+      if (!target || !target.matches("input[data-active-toggle]")) return;
+      const key = target.dataset.activeToggle;
+      const availability = getAvailability();
+      availability[key] = target.checked;
+      saveAvailability(availability);
+      const badge = productGrid.querySelector('[data-status-badge="' + key + '"]');
+      if (badge) {
+        badge.textContent = target.checked ? "Aktif" : "Pasif";
+        badge.classList.toggle("passive", !target.checked);
+      }
+      showMessage(target.checked ? "Urun aktif yapildi." : "Urun pasif yapildi.");
+    });
+    renderPriceInputs();
+  </script>
+</body>
+</html>
+

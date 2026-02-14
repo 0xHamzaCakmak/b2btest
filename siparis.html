@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Borekci Siparis | Nebula Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-1: #f3ede0;
+      --bg-2: #d8f0e3;
+      --ink: #13221f;
+      --accent: #e86f51;
+      --card: rgba(255, 255, 255, 0.74);
+      --border: rgba(19, 34, 31, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, #fef6d8 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, #d4f6eb 0%, transparent 35%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      padding: 1.2rem;
+    }
+    .blob {
+      position: fixed;
+      z-index: -1;
+      width: 35vmax;
+      aspect-ratio: 1;
+      border-radius: 42% 58% 70% 30% / 30% 41% 59% 70%;
+      background: color-mix(in srgb, var(--accent) 60%, #fff);
+      filter: blur(30px);
+      opacity: 0.26;
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+    .blob.one { top: -8vmax; left: -10vmax; }
+    .blob.two { bottom: -12vmax; right: -8vmax; animation-delay: 2s; }
+    @keyframes drift {
+      from { transform: translateY(-10px) rotate(0deg); }
+      to { transform: translateY(12px) rotate(18deg); }
+    }
+    .wrap {
+      width: min(1050px, 100%);
+      margin: 0 auto;
+      animation: rise 700ms ease-out both;
+    }
+    @keyframes rise {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: clamp(1rem, 2.2vw, 1.8rem);
+      box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .eyebrow {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .3rem .7rem;
+      font-size: .8rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.65);
+    }
+    h1 {
+      margin: .7rem 0 .4rem;
+      font-family: "Fraunces", serif;
+      font-size: clamp(1.8rem, 4.5vw, 3rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+    .muted { margin: 0; }
+    .nav {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+      align-content: flex-start;
+    }
+    .nav a {
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: .5rem .75rem;
+      background: rgba(255, 255, 255, .72);
+      font-weight: 600;
+      height: fit-content;
+    }
+    form { display: grid; gap: 1rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: .8rem;
+    }
+    .item {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .62);
+      padding: .85rem;
+      display: grid;
+      gap: .5rem;
+    }
+    .item.passive {
+      border-color: rgba(171, 47, 47, .35);
+      background: rgba(255, 240, 240, .72);
+    }
+    .item strong { font-size: 1.05rem; }
+    .price {
+      font-size: .9rem;
+      font-weight: 600;
+      color: rgba(19, 34, 31, .8);
+    }
+    .passive-note {
+      font-size: .84rem;
+      font-weight: 600;
+      color: #7d2525;
+      background: rgba(255, 226, 226, .85);
+      border: 1px solid rgba(171, 47, 47, .35);
+      border-radius: 999px;
+      width: fit-content;
+      padding: .15rem .55rem;
+    }
+    label { font-size: .9rem; font-weight: 600; }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .85);
+      color: var(--ink);
+      border-radius: 12px;
+      padding: .7rem .8rem;
+      font: inherit;
+      outline: none;
+      margin-top: .35rem;
+      transition: border-color .2s ease, box-shadow .2s ease;
+    }
+    input:focus, textarea:focus {
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--ink));
+      box-shadow: 0 0 0 4px rgba(232, 111, 81, 0.15);
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: .8rem;
+    }
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: .85rem 1.1rem;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .25s ease, box-shadow .25s ease;
+    }
+    .btn.primary {
+      background: var(--ink);
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(19, 34, 31, .28);
+    }
+    .btn.secondary {
+      background: rgba(255, 255, 255, .75);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .actions {
+      display: flex;
+      gap: .8rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .cart-total {
+      margin-top: .2rem;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .75);
+      padding: .8rem .9rem;
+      font-weight: 600;
+    }
+    #result {
+      display: none;
+      border: 1px solid rgba(19, 34, 31, .2);
+      background: rgba(255, 255, 255, .75);
+      border-radius: 14px;
+      padding: .8rem .9rem;
+      font-weight: 600;
+    }
+    #result.alert-success {
+      border-color: rgba(74, 140, 92, .45);
+      background: rgba(216, 240, 227, .88);
+      color: #143322;
+    }
+    #result.alert-error {
+      border-color: rgba(171, 47, 47, .48);
+      background: rgba(255, 226, 226, .9);
+      color: #6e1f1f;
+    }
+  </style>
+</head>
+<body>
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <span class="eyebrow">B2B Siparis Ekrani</span>
+          <h1>Borekci Siparis Paneli</h1>
+          <p class="muted">Secilen borekler tepsi adedi ile merkeze iletilir.</p>
+        </div>
+        <nav class="nav">
+          <a href="profil.html">Profil</a>
+          <a href="siparis.html">Siparis Ver</a>
+          <a href="siparislerim.html">Siparislerim</a>
+          <a href="merkez.html">Merkez Paneli</a>
+          <a href="login.html">Cikis</a>
+        </nav>
+      </div>
+
+      <form id="orderForm" action="#" method="post">
+        <section class="grid" id="productGrid"></section>
+
+        <section class="meta">
+          <label>Teslimat Tarihi
+            <input type="date" id="teslimatTarihi" name="teslimat_tarihi" required>
+          </label>
+          <label>Teslimat Saati
+            <input type="time" id="teslimatSaati" name="teslimat_saati" value="07:00" required>
+          </label>
+        </section>
+
+        <label>Merkeze Not
+          <textarea name="merkez_notu" id="merkezNotu" rows="3" placeholder="Orn: Sabah sevkiyatina dahil edin."></textarea>
+        </label>
+
+        <div class="actions">
+          <button class="btn primary" type="submit">Siparisi Merkeze Gonder</button>
+          <a class="btn secondary" href="siparislerim.html">Siparislerimi Gor</a>
+        </div>
+        <div class="cart-total" id="cartTotal">Sepet Tutari: 0 TL (0 tepsi)</div>
+        <div id="result">Siparisiniz merkeze iletildi.</div>
+      </form>
+    </main>
+  </div>
+
+  <script>
+    const form = document.getElementById("orderForm");
+    const result = document.getElementById("result");
+    const cartTotal = document.getElementById("cartTotal");
+    const teslimatTarihi = document.getElementById("teslimatTarihi");
+    const teslimatSaati = document.getElementById("teslimatSaati");
+    const merkezNotu = document.getElementById("merkezNotu");
+    const productGrid = document.getElementById("productGrid");
+    const profileRaw = localStorage.getItem("branchProfile");
+    const branchProfile = profileRaw ? JSON.parse(profileRaw) : null;
+    const branchName = branchProfile && branchProfile.subeAdi ? branchProfile.subeAdi : "Borekci Sube 01";
+    let numberInputs = [];
+    const defaultProducts = [
+      { key: "su_boregi", name: "Su Boregi", price: 700 },
+      { key: "peynirli_borek", name: "Peynirli Borek", price: 650 },
+      { key: "kiymali_borek", name: "Kiymali Borek", price: 730 },
+      { key: "patatesli_borek", name: "Patatesli Borek", price: 610 },
+      { key: "ispanakli_borek", name: "Ispanakli Borek", price: 640 },
+      { key: "kasarli_borek", name: "Kasarli Borek", price: 680 },
+      { key: "kol_boregi", name: "Kol Boregi", price: 760 },
+      { key: "karisik_borek", name: "Karisik Borek", price: 790 }
+    ];
+    const defaultProductPrices = defaultProducts.reduce(function (acc, product) {
+      acc[product.key] = product.price;
+      return acc;
+    }, {});
+    const defaultProductCatalog = defaultProducts.reduce(function (acc, product) {
+      acc[product.key] = product.name;
+      return acc;
+    }, {});
+    const defaultProductAvailability = defaultProducts.reduce(function (acc, product) {
+      acc[product.key] = true;
+      return acc;
+    }, {});
+
+    function formatTL(value) {
+      return new Intl.NumberFormat("tr-TR").format(value) + " TL";
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function updateCartTotal() {
+      let totalTray = 0;
+      let totalAmount = 0;
+      numberInputs.forEach(function (input) {
+        const qty = Number(input.value || 0);
+        const price = Number(input.dataset.price || 0);
+        totalTray += qty;
+        totalAmount += qty * price;
+      });
+      cartTotal.textContent = "Sepet Tutari: " + formatTL(totalAmount) + " (" + totalTray + " tepsi)";
+      return { totalTray: totalTray, totalAmount: totalAmount };
+    }
+
+    function setDefaultDeliveryDate() {
+      const now = new Date();
+      now.setDate(now.getDate() + 1);
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      teslimatTarihi.value = yyyy + "-" + mm + "-" + dd;
+    }
+
+    function nextOrderNo(orders) {
+      const base = orders.length + 1;
+      return "SP-" + String(base).padStart(4, "0");
+    }
+
+    function getLivePrices() {
+      const raw = localStorage.getItem("productPrices");
+      const custom = raw ? JSON.parse(raw) : {};
+      return Object.assign({}, defaultProductPrices, custom);
+    }
+
+    function getProductCatalog() {
+      const raw = localStorage.getItem("productCatalog");
+      const custom = raw ? JSON.parse(raw) : {};
+      return Object.assign({}, defaultProductCatalog, custom);
+    }
+
+    function getBranchAdjustmentPercent() {
+      const raw = localStorage.getItem("branchPriceAdjustments");
+      const allAdjustments = raw ? JSON.parse(raw) : {};
+      const pct = Number(allAdjustments[branchName] || 0);
+      if (Number.isNaN(pct)) return 0;
+      return pct;
+    }
+
+    function getProductAvailability() {
+      const raw = localStorage.getItem("productAvailability");
+      const custom = raw ? JSON.parse(raw) : {};
+      return Object.assign({}, defaultProductAvailability, custom);
+    }
+
+    function isBranchActive() {
+      const raw = localStorage.getItem("centerBranches");
+      const branches = raw ? JSON.parse(raw) : [];
+      const current = branches.find(function (b) { return b.name === branchName; });
+      if (!current) return true;
+      if (typeof current.active === "boolean") return current.active;
+      return true;
+    }
+
+    function applyPercent(base, percent) {
+      const adjusted = base * (1 + percent / 100);
+      return Math.max(1, Math.round(adjusted));
+    }
+
+    function renderProducts() {
+      const catalog = getProductCatalog();
+      const prices = getLivePrices();
+      const availability = getProductAvailability();
+      const branchPercent = getBranchAdjustmentPercent();
+      const html = Object.entries(catalog)
+        .map(function (entry) {
+          const key = entry[0];
+          const name = entry[1];
+          const isActive = availability[key] !== false;
+          const basePrice = Number(prices[key] || defaultProductPrices[key] || 1);
+          const price = applyPercent(basePrice, branchPercent);
+          const safeName = escapeHtml(name);
+          return '' +
+            '<article class="item ' + (isActive ? "" : "passive") + '">' +
+            '  <strong>' + safeName + '</strong>' +
+            '  ' + (isActive ? "" : '<div class="passive-note">Pasif - Tedarik Saglanamiyor</div>') +
+            '  <div class="price">Tepsi Fiyati: <span>' + price + '</span> TL</div>' +
+            '  <label>Tepsi Sayisi<input type="number" name="' + key + '_tepsi" min="0" step="1" value="0" data-name="' + safeName + '" data-product="' + key + '" data-price="' + price + '" data-active="' + (isActive ? "true" : "false") + '"></label>' +
+            '</article>';
+        })
+        .join("");
+      productGrid.innerHTML = html;
+      numberInputs = Array.from(form.querySelectorAll('input[type="number"][data-product]'));
+      numberInputs.forEach(function (input) {
+        input.addEventListener("input", updateCartTotal);
+      });
+      updateCartTotal();
+    }
+
+    setDefaultDeliveryDate();
+    teslimatSaati.value = "07:00";
+    renderProducts();
+    window.addEventListener("storage", function (event) {
+      if (event.key === "productPrices" || event.key === "branchPriceAdjustments" || event.key === "productCatalog" || event.key === "productAvailability") {
+        renderProducts();
+      }
+    });
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      if (!isBranchActive()) {
+        result.style.display = "block";
+        result.className = "alert-error";
+        result.textContent = "Bu siparis gerceklestirilemiyor. Lutfen merkez ile irtibata gecin.";
+        return;
+      }
+
+      const totals = updateCartTotal();
+      if (totals.totalTray === 0) {
+        result.style.display = "block";
+        result.className = "alert-error";
+        result.textContent = "En az bir urun icin tepsi sayisi girmelisin.";
+        return;
+      }
+
+      const passiveSelected = numberInputs
+        .filter(function (input) {
+          return input.dataset.active === "false" && Number(input.value || 0) > 0;
+        })
+        .map(function (input) {
+          return input.dataset.name;
+        });
+      if (passiveSelected.length) {
+        result.style.display = "block";
+        result.className = "alert-error";
+        result.textContent = passiveSelected.join(", ") + " urunu pasif durumda. Bu urun tedariki su anda saglanamiyor.";
+        return;
+      }
+
+      const rawOrders = localStorage.getItem("branchOrders");
+      const orders = rawOrders ? JSON.parse(rawOrders) : [];
+      const items = [];
+      numberInputs.forEach(function (input) {
+        const qty = Number(input.value || 0);
+        if (qty > 0) {
+          items.push({
+            name: input.dataset.name,
+            qty: qty,
+            unitPrice: Number(input.dataset.price || 0)
+          });
+        }
+      });
+
+      const order = {
+        orderNo: nextOrderNo(orders),
+        branchName: branchName,
+        status: "Onay Bekliyor",
+        deliveryDate: teslimatTarihi.value,
+        deliveryTime: teslimatSaati.value,
+        note: merkezNotu.value.trim(),
+        totalTray: totals.totalTray,
+        totalAmount: totals.totalAmount,
+        items: items,
+        createdAt: new Date().toISOString()
+      };
+
+      orders.push(order);
+      localStorage.setItem("branchOrders", JSON.stringify(orders));
+
+      result.style.display = "block";
+      result.className = "alert-success";
+      result.textContent = "Siparis kaydedildi. Siparis No: " + order.orderNo + " | Toplam: " + formatTL(order.totalAmount);
+      setTimeout(function () {
+        window.location.href = "siparislerim.html";
+      }, 900);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merkez Sube Yonetimi | Nebula Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-1: #f3ede0;
+      --bg-2: #d8f0e3;
+      --ink: #13221f;
+      --card: rgba(255, 255, 255, 0.74);
+      --border: rgba(19, 34, 31, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, #fef6d8 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, #d4f6eb 0%, transparent 35%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      padding: 1.2rem;
+    }
+    .wrap { width: min(1180px, 100%); margin: 0 auto; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: clamp(1rem, 2.2vw, 1.8rem);
+      box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      margin: .7rem 0 .3rem;
+      font-family: "Fraunces", serif;
+      font-size: clamp(1.85rem, 4.3vw, 2.9rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+    .eyebrow {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .3rem .7rem;
+      font-size: .8rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.65);
+    }
+    .nav {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+      align-content: flex-start;
+    }
+    .nav a {
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: .5rem .75rem;
+      background: rgba(255, 255, 255, .72);
+      font-weight: 600;
+      height: fit-content;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: .9rem;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .68);
+      padding: .9rem;
+    }
+    .branch-list {
+      display: grid;
+      gap: .45rem;
+      max-height: 68vh;
+      overflow: auto;
+      padding-right: .2rem;
+    }
+    .branch-btn {
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, .82);
+      color: var(--ink);
+      padding: .55rem .65rem;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
+    .branch-btn.passive {
+      background: rgba(232, 111, 81, .12);
+      border-color: rgba(232, 111, 81, .38);
+    }
+    .branch-btn.active {
+      background: #13221f;
+      color: #fff;
+      border-color: transparent;
+    }
+    .field {
+      margin-bottom: .6rem;
+      font-size: .95rem;
+    }
+    .field strong {
+      display: block;
+      margin-bottom: .1rem;
+      font-size: .85rem;
+      opacity: .8;
+      letter-spacing: .02em;
+    }
+    .status-pill {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .2rem .55rem;
+      font-size: .82rem;
+      font-weight: 700;
+      background: rgba(216, 240, 227, .9);
+    }
+    .status-pill.passive {
+      background: rgba(232, 111, 81, .18);
+      border-color: rgba(232, 111, 81, .4);
+    }
+    .control-row {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: .7rem 0;
+    }
+    .control-row input {
+      width: 120px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: .6rem .7rem;
+      font: inherit;
+      background: rgba(255, 255, 255, .88);
+    }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: .5rem .72rem;
+      background: rgba(255, 255, 255, .84);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: var(--ink);
+      color: #fff;
+      border-color: transparent;
+    }
+    .preview {
+      border: 1px dashed rgba(19, 34, 31, .25);
+      border-radius: 12px;
+      padding: .65rem .75rem;
+      background: rgba(255, 255, 255, .76);
+      margin-top: .5rem;
+      font-size: .92rem;
+    }
+    .list {
+      margin: .45rem 0 0;
+      padding-left: 1.1rem;
+    }
+    .msg {
+      display: none;
+      margin-top: .65rem;
+      border: 1px solid rgba(19, 34, 31, .2);
+      background: rgba(216, 240, 227, .78);
+      border-radius: 11px;
+      padding: .6rem .7rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <span class="eyebrow">Merkez Rolu</span>
+          <h1>Sube Listesi ve Ozel Fiyat Farki</h1>
+        </div>
+        <nav class="nav">
+          <a href="merkez.html">Merkez Paneli</a>
+          <a href="merkez-urun-fiyat.html">Urunler</a>
+          <a href="merkez-subeler.html">Subeler</a>
+          <a href="login.html">Cikis</a>
+        </nav>
+      </div>
+
+      <section class="layout">
+        <article class="card">
+          <h3>Subeler (20)</h3>
+          <div class="branch-list" id="branchList"></div>
+        </article>
+
+        <article class="card">
+          <h3>Sube Detayi</h3>
+          <div class="field"><strong>Sube Adi</strong><span id="dName">-</span></div>
+          <div class="field"><strong>Yetkili</strong><span id="dManager">-</span></div>
+          <div class="field"><strong>Telefon</strong><span id="dPhone">-</span></div>
+          <div class="field"><strong>E-posta</strong><span id="dEmail">-</span></div>
+          <div class="field"><strong>Adres</strong><span id="dAddress">-</span></div>
+          <div class="field"><strong>Durum</strong><span id="dStatus" class="status-pill">Aktif</span></div>
+          <div class="control-row">
+            <button class="btn primary" id="setActiveBtn" type="button">Aktif Yap</button>
+            <button class="btn" id="setPassiveBtn" type="button">Pasif Yap</button>
+          </div>
+
+          <hr style="border:none;border-top:1px solid rgba(19,34,31,.15);margin:.8rem 0;">
+
+          <div class="field"><strong>Sube Fiyat Farki (%)</strong></div>
+          <div class="control-row">
+            <button class="btn" id="minusBtn" type="button">-</button>
+            <input id="percentInput" type="number" step="0.5" min="-90" max="200">
+            <button class="btn" id="plusBtn" type="button">+</button>
+            <button class="btn" id="applyBtn" type="button">Fiyat Farki Uygula</button>
+            <button class="btn primary" id="saveBtn" type="button">Kaydet</button>
+          </div>
+
+          <div class="preview">
+            <strong>Onizleme (tepsi fiyati)</strong>
+            <ul class="list" id="pricePreview"></ul>
+          </div>
+          <div class="msg" id="saveMsg">Sube fiyat farki kaydedildi.</div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const branchListEl = document.getElementById("branchList");
+    const dName = document.getElementById("dName");
+    const dManager = document.getElementById("dManager");
+    const dPhone = document.getElementById("dPhone");
+    const dEmail = document.getElementById("dEmail");
+    const dAddress = document.getElementById("dAddress");
+    const dStatus = document.getElementById("dStatus");
+    const setActiveBtn = document.getElementById("setActiveBtn");
+    const setPassiveBtn = document.getElementById("setPassiveBtn");
+    const percentInput = document.getElementById("percentInput");
+    const minusBtn = document.getElementById("minusBtn");
+    const plusBtn = document.getElementById("plusBtn");
+    const applyBtn = document.getElementById("applyBtn");
+    const saveBtn = document.getElementById("saveBtn");
+    const pricePreview = document.getElementById("pricePreview");
+    const saveMsg = document.getElementById("saveMsg");
+
+    const defaultBasePrices = {
+      su_boregi: 700,
+      peynirli_borek: 650,
+      kiymali_borek: 730,
+      patatesli_borek: 610,
+      ispanakli_borek: 640,
+      kasarli_borek: 680,
+      kol_boregi: 760,
+      karisik_borek: 790
+    };
+
+    const productNames = {
+      su_boregi: "Su Boregi",
+      peynirli_borek: "Peynirli Borek",
+      kiymali_borek: "Kiymali Borek",
+      patatesli_borek: "Patatesli Borek",
+      ispanakli_borek: "Ispanakli Borek",
+      kasarli_borek: "Kasarli Borek",
+      kol_boregi: "Kol Boregi",
+      karisik_borek: "Karisik Borek"
+    };
+
+    let selectedBranch = null;
+
+    function seedBranches() {
+      const raw = localStorage.getItem("centerBranches");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const normalized = parsed.map(function (b) {
+          if (typeof b.active === "boolean") return b;
+          return Object.assign({}, b, { active: true });
+        });
+        localStorage.setItem("centerBranches", JSON.stringify(normalized));
+        return normalized;
+      }
+      const list = [];
+      for (let i = 1; i <= 20; i += 1) {
+        const no = String(i).padStart(2, "0");
+        list.push({
+          name: "Borekci Sube " + no,
+          manager: "Yetkili " + no,
+          phone: "0555 100 " + String(i).padStart(2, "0") + " " + String(i).padStart(2, "0"),
+          email: "sube" + no + "@ornek.com",
+          address: "Ornek Mah. Borek Sok. No:" + i,
+          active: true
+        });
+      }
+      localStorage.setItem("centerBranches", JSON.stringify(list));
+      return list;
+    }
+
+    function getBasePrices() {
+      const raw = localStorage.getItem("productPrices");
+      const custom = raw ? JSON.parse(raw) : {};
+      return Object.assign({}, defaultBasePrices, custom);
+    }
+
+    function getAdjustments() {
+      const raw = localStorage.getItem("branchPriceAdjustments");
+      return raw ? JSON.parse(raw) : {};
+    }
+
+    function saveAdjustments(data) {
+      localStorage.setItem("branchPriceAdjustments", JSON.stringify(data));
+    }
+
+    function applyPercent(base, percent) {
+      return Math.max(1, Math.round(base * (1 + percent / 100)));
+    }
+
+    function renderBranchList() {
+      const branches = seedBranches();
+      const html = branches.map(function (branch) {
+        const active = selectedBranch && selectedBranch.name === branch.name ? "active" : "";
+        const passive = branch.active ? "" : "passive";
+        const statusText = branch.active ? "Aktif" : "Pasif";
+        return '<button class="branch-btn ' + active + " " + passive + '" type="button" data-branch="' + branch.name + '">' + branch.name + " (" + statusText + ')</button>';
+      }).join("");
+      branchListEl.innerHTML = html;
+
+      branchListEl.querySelectorAll(".branch-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const name = btn.dataset.branch;
+          const branch = branches.find(function (x) { return x.name === name; });
+          selectedBranch = branch || null;
+          renderSelectedBranch();
+          renderBranchList();
+        });
+      });
+    }
+
+    function renderPreview() {
+      if (!selectedBranch) {
+        pricePreview.innerHTML = "";
+        return;
+      }
+      const pct = Number(percentInput.value || 0);
+      const basePrices = getBasePrices();
+      const previewHtml = Object.keys(basePrices).map(function (key) {
+        const adjusted = applyPercent(Number(basePrices[key]), pct);
+        return "<li>" + productNames[key] + ": " + adjusted + " TL</li>";
+      }).join("");
+      pricePreview.innerHTML = previewHtml;
+    }
+
+    function renderSelectedBranch() {
+      if (!selectedBranch) return;
+      const branches = seedBranches();
+      const latest = branches.find(function (b) { return b.name === selectedBranch.name; });
+      if (latest) selectedBranch = latest;
+      const adjustments = getAdjustments();
+      const pct = Number(adjustments[selectedBranch.name] || 0);
+      dName.textContent = selectedBranch.name;
+      dManager.textContent = selectedBranch.manager;
+      dPhone.textContent = selectedBranch.phone;
+      dEmail.textContent = selectedBranch.email;
+      dAddress.textContent = selectedBranch.address;
+      dStatus.textContent = selectedBranch.active ? "Aktif" : "Pasif";
+      dStatus.className = selectedBranch.active ? "status-pill" : "status-pill passive";
+      percentInput.value = String(pct);
+      renderPreview();
+    }
+
+    function setSelectedBranchActive(isActive) {
+      if (!selectedBranch) return;
+      const branches = seedBranches();
+      const updated = branches.map(function (b) {
+        if (b.name === selectedBranch.name) {
+          return Object.assign({}, b, { active: isActive });
+        }
+        return b;
+      });
+      localStorage.setItem("centerBranches", JSON.stringify(updated));
+      selectedBranch = updated.find(function (b) { return b.name === selectedBranch.name; }) || selectedBranch;
+      renderSelectedBranch();
+      renderBranchList();
+      saveMsg.style.display = "block";
+      saveMsg.textContent = isActive ? "Sube aktif yapildi." : "Sube pasif yapildi.";
+      setTimeout(function () {
+        saveMsg.style.display = "none";
+        saveMsg.textContent = "Sube fiyat farki kaydedildi.";
+      }, 2200);
+    }
+
+    function saveSelectedBranchAdjustment() {
+      if (!selectedBranch) return;
+      const pct = Number(percentInput.value || 0);
+      const adjustments = getAdjustments();
+      adjustments[selectedBranch.name] = pct;
+      saveAdjustments(adjustments);
+      saveMsg.style.display = "block";
+      setTimeout(function () {
+        saveMsg.style.display = "none";
+      }, 2200);
+    }
+
+    minusBtn.addEventListener("click", function () {
+      percentInput.value = String((Number(percentInput.value || 0) - 1).toFixed(1));
+      renderPreview();
+    });
+    plusBtn.addEventListener("click", function () {
+      percentInput.value = String((Number(percentInput.value || 0) + 1).toFixed(1));
+      renderPreview();
+    });
+    applyBtn.addEventListener("click", renderPreview);
+    saveBtn.addEventListener("click", saveSelectedBranchAdjustment);
+    percentInput.addEventListener("input", renderPreview);
+    setActiveBtn.addEventListener("click", function () { setSelectedBranchActive(true); });
+    setPassiveBtn.addEventListener("click", function () { setSelectedBranchActive(false); });
+
+    const branches = seedBranches();
+    selectedBranch = branches[0];
+    renderBranchList();
+    renderSelectedBranch();
+  </script>
+</body>
+</html>

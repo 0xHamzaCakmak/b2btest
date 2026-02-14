@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sube Profili | Nebula Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-1: #f3ede0;
+      --bg-2: #d8f0e3;
+      --ink: #13221f;
+      --accent: #e86f51;
+      --card: rgba(255, 255, 255, 0.74);
+      --border: rgba(19, 34, 31, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, #fef6d8 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, #d4f6eb 0%, transparent 35%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      padding: 1.2rem;
+    }
+    .blob {
+      position: fixed;
+      z-index: -1;
+      width: 35vmax;
+      aspect-ratio: 1;
+      border-radius: 42% 58% 70% 30% / 30% 41% 59% 70%;
+      background: color-mix(in srgb, var(--accent) 60%, #fff);
+      filter: blur(30px);
+      opacity: 0.26;
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+    .blob.one { top: -8vmax; left: -10vmax; }
+    .blob.two { bottom: -12vmax; right: -8vmax; animation-delay: 2s; }
+    @keyframes drift {
+      from { transform: translateY(-10px) rotate(0deg); }
+      to { transform: translateY(12px) rotate(18deg); }
+    }
+    .wrap { width: min(950px, 100%); margin: 0 auto; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: clamp(1rem, 2.3vw, 1.9rem);
+      box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
+      animation: rise 700ms ease-out both;
+    }
+    @keyframes rise {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .eyebrow {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .3rem .7rem;
+      font-size: .8rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.65);
+    }
+    h1 {
+      margin: .7rem 0 .4rem;
+      font-family: "Fraunces", serif;
+      font-size: clamp(1.8rem, 4.4vw, 2.8rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+    .nav {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+    }
+    .nav a {
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: .5rem .75rem;
+      background: rgba(255, 255, 255, .72);
+      font-weight: 600;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .9rem;
+    }
+    @media (max-width: 840px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .65);
+      padding: .9rem;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: .7rem;
+    }
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: .7rem .8rem;
+      background: rgba(255, 255, 255, .8);
+    }
+    .stat strong { display: block; font-size: 1.2rem; }
+    form { display: grid; gap: .7rem; }
+    label { font-size: .9rem; font-weight: 600; }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .85);
+      border-radius: 12px;
+      padding: .72rem .8rem;
+      font: inherit;
+      margin-top: .3rem;
+      outline: none;
+    }
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: .8rem 1rem;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--ink);
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(19, 34, 31, .28);
+      width: fit-content;
+    }
+    .msg {
+      display: none;
+      border: 1px solid rgba(19, 34, 31, .2);
+      background: rgba(216, 240, 227, .7);
+      border-radius: 12px;
+      padding: .75rem .85rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="blob one"></div>
+  <div class="blob two"></div>
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <span class="eyebrow">Sube Alani</span>
+          <h1>Profil ve Hesap Ayarlari</h1>
+        </div>
+        <nav class="nav">
+          <a href="profil.html">Profil</a>
+          <a href="siparis.html">Siparis Ver</a>
+          <a href="siparislerim.html">Siparislerim</a>
+          <a href="merkez.html">Merkez Paneli</a>
+          <a href="login.html">Cikis</a>
+        </nav>
+      </div>
+
+      <section class="grid">
+        <article class="card">
+          <h3>Sube Ozet</h3>
+          <div class="stats">
+            <div class="stat">
+              <span>Toplam Siparis</span>
+              <strong id="statOrderCount">0</strong>
+            </div>
+            <div class="stat">
+              <span>Toplam Tepsi</span>
+              <strong id="statTray">0</strong>
+            </div>
+            <div class="stat">
+              <span>Toplam Tutar</span>
+              <strong id="statAmount">0 TL</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Profil Bilgileri</h3>
+          <form id="profileForm">
+            <label>Sube Adi
+              <input type="text" id="subeAdi" required>
+            </label>
+            <label>Yetkili Ad Soyad
+              <input type="text" id="yetkili" required>
+            </label>
+            <label>Telefon
+              <input type="tel" id="telefon" placeholder="05xx xxx xx xx" required>
+            </label>
+            <label>E-posta
+              <input type="email" id="eposta" required>
+            </label>
+            <label>Sube Adresi
+              <textarea id="adres" rows="3"></textarea>
+            </label>
+            <button class="btn" type="submit">Bilgileri Guncelle</button>
+            <div class="msg" id="profileMsg">Profil bilgileri guncellendi.</div>
+          </form>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const profileForm = document.getElementById("profileForm");
+    const profileMsg = document.getElementById("profileMsg");
+    const fields = {
+      subeAdi: document.getElementById("subeAdi"),
+      yetkili: document.getElementById("yetkili"),
+      telefon: document.getElementById("telefon"),
+      eposta: document.getElementById("eposta"),
+      adres: document.getElementById("adres")
+    };
+
+    const defaults = {
+      subeAdi: "Borekci Sube 01",
+      yetkili: "Ahmet Yilmaz",
+      telefon: "0555 123 45 67",
+      eposta: "sube01@ornek.com",
+      adres: "Ornek Mah. Borek Cad. No:12"
+    };
+
+    function formatTL(value) {
+      return new Intl.NumberFormat("tr-TR").format(value) + " TL";
+    }
+
+    function loadProfile() {
+      const raw = localStorage.getItem("branchProfile");
+      const profile = raw ? JSON.parse(raw) : defaults;
+      Object.keys(fields).forEach(function (key) {
+        fields[key].value = profile[key] || "";
+      });
+    }
+
+    function loadStats() {
+      const raw = localStorage.getItem("branchOrders");
+      const orders = raw ? JSON.parse(raw) : [];
+      let tray = 0;
+      let amount = 0;
+      orders.forEach(function (order) {
+        tray += Number(order.totalTray || 0);
+        amount += Number(order.totalAmount || 0);
+      });
+      document.getElementById("statOrderCount").textContent = String(orders.length);
+      document.getElementById("statTray").textContent = String(tray);
+      document.getElementById("statAmount").textContent = formatTL(amount);
+    }
+
+    profileForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      const data = {};
+      Object.keys(fields).forEach(function (key) {
+        data[key] = fields[key].value.trim();
+      });
+      localStorage.setItem("branchProfile", JSON.stringify(data));
+      profileMsg.style.display = "block";
+      setTimeout(function () {
+        profileMsg.style.display = "none";
+      }, 2200);
+    });
+
+    loadProfile();
+    loadStats();
+  </script>
+</body>
+</html>
