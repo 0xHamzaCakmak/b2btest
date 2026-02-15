@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Paneli</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <span class="eyebrow">Admin</span>
+          <h1>Yonetim Paneli</h1>
+          <p>Bu alan, backend API entegrasyonu icin hazir iskelet yonetim arayuzudur.</p>
+        </div>
+        <nav class="nav">
+          <a href="index.html">Dashboard</a>
+          <a href="users.html">Kullanicilar</a>
+          <a href="branches.html">Subeler</a>
+          <a href="products.html">Urunler</a>
+          <a href="orders.html">Siparisler</a>
+          <a href="logs.html">Loglar</a>
+          <a href="settings.html">Ayarlar</a>
+          <a href="../login.html">Cikis</a>
+        </nav>
+      </div>
+
+      <section class="grid">
+        <article class="card">
+          <h3>Kullanici ve Rol</h3>
+          <p>Rol bazli erisim, kullanici aktif/pasif, sifre reset akislari.</p>
+        </article>
+        <article class="card">
+          <h3>Sube Operasyonlari</h3>
+          <p>Sube durum, fiyat farki, profil yonetimi.</p>
+        </article>
+        <article class="card">
+          <h3>Urun ve Fiyat</h3>
+          <p>Global fiyat, urun aktif/pasif ve yeni urun ekleme.</p>
+        </article>
+        <article class="card">
+          <h3>Siparis Denetimi</h3>
+          <p>Onay, toplu islem, durum gecmisleri, kural ihlalleri.</p>
+        </article>
+      </section>
+    </main>
+  </div>
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
+</body>
+</html>

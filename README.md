@@ -3,6 +3,25 @@
 Bu proje, **sube - merkez** arasindaki gunluk tepsi bazli siparis surecini modelleyen bir prototiptir.  
 Su an veriler tarayici tarafinda `localStorage` ile tutulur. Sonraki adimda backend + veritabani ile gercek sisteme tasinmasi hedeflenir.
 
+## 0. Klasor Yapisi
+
+- `Frontend/`: Tum arayuz (HTML) dosyalari
+- `Frontend/sube/`: Sube arayuzleri
+- `Frontend/merkez/`: Merkez arayuzleri
+- `Frontend/assets/`: Ortak frontend config ve rol-guard scriptleri
+- `Frontend/admin/`: Admin paneli baslangic iskeleti
+- `Backend/`: Backend gelistirmeleri icin ayrilan klasor
+
+Frontend prototipini calistirmak icin baslangic noktasi: `Frontend/login.html`.
+
+## 0.1 Test Modu ve Rol Guard
+
+- `Frontend/assets/app-config.js` icindeki `TEST_MODE` degeri `true` iken mevcut test akislariniz korunur.
+- `TEST_MODE=false` yapildiginda sayfa erisimleri rol bazli guard ile sinirlanir:
+  - `sube`: `profil`, `siparis`, `siparislerim`
+  - `merkez`: `merkez`, `merkez-urun-fiyat`, `merkez-subeler`
+  - `admin`: `Frontend/admin/*` ve diger roller
+
 ## 1. Proje Amaci
 
 - Subelerin borek siparisi verebilmesi
@@ -15,16 +34,15 @@ Su an veriler tarayici tarafinda `localStorage` ile tutulur. Sonraki adimda back
 
 ## 2. Sayfalar ve Roller
 
-## 2.1 `index.html`
-- Giris oncesi acilis/landing sayfasi.
-- `Projeye Basla` -> `login.html`.
-
-## 2.2 `login.html`
+## 2.1 `Frontend/login.html`
 - Giris formu (demo).
-- Giris sonrasi `siparis.html` acilir.
+- Giris sonrasi role gore:
+  - `Frontend/sube/siparis.html` veya
+  - `Frontend/merkez/merkez.html` veya
+  - `Frontend/admin/index.html`
 - Bu asamada rol kisiti yok (admin hepsini gorebilir varsayimi).
 
-## 2.3 `siparis.html` (Sube Siparis Ekrani)
+## 2.2 `Frontend/sube/siparis.html` (Sube Siparis Ekrani)
 - Sube urunleri tepsi adediyle girer.
 - Teslimat tarihi varsayilan: **yarin**.
 - Teslimat saati varsayilan: **07:00**.
@@ -34,20 +52,20 @@ Su an veriler tarayici tarafinda `localStorage` ile tutulur. Sonraki adimda back
 - Sube pasifse siparis engellenir ve kirmizi hata mesaji gosterilir:
   - `Bu siparis gerceklestirilemiyor. Lutfen merkez ile irtibata gecin.`
 
-## 2.4 `siparislerim.html` (Sube Siparis Gecmisi)
+## 2.3 `Frontend/sube/siparislerim.html` (Sube Siparis Gecmisi)
 - Subenin verdigi siparisleri listeler.
 - Durum rozetleri:
   - `Onay Bekliyor`
   - `Onaylandi`
 - Merkez onayi geldikce durumlar guncellenir.
 
-## 2.5 `profil.html` (Sube Profil)
+## 2.4 `Frontend/sube/profil.html` (Sube Profil)
 - Sube profil bilgilerini goruntuleme/guncelleme:
   - Sube adi, yetkili, telefon, e-posta, adres
 - Siparis ozet istatistikleri:
   - Toplam siparis, toplam tepsi, toplam tutar
 
-## 2.6 `merkez.html` (Merkez Gelen Siparis Paneli)
+## 2.5 `Frontend/merkez/merkez.html` (Merkez Gelen Siparis Paneli)
 - Bugunun siparislerini listeler.
 - Her sipariste disardan durum gorunur:
   - `Onay Bekliyor` / `Onaylandi`
@@ -60,7 +78,7 @@ Su an veriler tarayici tarafinda `localStorage` ile tutulur. Sonraki adimda back
 - Alt bolum:
   - **Total Uretim Ihtiyaci (Tepsi)** (urun bazli toplamlar)
 
-## 2.7 `merkez-urun-fiyat.html` (Merkez Urunler ve Fiyat)
+## 2.6 `Frontend/merkez/merkez-urun-fiyat.html` (Merkez Urunler ve Fiyat)
 - Urunlerin baz tepsi fiyatlari guncellenir.
 - Yeni urun eklenebilir (ad + baslangic fiyat).
 - Urun bazinda aktif/pasif secimi yapilabilir.
@@ -69,7 +87,7 @@ Su an veriler tarayici tarafinda `localStorage` ile tutulur. Sonraki adimda back
   - `Tumunu Pasif Yap`
 - Kaydedilen urun/fiyat/durum bilgileri subelerin siparis ekranina yansir.
 
-## 2.8 `merkez-subeler.html` (Merkez Sube Yonetimi)
+## 2.7 `Frontend/merkez/merkez-subeler.html` (Merkez Sube Yonetimi)
 - 20 sube liste halinde gorunur.
 - Sube secince profil detaylari gorunur.
 - Sube bazli fiyat farki uygulanir:
@@ -81,17 +99,17 @@ Su an veriler tarayici tarafinda `localStorage` ile tutulur. Sonraki adimda back
 
 ## 3. Uygulama Akisi (Adim Adim)
 
-1. Kullanici `index.html` -> `login.html` gelir.
-2. Giris sonrasi `siparis.html` acilir.
+1. Kullanici `Frontend/login.html` sayfasina gelir.
+2. Giris sonrasi role gore ilgili panel acilir.
 3. Sube siparis verir, kayit `branchOrders`'a gider.
-4. Merkez `merkez.html` ekraninda siparisleri gorur.
+4. Merkez `Frontend/merkez/merkez.html` ekraninda siparisleri gorur.
 5. Merkez siparisi tekli/toplu onaylar.
-6. Sube `siparislerim.html` ekraninda onay durumunu gorur.
-7. Merkez `merkez-urun-fiyat.html` ile urun ekler, fiyat gunceller ve urunleri aktif/pasif yonetir.
-8. Sube `siparis.html` ekraninda tum urunleri gorur; pasif urunler gorunur ancak siparise kapalidir.
+6. Sube `Frontend/sube/siparislerim.html` ekraninda onay durumunu gorur.
+7. Merkez `Frontend/merkez/merkez-urun-fiyat.html` ile urun ekler, fiyat gunceller ve urunleri aktif/pasif yonetir.
+8. Sube `Frontend/sube/siparis.html` ekraninda tum urunleri gorur; pasif urunler gorunur ancak siparise kapalidir.
 9. Pasif urune adet girilerek siparis verilmek istenirse siparis engellenir ve su mesaj gosterilir:
    - `Bu urun tedariki su anda saglanamiyor.`
-10. Merkez `merkez-subeler.html` ile subeye ozel % fiyat farki veya aktif/pasif durumu verir.
+10. Merkez `Frontend/merkez/merkez-subeler.html` ile subeye ozel % fiyat farki veya aktif/pasif durumu verir.
 11. Pasif sube siparis gondermeye calisirsa sistem engeller.
 
 ## 4. Kullanilan Veri Anahtarlari (`localStorage`)
@@ -267,27 +285,28 @@ Asagidaki temel tablolarla baslanabilir:
 8. Sube bazli +/-% uygula -> sadece o subede fiyat farki dogru mu?
 9. Sube pasif yap -> siparis gonderimi engelleniyor mu?
 
-## 11. Backend Gecis Yol Haritasi (ASP.NET Core + MSSQL + Code First)
+## 11. Backend Gecis Yol Haritasi (Node.js + Express/Fastify + PostgreSQL)
 
 Bu adimlar, localStorage prototipini backend API mimarisina sorunsuz tasimak icin onerilen sira ile verilmistir.
 
 1. Proje iskeleti
-   - `ASP.NET Core Web API` projesi olustur.
-   - Katmanlari ayir: `Api`, `Application`, `Domain`, `Infrastructure`.
-   - Ortak hata/sonuc modeli ve global exception middleware ekle.
+   - Node.js backend projesi olustur (`Express` veya `Fastify`).
+   - Yapilari ayir: `config`, `modules`, `common`, `db/migrations`.
+   - Ortak hata/sonuc modeli ve global error middleware ekle.
 
 2. Kimlik dogrulama ve rol modeli
-   - `users`, `roles`, `user_roles` (veya ASP.NET Identity) yapisini kur.
+   - `users` tablosunda rol alanini (`sube`, `merkez`, `admin`) netlestir.
    - JWT tabanli giris/cikis akisini ekle.
    - Roller: `sube`, `merkez`, `admin`.
 
-3. Domain modelleri ve Code First
-   - Entity siniflarini tanimla: `Branch`, `Product`, `BranchPriceAdjustment`, `Order`, `OrderItem`, `User`.
+3. Domain modelleri
+   - Modelleri tanimla: `Branch`, `Product`, `BranchPriceAdjustment`, `Order`, `OrderItem`, `User`, `AuditLog`.
    - `Product` icin `code`, `name`, `base_price`, `is_active` alanlarini zorunlu tut.
    - `OrderItem` icin siparis anindaki birim fiyati (`unit_price`) sakla.
 
-4. EF Core konfigurasyonu
-   - `DbContext`, entity configuration (Fluent API), iliskiler ve kisitlar.
+4. PostgreSQL ve migration konfigurasyonu
+   - `pg` baglantisi + migration araci (`Prisma` veya `Knex`) sec.
+   - Iliskiler, kisitlar ve indexleri migration ile yonet.
    - Indexler:
      - `orders.order_no` (unique)
      - `orders.branch_id`
@@ -295,7 +314,7 @@ Bu adimlar, localStorage prototipini backend API mimarisina sorunsuz tasimak ici
      - `products.code` (unique)
 
 5. Migration ve seed
-   - Ilk migration olustur ve MSSQL'e uygula.
+   - Ilk migration olustur ve PostgreSQL'e uygula.
    - Cekirdek verileri seed et:
      - Varsayilan urunler
      - Ornek subeler

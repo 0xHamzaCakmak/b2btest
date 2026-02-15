@@ -1,0 +1,98 @@
+:root {
+  --bg-1: #f3ede0;
+  --bg-2: #d8f0e3;
+  --ink: #13221f;
+  --accent: #e86f51;
+  --card: rgba(255, 255, 255, 0.74);
+  --border: rgba(19, 34, 31, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 15% 10%, #fef6d8 0%, transparent 40%),
+    radial-gradient(circle at 85% 20%, #d4f6eb 0%, transparent 35%),
+    linear-gradient(135deg, var(--bg-1), var(--bg-2));
+  padding: 1.2rem;
+}
+
+.wrap { width: min(1150px, 100%); margin: 0 auto; }
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+  border-radius: 24px;
+  padding: clamp(1rem, 2.2vw, 1.8rem);
+  box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.eyebrow {
+  display: inline-block;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: .3rem .7rem;
+  font-size: .8rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+h1 {
+  margin: .7rem 0 .3rem;
+  font-family: "Fraunces", serif;
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.nav {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.nav a {
+  text-decoration: none;
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: .5rem .75rem;
+  background: rgba(255, 255, 255, .72);
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: .75rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .72);
+  padding: .85rem .9rem;
+}
+
+.card h3 {
+  margin: .1rem 0 .5rem;
+}
+
+ul {
+  margin: 0;
+  padding-left: 1rem;
+}

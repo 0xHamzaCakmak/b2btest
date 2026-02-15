@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Kullanicilar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <span class="eyebrow">Admin</span>
+          <h1>Kullanici ve Rol Yonetimi</h1>
+        </div>
+        <nav class="nav">
+          <a href="index.html">Dashboard</a>
+          <a href="users.html">Kullanicilar</a>
+          <a href="branches.html">Subeler</a>
+          <a href="products.html">Urunler</a>
+          <a href="orders.html">Siparisler</a>
+          <a href="logs.html">Loglar</a>
+          <a href="settings.html">Ayarlar</a>
+          <a href="../login.html">Cikis</a>
+        </nav>
+      </div>
+
+      <article class="card">
+        <h3>Planlanan Islemler</h3>
+        <ul>
+          <li>Kullanici listeleme/olusturma/guncelleme</li>
+          <li>Rol atama: sube, merkez, admin</li>
+          <li>Hesap aktif/pasif ve sifre reset sureci</li>
+        </ul>
+      </article>
+    </main>
+  </div>
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
+</body>
+</html>

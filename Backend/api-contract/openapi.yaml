@@ -1,0 +1,569 @@
+openapi: 3.0.3
+info:
+  title: Borek B2B API
+  version: 0.1.0-draft
+  description: >
+    Frontend localStorage prototipinden backend entegrasyonuna gecis icin taslak API kontrati.
+servers:
+  - url: http://localhost:5000/api
+    description: Local
+tags:
+  - name: Auth
+  - name: Users
+  - name: Branches
+  - name: Products
+  - name: Orders
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Kullanici girisi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Basarili giris
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Gecersiz kimlik bilgisi
+
+  /me:
+    get:
+      tags: [Auth]
+      summary: Oturumdaki kullanici bilgisi
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Kullanici profili
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users:
+    get:
+      tags: [Users]
+      summary: Kullanicilari listele (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Kullanici listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      tags: [Users]
+      summary: Kullanici olustur (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: Olusturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/{id}/status:
+    put:
+      tags: [Users]
+      summary: Kullanici aktif/pasif (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isActive]
+              properties:
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Guncellendi
+
+  /branches:
+    get:
+      tags: [Branches]
+      summary: Sube listesi
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Basarili
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Branch'
+
+  /branches/{id}/status:
+    put:
+      tags: [Branches]
+      summary: Sube aktif/pasif
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isActive]
+              properties:
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Guncellendi
+
+  /branches/{id}/price-adjustment:
+    put:
+      tags: [Branches]
+      summary: Sube bazli fiyat farki
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [percent]
+              properties:
+                percent:
+                  type: number
+                  format: double
+                  minimum: -100
+      responses:
+        '200':
+          description: Guncellendi
+
+  /products:
+    get:
+      tags: [Products]
+      summary: Urun listesi
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Basarili
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    post:
+      tags: [Products]
+      summary: Urun olustur
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+      responses:
+        '201':
+          description: Olusturuldu
+
+  /products/{id}:
+    put:
+      tags: [Products]
+      summary: Urun guncelle
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateRequest'
+      responses:
+        '200':
+          description: Guncellendi
+
+  /products/{id}/status:
+    put:
+      tags: [Products]
+      summary: Urun aktif/pasif
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isActive]
+              properties:
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Guncellendi
+
+  /products/status-bulk:
+    put:
+      tags: [Products]
+      summary: Tum urunleri aktif/pasif yap
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isActive]
+              properties:
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Guncellendi
+
+  /orders:
+    post:
+      tags: [Orders]
+      summary: Siparis olustur
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+      responses:
+        '201':
+          description: Olusturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '422':
+          description: Is kurali ihlali (pasif sube/urun vb.)
+    get:
+      tags: [Orders]
+      summary: Siparis listele
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: branchId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Basarili
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+
+  /orders/{id}/approve:
+    put:
+      tags: [Orders]
+      summary: Siparisi onayla
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Onaylandi
+
+  /orders/approve-bulk:
+    put:
+      tags: [Orders]
+      summary: Toplu siparis onayla
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderIds]
+              properties:
+                orderIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Tamamlandi
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    LoginResponse:
+      type: object
+      required: [accessToken, refreshToken, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+    User:
+      type: object
+      required: [id, email, role, isActive]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [sube, merkez, admin]
+        branchId:
+          type: string
+          format: uuid
+          nullable: true
+        isActive:
+          type: boolean
+    UserCreateRequest:
+      type: object
+      required: [email, password, role]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum: [sube, merkez, admin]
+        branchId:
+          type: string
+          format: uuid
+          nullable: true
+    Branch:
+      type: object
+      required: [id, name, isActive]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        manager:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        address:
+          type: string
+        isActive:
+          type: boolean
+        priceAdjustmentPercent:
+          type: number
+          format: double
+    Product:
+      type: object
+      required: [id, code, name, basePrice, isActive]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        basePrice:
+          type: number
+          format: double
+        isActive:
+          type: boolean
+    ProductCreateRequest:
+      type: object
+      required: [code, name, basePrice]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        basePrice:
+          type: number
+          format: double
+          minimum: 0
+    ProductUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        basePrice:
+          type: number
+          format: double
+          minimum: 0
+    OrderCreateRequest:
+      type: object
+      required: [branchId, deliveryDate, deliveryTime, items]
+      properties:
+        branchId:
+          type: string
+          format: uuid
+        deliveryDate:
+          type: string
+          format: date
+        deliveryTime:
+          type: string
+          example: "07:00"
+        note:
+          type: string
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OrderItemCreate'
+    OrderItemCreate:
+      type: object
+      required: [productId, qtyTray]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        qtyTray:
+          type: integer
+          minimum: 1
+    Order:
+      type: object
+      required: [id, orderNo, status, totalTray, totalAmount, items]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderNo:
+          type: string
+        branchId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [Onay Bekliyor, Onaylandi, Reddedildi]
+        deliveryDate:
+          type: string
+          format: date
+        deliveryTime:
+          type: string
+        note:
+          type: string
+        totalTray:
+          type: integer
+        totalAmount:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+    OrderItem:
+      type: object
+      required: [productId, qtyTray, unitPrice]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        qtyTray:
+          type: integer
+        unitPrice:
+          type: number
+          format: double

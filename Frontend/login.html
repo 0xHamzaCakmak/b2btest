@@ -101,7 +101,7 @@
       font-weight: 600;
     }
 
-    input {
+    input, select {
       width: 100%;
       margin-top: .35rem;
       border: 1px solid var(--border);
@@ -114,7 +114,7 @@
       transition: border-color .2s ease, box-shadow .2s ease;
     }
 
-    input:focus {
+    input:focus, select:focus {
       border-color: color-mix(in srgb, var(--accent) 50%, var(--ink));
       box-shadow: 0 0 0 4px rgba(232, 111, 81, 0.15);
     }
@@ -165,14 +165,22 @@
     <h1>Hesabina Giris Yap</h1>
     <p>Devam etmek icin bilgilerini gir.</p>
 
-    <form action="siparis.html" method="get">
+    <form id="loginForm" action="sube/siparis.html" method="get">
       <label>
         E-posta
-        <input type="email" name="email" placeholder="ornek@mail.com" required>
+        <input type="email" id="emailInput" name="email" placeholder="ornek@mail.com" required>
       </label>
       <label>
         Sifre
         <input type="password" name="password" placeholder="********" required>
+      </label>
+      <label id="roleField">
+        Rol (Test)
+        <select id="roleSelect" name="role">
+          <option value="admin">Admin</option>
+          <option value="sube">Sube</option>
+          <option value="merkez">Merkez</option>
+        </select>
       </label>
       <div class="row">
         <span>Beni hatirla</span>
@@ -181,8 +189,42 @@
       <button class="btn primary" type="submit">Giris Yap</button>
     </form>
 
-    <a class="btn secondary" href="index.html">Ana Sayfaya Don</a>
   </main>
+  <script src="assets/app-config.js"></script>
+  <script src="assets/role-guard.js"></script>
+  <script>
+    const loginForm = document.getElementById("loginForm");
+    const roleField = document.getElementById("roleField");
+    const roleSelect = document.getElementById("roleSelect");
+    const emailInput = document.getElementById("emailInput");
+    const cfg = window.APP_CONFIG || {};
+    const testMode = !!cfg.TEST_MODE;
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const roleHome = (cfg.ROLE_HOME || {});
+
+    if (!testMode) {
+      roleField.style.display = "none";
+    }
+
+    loginForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      const selectedRole = testMode
+        ? roleSelect.value
+        : (cfg.DEFAULT_PROD_ROLE || "sube");
+
+      const session = {
+        email: (emailInput.value || "").trim(),
+        role: selectedRole,
+        loginAt: new Date().toISOString()
+      };
+
+      localStorage.setItem(sessionKey, JSON.stringify(session));
+
+      const target = roleHome[selectedRole] || "sube/siparis.html";
+      window.location.href = target;
+    });
+  </script>
 </body>
 </html>
+
 

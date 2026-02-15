@@ -263,34 +263,39 @@
       <div class="top">
         <div>
           <span class="eyebrow">Merkez Rolu</span>
-          <h1>Subelerden Gelen Gunluk Siparisler</h1>
+          <h1>Subelerden Gelen Siparisler</h1>
         </div>
         <nav class="nav">
-          <a href="profil.html">Profil</a>
-          <a href="siparis.html">Siparis Ver</a>
-          <a href="siparislerim.html">Siparislerim</a>
+          <a href="../sube/profil.html">Profil</a>
+          <a href="../sube/siparis.html">Siparis Ver</a>
+          <a href="../sube/siparislerim.html">Siparislerim</a>
           <a href="merkez.html">Merkez Paneli</a>
           <a href="merkez-urun-fiyat.html">Urunler</a>
           <a href="merkez-subeler.html">Subeler</a>
-          <a href="login.html">Cikis</a>
+          <a href="../login.html">Cikis</a>
         </nav>
       </div>
 
       <section class="stats">
-        <article class="stat">Gunluk Siparis Sayisi<strong id="statOrderCount">0</strong></article>
-        <article class="stat">Toplam Sube (Bugun)<strong id="statBranchCount">0</strong></article>
-        <article class="stat">Toplam Tepsi (Bugun)<strong id="statTrayCount">0</strong></article>
-        <article class="stat">Toplam Tutar (Bugun)<strong id="statAmount">0 TL</strong></article>
+        <article class="stat">Secilen Tarih Siparis Sayisi<strong id="statOrderCount">0</strong></article>
+        <article class="stat">Toplam Sube (Secilen Tarih)<strong id="statBranchCount">0</strong></article>
+        <article class="stat">Toplam Tepsi (Secilen Tarih)<strong id="statTrayCount">0</strong></article>
+        <article class="stat">Toplam Tutar (Secilen Tarih)<strong id="statAmount">0 TL</strong></article>
       </section>
 
       <section class="two-col">
         <article class="card">
-          <h3>Gelen Siparis Listesi (Bugun)</h3>
+          <h3>Gelen Siparis Listesi (Secilen Tarih)</h3>
           <div class="mini-stats">
             <span class="status-pill">Onay Bekleyen: <strong id="pendingCount">0</strong></span>
             <span class="status-pill ok">Onaylanan: <strong id="approvedCount">0</strong></span>
           </div>
           <div class="toolbar">
+            <label class="check-wrap">
+              Tarih
+              <input type="date" id="dateFilter">
+            </label>
+            <button class="btn" type="button" id="todayBtn">Bugune Don</button>
             <label class="check-wrap">
               <input type="checkbox" id="selectAllOrders">
               Tumunu Sec
@@ -322,8 +327,10 @@
     const refreshBtn = document.getElementById("refreshBtn");
     const pendingCount = document.getElementById("pendingCount");
     const approvedCount = document.getElementById("approvedCount");
+    const dateFilter = document.getElementById("dateFilter");
+    const todayBtn = document.getElementById("todayBtn");
     const openOrderNos = new Set();
-    let currentTodayOrders = [];
+    let currentFilteredOrders = [];
     let currentProductTotals = {};
 
     function getOrders() {
@@ -339,14 +346,22 @@
       return new Intl.NumberFormat("tr-TR").format(value) + " TL";
     }
 
-    function isToday(isoText) {
-      if (!isoText) return false;
+    function toDateKey(dateValue) {
+      const yyyy = dateValue.getFullYear();
+      const mm = String(dateValue.getMonth() + 1).padStart(2, "0");
+      const dd = String(dateValue.getDate()).padStart(2, "0");
+      return yyyy + "-" + mm + "-" + dd;
+    }
+
+    function todayKey() {
+      return toDateKey(new Date());
+    }
+
+    function orderDateKey(isoText) {
+      if (!isoText) return "";
       const d = new Date(isoText);
-      if (Number.isNaN(d.getTime())) return false;
-      const now = new Date();
-      return d.getFullYear() === now.getFullYear() &&
-        d.getMonth() === now.getMonth() &&
-        d.getDate() === now.getDate();
+      if (Number.isNaN(d.getTime())) return "";
+      return toDateKey(d);
     }
 
     function formatDate(isoText) {
@@ -367,15 +382,24 @@
         .replaceAll(">", "&gt;");
     }
 
+    function selectedDateKey() {
+      return dateFilter.value || todayKey();
+    }
+
+    function setTodayFilter() {
+      dateFilter.value = todayKey();
+    }
+
     function render() {
       document.querySelectorAll("details.order[open]").forEach(function (el) {
         openOrderNos.add(el.dataset.orderNo || "");
       });
       const allOrders = getOrders();
-      const todayOrders = allOrders.filter(function (order) {
-        return isToday(order.createdAt);
+      const activeDateKey = selectedDateKey();
+      const filteredOrders = allOrders.filter(function (order) {
+        return orderDateKey(order.createdAt) === activeDateKey;
       });
-      currentTodayOrders = todayOrders.slice();
+      currentFilteredOrders = filteredOrders.slice();
 
       const branchTotals = {};
       const productTotals = {};
@@ -384,7 +408,7 @@
       let pending = 0;
       let approved = 0;
 
-      todayOrders.forEach(function (order) {
+      filteredOrders.forEach(function (order) {
         const branch = order.branchName || "Bilinmeyen Sube";
         if (!branchTotals[branch]) {
           branchTotals[branch] = { amount: 0, tray: 0 };
@@ -403,7 +427,7 @@
         else pending += 1;
       });
 
-      statOrderCount.textContent = String(todayOrders.length);
+      statOrderCount.textContent = String(filteredOrders.length);
       statBranchCount.textContent = String(Object.keys(branchTotals).length);
       statTrayCount.textContent = String(totalTray);
       statAmount.textContent = formatTL(totalAmount);
@@ -411,13 +435,13 @@
       approvedCount.textContent = String(approved);
       currentProductTotals = Object.assign({}, productTotals);
 
-      if (!todayOrders.length) {
-        ordersList.innerHTML = '<div class="empty">Bugun henuz siparis yok.</div>';
+      if (!filteredOrders.length) {
+        ordersList.innerHTML = '<div class="empty">Secilen tarihte henuz siparis yok.</div>';
         totalByProduct.innerHTML = '<div class="empty">Total alani siparis geldikce dolacak.</div>';
         return;
       }
 
-      const ordersHtml = todayOrders
+      const ordersHtml = filteredOrders
         .slice()
         .sort(function (a, b) {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -452,7 +476,7 @@
             '  <div class="detail-body">' +
             '    <div><strong>Siparis Kalemleri:</strong><br>' + itemLines + '</div>' +
             '    <div><strong>Siparis Toplami:</strong> ' + escapeHtml(formatTL(Number(order.totalAmount || 0))) + ' (' + Number(order.totalTray || 0) + ' tepsi)</div>' +
-            '    <div><strong>Bu Subenin Bugunku Toplami:</strong> ' + escapeHtml(formatTL(branchTotal)) + '</div>' +
+            '    <div><strong>Bu Subenin Secilen Tarih Toplami:</strong> ' + escapeHtml(formatTL(branchTotal)) + '</div>' +
             '    <div><strong>Durum:</strong> <span class="status-pill ' + (isApproved ? "ok" : "") + '">' + safeStatus + '</span></div>' +
             '    <div><button class="btn ' + (isApproved ? "" : "primary") + ' approve-one-btn" type="button" data-order-no="' + (order.orderNo || "") + '"' + (isApproved ? " disabled" : "") + '>' + (isApproved ? "Onaylandi" : "Bu Siparisi Onayla") + '</button></div>' +
             '    <div><strong>Not:</strong> ' + safeNote + '</div>' +
@@ -516,19 +540,30 @@
       approveOrdersByNos(selectedNos);
     }
 
-    function approveAllToday() {
+    function approveAllForSelectedDate() {
       const allOrders = getOrders();
-      const todayNos = allOrders
-        .filter(function (order) { return isToday(order.createdAt); })
+      const activeDateKey = selectedDateKey();
+      const dateNos = allOrders
+        .filter(function (order) { return orderDateKey(order.createdAt) === activeDateKey; })
         .map(function (order) { return order.orderNo; })
         .filter(Boolean);
-      approveOrdersByNos(todayNos);
+      approveOrdersByNos(dateNos);
     }
 
+    setTodayFilter();
     render();
     approveSelectedBtn.addEventListener("click", approveSelected);
-    approveAllBtn.addEventListener("click", approveAllToday);
+    approveAllBtn.addEventListener("click", approveAllForSelectedDate);
     refreshBtn.addEventListener("click", render);
+    dateFilter.addEventListener("change", function () {
+      selectAllOrders.checked = false;
+      render();
+    });
+    todayBtn.addEventListener("click", function () {
+      setTodayFilter();
+      selectAllOrders.checked = false;
+      render();
+    });
     selectAllOrders.addEventListener("change", function () {
       const checked = selectAllOrders.checked;
       document.querySelectorAll(".order-check:not(:disabled)").forEach(function (cb) {
@@ -537,6 +572,10 @@
     });
     window.addEventListener("storage", render);
   </script>
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
 </body>
 </html>
+
+
 
