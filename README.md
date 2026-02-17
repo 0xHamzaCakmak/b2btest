@@ -66,15 +66,16 @@ Frontend prototipini calistirmak icin baslangic noktasi: `Frontend/login.html`.
   - Toplam siparis, toplam tepsi, toplam tutar
 
 ## 2.5 `Frontend/merkez/merkez.html` (Merkez Gelen Siparis Paneli)
-- Bugunun siparislerini listeler.
+- Varsayilan olarak bugunun siparislerini listeler.
+- Tarih filtresi ile gecmis bir tarih secilerek o gunun siparisleri goruntulenebilir.
 - Her sipariste disardan durum gorunur:
   - `Onay Bekliyor` / `Onaylandi`
 - Toplu islem:
   - Tumunu sec
   - Secilenleri onayla
-  - Tum siparisleri onayla
+  - Tum siparisleri onayla (secilen tarih filtresine gore)
 - Detaya girince:
-  - Siparis kalemleri, tutar, not, sube gunluk toplami
+  - Siparis kalemleri, tutar, not, sube secilen tarih toplami
 - Alt bolum:
   - **Total Uretim Ihtiyaci (Tepsi)** (urun bazli toplamlar)
 
@@ -102,7 +103,7 @@ Frontend prototipini calistirmak icin baslangic noktasi: `Frontend/login.html`.
 1. Kullanici `Frontend/login.html` sayfasina gelir.
 2. Giris sonrasi role gore ilgili panel acilir.
 3. Sube siparis verir, kayit `branchOrders`'a gider.
-4. Merkez `Frontend/merkez/merkez.html` ekraninda siparisleri gorur.
+4. Merkez `Frontend/merkez/merkez.html` ekraninda siparisleri gorur ve tarih filtresi ile gecmis gunleri inceleyebilir.
 5. Merkez siparisi tekli/toplu onaylar.
 6. Sube `Frontend/sube/siparislerim.html` ekraninda onay durumunu gorur.
 7. Merkez `Frontend/merkez/merkez-urun-fiyat.html` ile urun ekler, fiyat gunceller ve urunleri aktif/pasif yonetir.
@@ -284,8 +285,9 @@ Asagidaki temel tablolarla baslanabilir:
 7. Merkez tumunu aktif yap -> urunlerden tekrar siparis verilebiliyor mu?
 8. Sube bazli +/-% uygula -> sadece o subede fiyat farki dogru mu?
 9. Sube pasif yap -> siparis gonderimi engelleniyor mu?
+10. Merkezde tarih sec -> secilen tarihteki siparisler, toplamlar ve toplu onay islemi dogru filtreleniyor mu?
 
-## 11. Backend Gecis Yol Haritasi (Node.js + Express/Fastify + PostgreSQL)
+## 11. Backend Gecis Yol Haritasi (Node.js + Express/Fastify + MSSQL)
 
 Bu adimlar, localStorage prototipini backend API mimarisina sorunsuz tasimak icin onerilen sira ile verilmistir.
 
@@ -304,8 +306,8 @@ Bu adimlar, localStorage prototipini backend API mimarisina sorunsuz tasimak ici
    - `Product` icin `code`, `name`, `base_price`, `is_active` alanlarini zorunlu tut.
    - `OrderItem` icin siparis anindaki birim fiyati (`unit_price`) sakla.
 
-4. PostgreSQL ve migration konfigurasyonu
-   - `pg` baglantisi + migration araci (`Prisma` veya `Knex`) sec.
+4. MSSQL ve migration konfigurasyonu
+   - SQL Server baglantisi + migration araci (`Prisma` veya `Knex`) sec.
    - Iliskiler, kisitlar ve indexleri migration ile yonet.
    - Indexler:
      - `orders.order_no` (unique)
@@ -314,7 +316,7 @@ Bu adimlar, localStorage prototipini backend API mimarisina sorunsuz tasimak ici
      - `products.code` (unique)
 
 5. Migration ve seed
-   - Ilk migration olustur ve PostgreSQL'e uygula.
+   - Ilk migration olustur ve SQL Server'a uygula.
    - Cekirdek verileri seed et:
      - Varsayilan urunler
      - Ornek subeler

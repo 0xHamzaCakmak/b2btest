@@ -82,6 +82,8 @@
       display: flex;
       gap: .6rem;
       flex-wrap: wrap;
+      align-content: flex-start;
+      align-items: flex-start;
     }
     .nav a {
       text-decoration: none;
@@ -91,11 +93,42 @@
       padding: .5rem .75rem;
       background: rgba(255, 255, 255, .72);
       font-weight: 600;
+      height: fit-content;
     }
     .list {
       display: grid;
       gap: .8rem;
       margin-top: 1rem;
+    }
+    .toolbar {
+      display: flex;
+      gap: .55rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: .4rem;
+    }
+    .toolbar input {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .85);
+      border-radius: 10px;
+      padding: .45rem .55rem;
+      font: inherit;
+    }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .62rem;
+      background: rgba(255, 255, 255, .82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .hint {
+      margin-top: .45rem;
+      font-size: .88rem;
+      font-weight: 600;
+      opacity: .8;
     }
     .order {
       border: 1px solid var(--border);
@@ -147,7 +180,6 @@
           <h1>Siparislerim</h1>
         </div>
         <nav class="nav">
-          <a href="profil.html">Profil</a>
           <a href="siparis.html">Siparis Ver</a>
           <a href="siparislerim.html">Siparislerim</a>
           <a href="../merkez/merkez.html">Merkez Paneli</a>
@@ -155,12 +187,32 @@
         </nav>
       </div>
 
+      <section class="toolbar">
+        <label>Baslangic Tarihi <input type="date" id="fromDate"></label>
+        <label>Bitis Tarihi <input type="date" id="toDate"></label>
+        <button class="btn" type="button" id="applyFilterBtn">Filtrele</button>
+        <button class="btn" type="button" id="todayBtn">Bugunu Goster</button>
+        <button class="btn" type="button" id="clearFilterBtn">Temizle</button>
+      </section>
+      <div class="hint" id="filterHint"></div>
       <section class="list" id="orderList"></section>
     </main>
   </div>
 
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
   <script>
     const orderList = document.getElementById("orderList");
+    const cfg = window.APP_CONFIG || {};
+    const testMode = !!cfg.TEST_MODE;
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const fromDate = document.getElementById("fromDate");
+    const toDate = document.getElementById("toDate");
+    const applyFilterBtn = document.getElementById("applyFilterBtn");
+    const todayBtn = document.getElementById("todayBtn");
+    const clearFilterBtn = document.getElementById("clearFilterBtn");
+    const filterHint = document.getElementById("filterHint");
 
     function formatTL(value) {
       return new Intl.NumberFormat("tr-TR").format(value) + " TL";
@@ -173,9 +225,100 @@
       return d.toLocaleString("tr-TR");
     }
 
-    function renderOrders() {
-      const raw = localStorage.getItem("branchOrders");
-      const orders = raw ? JSON.parse(raw) : [];
+    function getAuthSession() {
+      try {
+        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getAuthSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) {
+        throw new Error("Oturum bilgisi bulunamadi. Lutfen tekrar giris yapin.");
+      }
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    function normalizeOrder(order) {
+      return {
+        orderNo: order.orderNo,
+        status: order.status,
+        deliveryDate: order.deliveryDate,
+        deliveryTime: order.deliveryTime,
+        createdAt: order.createdAt,
+        totalTray: Number(order.totalTray || 0),
+        totalAmount: Number(order.totalAmount || 0),
+        items: (order.items || []).map(function (item) {
+          return {
+            name: item.name,
+            qty: Number(item.qty || 0),
+            unitPrice: Number(item.unitPrice || 0)
+          };
+        })
+      };
+    }
+
+    function todayKey() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      return yyyy + "-" + mm + "-" + dd;
+    }
+
+    function toDateKey(value) {
+      if (!value) return "";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "";
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return yyyy + "-" + mm + "-" + dd;
+    }
+
+    function setHint(text) {
+      filterHint.textContent = text || "";
+    }
+
+    function setTodayFilter() {
+      const today = todayKey();
+      fromDate.value = today;
+      toDate.value = today;
+    }
+
+    function applyLocalRange(orders) {
+      const from = fromDate.value || "";
+      const to = toDate.value || "";
+      return (orders || []).filter(function (order) {
+        const key = toDateKey(order.createdAt);
+        if (!key) return false;
+        if (from && key < from) return false;
+        if (to && key > to) return false;
+        return true;
+      });
+    }
+
+    function validateRange() {
+      const from = fromDate.value || "";
+      const to = toDate.value || "";
+      if (from && to && from > to) return false;
+      return true;
+    }
+
+    function renderOrders(orders) {
 
       if (!orders.length) {
         orderList.innerHTML = '<div class="empty">Henuz siparis bulunmuyor. Once siparis olustur.</div>';
@@ -205,12 +348,67 @@
       orderList.innerHTML = html;
     }
 
-    renderOrders();
-    window.addEventListener("storage", renderOrders);
-    setInterval(renderOrders, 4000);
+    async function loadOrders() {
+      if (!validateRange()) {
+        orderList.innerHTML = '<div class="empty">Baslangic tarihi, bitis tarihinden buyuk olamaz.</div>';
+        return;
+      }
+      if (!testMode) {
+        try {
+          const params = new URLSearchParams();
+          if (fromDate.value) params.set("from", fromDate.value);
+          if (toDate.value) params.set("to", toDate.value);
+          const query = params.toString();
+          const data = await apiRequest("/orders/my" + (query ? "?" + query : ""), { method: "GET" });
+          renderOrders((data || []).map(normalizeOrder));
+          if (fromDate.value && toDate.value && fromDate.value === toDate.value) {
+            setHint("Secili gun siparisleri gosteriliyor: " + fromDate.value);
+          } else if (fromDate.value || toDate.value) {
+            setHint("Secili tarih araligi filtrelendi.");
+          } else {
+            setHint("Tum siparisler listeleniyor.");
+          }
+        } catch (err) {
+          orderList.innerHTML = '<div class="empty">' + ((err && err.message) || "Siparisler alinamadi.") + '</div>';
+        }
+        return;
+      }
+
+      const raw = localStorage.getItem("branchOrders");
+      const orders = raw ? JSON.parse(raw) : [];
+      renderOrders(applyLocalRange(orders));
+      if (fromDate.value && toDate.value && fromDate.value === toDate.value) {
+        setHint("Secili gun siparisleri gosteriliyor: " + fromDate.value);
+      } else if (fromDate.value || toDate.value) {
+        setHint("Secili tarih araligi filtrelendi.");
+      } else {
+        setHint("Tum siparisler listeleniyor.");
+      }
+    }
+
+    async function init() {
+      setTodayFilter();
+      await loadOrders();
+    }
+
+    init();
+    applyFilterBtn.addEventListener("click", loadOrders);
+    todayBtn.addEventListener("click", function () {
+      setTodayFilter();
+      loadOrders();
+    });
+    clearFilterBtn.addEventListener("click", function () {
+      fromDate.value = "";
+      toDate.value = "";
+      loadOrders();
+    });
+    if (testMode) {
+      window.addEventListener("storage", function () {
+        loadOrders();
+      });
+      setInterval(loadOrders, 4000);
+    }
   </script>
-  <script src="../assets/app-config.js"></script>
-  <script src="../assets/role-guard.js"></script>
 </body>
 </html>
 

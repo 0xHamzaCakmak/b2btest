@@ -201,6 +201,45 @@
       width: auto;
       padding: 0;
     }
+    .item-actions {
+      margin-top: .6rem;
+      display: flex;
+      gap: .5rem;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn.small {
+      padding: .45rem .65rem;
+      border-radius: 10px;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+    .btn.icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 32px;
+      padding: 0;
+    }
+    .btn.icon svg {
+      width: 16px;
+      height: 16px;
+    }
+    .btn.success {
+      background: #1c5f4f;
+      color: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    .btn:disabled {
+      opacity: .65;
+      cursor: not-allowed;
+    }
+    .btn.danger {
+      background: #fff0ef;
+      border: 1px solid rgba(171, 47, 47, .3);
+      color: #7c1d1d;
+    }
   </style>
 </head>
 <body>
@@ -248,6 +287,8 @@
     </main>
   </div>
 
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
   <script>
     const priceForm = document.getElementById("priceForm");
     const resetBtn = document.getElementById("resetBtn");
@@ -258,6 +299,12 @@
     const allPassiveBtn = document.getElementById("allPassiveBtn");
     const newProductName = document.getElementById("newProductName");
     const newProductPrice = document.getElementById("newProductPrice");
+    const cfg = window.APP_CONFIG || {};
+    const testMode = !!cfg.TEST_MODE;
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    let apiProducts = [];
+    let editingProductId = null;
     const defaultProducts = [
       { key: "su_boregi", name: "Su Boregi", price: 700 },
       { key: "peynirli_borek", name: "Peynirli Borek", price: 650 },
@@ -337,7 +384,75 @@
         .replaceAll('"', "&quot;");
     }
 
+    function getAuthSession() {
+      try {
+        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getAuthSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) {
+        throw new Error("Oturum bilgisi bulunamadi. Lutfen tekrar giris yapin.");
+      }
+
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    async function fetchProductsFromApi() {
+      const data = await apiRequest("/products", { method: "GET" });
+      apiProducts = Array.isArray(data) ? data.slice() : [];
+      return apiProducts;
+    }
+
     function renderPriceInputs() {
+      if (!testMode) {
+        const htmlApi = apiProducts
+          .map(function (product) {
+            const id = product.id;
+            const name = escapeHtml(product.name || "-");
+            const value = Number(product.basePrice || 1);
+            const isActive = product.isActive !== false;
+            const isEditing = editingProductId === id;
+            return '' +
+              '<article class="item">' +
+              '<label>Urun Adi<input type="text" maxlength="64" data-product-name-id="' + id + '" value="' + name + '" required' + (isEditing ? "" : " disabled") + '></label>' +
+              '<label>Fiyat (TL)<input type="number" min="1" step="1" data-product-id="' + id + '" value="' + value + '" required' + (isEditing ? "" : " disabled") + '></label>' +
+              '<div class="status-row">' +
+              '<span class="status-badge ' + (isActive ? "" : "passive") + '" data-status-badge="' + id + '">' + (isActive ? "Aktif" : "Pasif") + '</span>' +
+              '<label class="toggle-wrap"><input type="checkbox" data-active-toggle-id="' + id + '"' + (isActive ? " checked" : "") + '> Aktif</label>' +
+              '</div>' +
+              '<div class="item-actions">' +
+              '<button class="btn ghost icon" type="button" data-action="edit" data-product-action-id="' + id + '" title="Duzenle">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+              '<path d="M12 20h9"/>' +
+              '<path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>' +
+              '</svg>' +
+              '</button>' +
+              '<button class="btn small ' + (isEditing ? "success" : "ghost") + '" type="button" data-action="save" data-product-action-id="' + id + '"' + (isEditing ? "" : " disabled") + '>Kaydet</button>' +
+              '<button class="btn danger small" type="button" data-action="delete" data-product-action-id="' + id + '">Sil</button>' +
+              '</div>' +
+              '</article>';
+          })
+          .join("");
+        productGrid.innerHTML = htmlApi;
+        return;
+      }
+
       const prices = getLivePrices();
       const catalog = getCatalog();
       const availability = getAvailability();
@@ -360,7 +475,48 @@
       productGrid.innerHTML = html;
     }
 
-    function saveForm() {
+    function getApiDraftById(id) {
+      const nameInput = productGrid.querySelector('input[data-product-name-id="' + id + '"]');
+      const priceInput = productGrid.querySelector('input[data-product-id="' + id + '"]');
+      if (!nameInput || !priceInput) return null;
+      const name = String(nameInput.value || "").trim();
+      const basePrice = Math.max(1, Number(priceInput.value || 1));
+      if (!name || Number.isNaN(basePrice)) return null;
+      return { name: name, basePrice: basePrice };
+    }
+
+    async function updateSingleApiProduct(id) {
+      const old = apiProducts.find(function (item) { return item.id === id; });
+      const draft = getApiDraftById(id);
+      if (!old || !draft) {
+        throw new Error("Urun bilgisi gecersiz.");
+      }
+      const payload = {};
+      if (String(old.name || "") !== draft.name) payload.name = draft.name;
+      if (Number(old.basePrice) !== Number(draft.basePrice)) payload.basePrice = draft.basePrice;
+      if (!Object.keys(payload).length) {
+        return false;
+      }
+      await apiRequest("/products/" + id, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      return true;
+    }
+
+    async function saveForm() {
+      if (!testMode) {
+        let changedCount = 0;
+        for (const product of apiProducts) {
+          const changed = await updateSingleApiProduct(product.id);
+          if (changed) changedCount += 1;
+        }
+        await fetchProductsFromApi();
+        renderPriceInputs();
+        showMessage(changedCount > 0 ? "Urun degisiklikleri kaydedildi." : "Degisiklik yok.");
+        return;
+      }
+
       const data = {};
       const availability = getAvailability();
       const inputs = productGrid.querySelectorAll("input[data-product]");
@@ -376,13 +532,31 @@
       showMessage("Fiyatlar guncellendi. Subeler yeni fiyatlari gorecek.");
     }
 
-    function addNewProduct() {
+    async function addNewProduct() {
       const name = String(newProductName.value || "").trim();
       const startPrice = Math.max(1, Number(newProductPrice.value || 0));
       if (!name || Number.isNaN(startPrice)) {
         showMessage("Urun adi ve gecerli bir fiyat girin.");
         return;
       }
+
+      if (!testMode) {
+        try {
+          await apiRequest("/products", {
+            method: "POST",
+            body: JSON.stringify({ name: name, basePrice: startPrice })
+          });
+          await fetchProductsFromApi();
+          renderPriceInputs();
+          newProductName.value = "";
+          newProductPrice.value = "500";
+          showMessage("Yeni urun veritabanina eklendi.");
+        } catch (err) {
+          showMessage(err.message || "Urun eklenemedi.");
+        }
+        return;
+      }
+
       const key = slugify(name);
       if (!key) {
         showMessage("Urun adi uygun degil. Lutfen farkli bir ad deneyin.");
@@ -409,7 +583,22 @@
       showMessage("Yeni urun eklendi ve fiyat listesine alindi.");
     }
 
-    function setAllActiveState(isActive) {
+    async function setAllActiveState(isActive) {
+      if (!testMode) {
+        try {
+          await apiRequest("/products/status-bulk", {
+            method: "PUT",
+            body: JSON.stringify({ isActive: !!isActive })
+          });
+          await fetchProductsFromApi();
+          renderPriceInputs();
+          showMessage(isActive ? "Tum urunler aktif yapildi." : "Tum urunler pasif yapildi.");
+        } catch (err) {
+          showMessage(err.message || "Toplu durum guncellenemedi.");
+        }
+        return;
+      }
+
       const availability = getAvailability();
       const catalog = getCatalog();
       Object.keys(catalog).forEach(function (key) {
@@ -420,12 +609,42 @@
       showMessage(isActive ? "Tum urunler aktif yapildi." : "Tum urunler pasif yapildi.");
     }
 
-    priceForm.addEventListener("submit", function (event) {
+    priceForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      saveForm();
+      try {
+        await saveForm();
+      } catch (err) {
+        showMessage(err.message || "Fiyatlar kaydedilemedi.");
+      }
     });
 
-    resetBtn.addEventListener("click", function () {
+    resetBtn.addEventListener("click", async function () {
+      if (!testMode) {
+        try {
+          const codeToPrice = defaultProducts.reduce(function (acc, product) {
+            acc[product.key] = product.price;
+            return acc;
+          }, {});
+
+          const updates = apiProducts
+            .filter(function (p) { return codeToPrice[p.code] != null; })
+            .map(function (p) {
+              return apiRequest("/products/" + p.id, {
+                method: "PUT",
+                body: JSON.stringify({ basePrice: codeToPrice[p.code] })
+              });
+            });
+
+          await Promise.all(updates);
+          await fetchProductsFromApi();
+          renderPriceInputs();
+          showMessage("Cekirdek urunler varsayilan fiyata donduruldu.");
+        } catch (err) {
+          showMessage(err.message || "Varsayilan fiyatlara donulemedi.");
+        }
+        return;
+      }
+
       const prices = getLivePrices();
       Object.keys(defaultPrices).forEach(function (key) {
         prices[key] = defaultPrices[key];
@@ -435,12 +654,84 @@
       showMessage("Cekirdek urunler varsayilan fiyata donduruldu.");
     });
 
-    addProductBtn.addEventListener("click", addNewProduct);
+    addProductBtn.addEventListener("click", function () { addNewProduct(); });
     allActiveBtn.addEventListener("click", function () { setAllActiveState(true); });
     allPassiveBtn.addEventListener("click", function () { setAllActiveState(false); });
-    productGrid.addEventListener("change", function (event) {
+    productGrid.addEventListener("click", async function (event) {
+      const button = event.target && event.target.closest("button[data-action][data-product-action-id]");
+      if (!button || testMode) return;
+      const id = button.dataset.productActionId;
+      const action = button.dataset.action;
+      if (!id || !action) return;
+
+      if (action === "edit") {
+        editingProductId = id;
+        renderPriceInputs();
+        const input = productGrid.querySelector('input[data-product-name-id="' + id + '"]');
+        if (input) input.focus();
+        showMessage("Kart duzenleme moduna alindi.");
+        return;
+      }
+
+      if (action === "save") {
+        if (editingProductId !== id) {
+          showMessage("Once kalem ikonuna basarak karti duzenleme moduna alin.");
+          return;
+        }
+        try {
+          const changed = await updateSingleApiProduct(id);
+          editingProductId = null;
+          await fetchProductsFromApi();
+          renderPriceInputs();
+          showMessage(changed ? "Urun bilgisi guncellendi." : "Degisiklik yok.");
+        } catch (err) {
+          showMessage(err.message || "Urun guncellenemedi.");
+        }
+        return;
+      }
+
+      if (action === "delete") {
+        const confirmed = window.confirm("Bu urun silinecek. Bu islem geri alinamaz. Devam edilsin mi?");
+        if (!confirmed) return;
+        try {
+          await apiRequest("/products/" + id, { method: "DELETE" });
+          if (editingProductId === id) editingProductId = null;
+          await fetchProductsFromApi();
+          renderPriceInputs();
+          showMessage("Urun silindi.");
+        } catch (err) {
+          showMessage(err.message || "Urun silinemedi.");
+        }
+      }
+    });
+
+    productGrid.addEventListener("change", async function (event) {
       const target = event.target;
-      if (!target || !target.matches("input[data-active-toggle]")) return;
+      if (!target) return;
+
+      if (!testMode && target.matches("input[data-active-toggle-id]")) {
+        const id = target.dataset.activeToggleId;
+        try {
+          await apiRequest("/products/" + id + "/status", {
+            method: "PUT",
+            body: JSON.stringify({ isActive: target.checked })
+          });
+          const item = apiProducts.find(function (p) { return p.id === id; });
+          if (item) item.isActive = target.checked;
+          const badgeApi = productGrid.querySelector('[data-status-badge="' + id + '"]');
+          if (badgeApi) {
+            badgeApi.textContent = target.checked ? "Aktif" : "Pasif";
+            badgeApi.classList.toggle("passive", !target.checked);
+          }
+          showMessage(target.checked ? "Urun aktif yapildi." : "Urun pasif yapildi.");
+        } catch (err) {
+          target.checked = !target.checked;
+          showMessage(err.message || "Urun durumu guncellenemedi.");
+        }
+        return;
+      }
+
+      if (!target.matches("input[data-active-toggle]")) return;
       const key = target.dataset.activeToggle;
       const availability = getAvailability();
       availability[key] = target.checked;
@@ -452,10 +743,17 @@
       }
       showMessage(target.checked ? "Urun aktif yapildi." : "Urun pasif yapildi.");
     });
-    renderPriceInputs();
+
+    if (!testMode) {
+      fetchProductsFromApi()
+        .then(renderPriceInputs)
+        .catch(function (err) {
+          showMessage((err && err.message) || "Urunler API'den alinamadi.");
+        });
+    } else {
+      renderPriceInputs();
+    }
   </script>
-  <script src="../assets/app-config.js"></script>
-  <script src="../assets/role-guard.js"></script>
 </body>
 </html>
 

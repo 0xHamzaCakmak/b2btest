@@ -154,6 +154,16 @@
     }
 
     .btn:hover { transform: translateY(-2px); }
+
+    .msg {
+      display: none;
+      border: 1px solid rgba(171, 47, 47, .48);
+      background: rgba(255, 226, 226, .9);
+      color: #6e1f1f;
+      border-radius: 12px;
+      padding: .7rem .8rem;
+      font-size: .9rem;
+    }
   </style>
 </head>
 <body>
@@ -172,7 +182,7 @@
       </label>
       <label>
         Sifre
-        <input type="password" name="password" placeholder="********" required>
+        <input type="password" id="passwordInput" name="password" placeholder="********" required>
       </label>
       <label id="roleField">
         Rol (Test)
@@ -186,6 +196,7 @@
         <span>Beni hatirla</span>
         <input type="checkbox" name="remember" style="width: 18px; height: 18px;">
       </div>
+      <div id="loginMsg" class="msg"></div>
       <button class="btn primary" type="submit">Giris Yap</button>
     </form>
 
@@ -197,8 +208,11 @@
     const roleField = document.getElementById("roleField");
     const roleSelect = document.getElementById("roleSelect");
     const emailInput = document.getElementById("emailInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const loginMsg = document.getElementById("loginMsg");
     const cfg = window.APP_CONFIG || {};
     const testMode = !!cfg.TEST_MODE;
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
     const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
     const roleHome = (cfg.ROLE_HOME || {});
 
@@ -206,14 +220,83 @@
       roleField.style.display = "none";
     }
 
-    loginForm.addEventListener("submit", function (event) {
+    function showError(message) {
+      loginMsg.style.display = "block";
+      loginMsg.textContent = message;
+    }
+
+    function hideError() {
+      loginMsg.style.display = "none";
+      loginMsg.textContent = "";
+    }
+
+    loginForm.addEventListener("submit", async function (event) {
       event.preventDefault();
+      hideError();
+
+      const email = (emailInput.value || "").trim();
+      const password = String(passwordInput.value || "");
+
+      if (!email || !password) {
+        showError("E-posta ve sifre zorunludur.");
+        return;
+      }
+
+      if (!testMode) {
+        try {
+          const response = await fetch(apiBaseUrl + "/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, password: password })
+          });
+
+          const payload = await response.json().catch(function () { return null; });
+
+          if (!response.ok || !payload || !payload.ok || !payload.data) {
+            showError((payload && payload.message) || "Giris basarisiz. Bilgilerini kontrol et.");
+            return;
+          }
+
+          const user = payload.data.user || {};
+          const selectedRole = String(user.role || "").toLowerCase();
+          const accessToken = payload.data.accessToken || "";
+          const refreshToken = payload.data.refreshToken || "";
+
+          if (!selectedRole) {
+            showError("Rol bilgisi alinmadi. Sistem yoneticisi ile gorusun.");
+            return;
+          }
+
+          const session = {
+            userId: user.id || null,
+            email: user.email || email,
+            displayName: user.displayName || null,
+            role: selectedRole,
+            branchId: user.branchId || null,
+            branchName: user.branchName || null,
+            isActive: user.isActive !== false,
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            loginAt: new Date().toISOString()
+          };
+
+          localStorage.setItem(sessionKey, JSON.stringify(session));
+
+          const target = roleHome[selectedRole] || "sube/siparis.html";
+          window.location.href = target;
+          return;
+        } catch (_err) {
+          showError("Backend baglantisi kurulamadi. Sunucu acik mi kontrol et.");
+          return;
+        }
+      }
+
       const selectedRole = testMode
         ? roleSelect.value
         : (cfg.DEFAULT_PROD_ROLE || "sube");
 
       const session = {
-        email: (emailInput.value || "").trim(),
+        email: email,
         role: selectedRole,
         loginAt: new Date().toISOString()
       };

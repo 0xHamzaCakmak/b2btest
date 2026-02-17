@@ -266,7 +266,6 @@
           <h1>Subelerden Gelen Siparisler</h1>
         </div>
         <nav class="nav">
-          <a href="../sube/profil.html">Profil</a>
           <a href="../sube/siparis.html">Siparis Ver</a>
           <a href="../sube/siparislerim.html">Siparislerim</a>
           <a href="merkez.html">Merkez Paneli</a>
@@ -314,6 +313,8 @@
     </main>
   </div>
 
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
   <script>
     const ordersList = document.getElementById("ordersList");
     const totalByProduct = document.getElementById("totalByProduct");
@@ -332,6 +333,10 @@
     const openOrderNos = new Set();
     let currentFilteredOrders = [];
     let currentProductTotals = {};
+    const cfg = window.APP_CONFIG || {};
+    const testMode = !!cfg.TEST_MODE;
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
 
     function getOrders() {
       const raw = localStorage.getItem("branchOrders");
@@ -340,6 +345,33 @@
 
     function saveOrders(orders) {
       localStorage.setItem("branchOrders", JSON.stringify(orders));
+    }
+
+    function getAuthSession() {
+      try {
+        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getAuthSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) {
+        throw new Error("Oturum bilgisi bulunamadi. Lutfen tekrar giris yapin.");
+      }
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
     }
 
     function formatTL(value) {
@@ -390,15 +422,26 @@
       dateFilter.value = todayKey();
     }
 
-    function render() {
+    async function render() {
       document.querySelectorAll("details.order[open]").forEach(function (el) {
         openOrderNos.add(el.dataset.orderNo || "");
       });
-      const allOrders = getOrders();
       const activeDateKey = selectedDateKey();
-      const filteredOrders = allOrders.filter(function (order) {
-        return orderDateKey(order.createdAt) === activeDateKey;
-      });
+      let filteredOrders = [];
+      if (!testMode) {
+        try {
+          filteredOrders = await apiRequest("/orders?date=" + encodeURIComponent(activeDateKey), { method: "GET" });
+        } catch (err) {
+          ordersList.innerHTML = '<div class="empty">' + ((err && err.message) || "Siparisler alinamadi.") + '</div>';
+          totalByProduct.innerHTML = '<div class="empty">Total alani siparis geldikce dolacak.</div>';
+          return;
+        }
+      } else {
+        const allOrders = getOrders();
+        filteredOrders = allOrders.filter(function (order) {
+          return orderDateKey(order.createdAt) === activeDateKey;
+        });
+      }
       currentFilteredOrders = filteredOrders.slice();
 
       const branchTotals = {};
@@ -519,8 +562,26 @@
 
     }
 
-    function approveOrdersByNos(orderNos) {
+    async function approveOrdersByNos(orderNos) {
       if (!orderNos.length) return;
+      if (!testMode) {
+        const setNos = new Set(orderNos);
+        const ids = currentFilteredOrders
+          .filter(function (order) { return setNos.has(order.orderNo); })
+          .map(function (order) { return order.id; })
+          .filter(Boolean);
+        if (!ids.length) return;
+        try {
+          await apiRequest("/orders/approve-bulk", {
+            method: "PUT",
+            body: JSON.stringify({ ids: ids })
+          });
+          orderNos.forEach(function (no) { openOrderNos.add(no || ""); });
+          await render();
+        } catch (_err) {}
+        return;
+      }
+
       const allOrders = getOrders();
       const setNos = new Set(orderNos);
       allOrders.forEach(function (order) {
@@ -530,24 +591,21 @@
         }
       });
       saveOrders(allOrders);
-      render();
+      await render();
     }
 
-    function approveSelected() {
+    async function approveSelected() {
       const selectedNos = Array.from(document.querySelectorAll(".order-check:checked"))
         .map(function (cb) { return cb.dataset.orderNo || ""; })
         .filter(Boolean);
-      approveOrdersByNos(selectedNos);
+      await approveOrdersByNos(selectedNos);
     }
 
-    function approveAllForSelectedDate() {
-      const allOrders = getOrders();
-      const activeDateKey = selectedDateKey();
-      const dateNos = allOrders
-        .filter(function (order) { return orderDateKey(order.createdAt) === activeDateKey; })
+    async function approveAllForSelectedDate() {
+      const dateNos = currentFilteredOrders
         .map(function (order) { return order.orderNo; })
         .filter(Boolean);
-      approveOrdersByNos(dateNos);
+      await approveOrdersByNos(dateNos);
     }
 
     setTodayFilter();
@@ -570,10 +628,10 @@
         cb.checked = checked;
       });
     });
-    window.addEventListener("storage", render);
+    if (testMode) {
+      window.addEventListener("storage", render);
+    }
   </script>
-  <script src="../assets/app-config.js"></script>
-  <script src="../assets/role-guard.js"></script>
 </body>
 </html>
 

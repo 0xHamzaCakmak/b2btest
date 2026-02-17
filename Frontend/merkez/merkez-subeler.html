@@ -212,7 +212,7 @@
 
       <section class="layout">
         <article class="card">
-          <h3>Subeler (20)</h3>
+          <h3>Subeler (<span id="branchCount">0</span>)</h3>
           <div class="branch-list" id="branchList"></div>
         </article>
 
@@ -250,8 +250,11 @@
     </main>
   </div>
 
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
   <script>
     const branchListEl = document.getElementById("branchList");
+    const branchCountEl = document.getElementById("branchCount");
     const dName = document.getElementById("dName");
     const dManager = document.getElementById("dManager");
     const dPhone = document.getElementById("dPhone");
@@ -268,70 +271,57 @@
     const pricePreview = document.getElementById("pricePreview");
     const saveMsg = document.getElementById("saveMsg");
 
+    const cfg = window.APP_CONFIG || {};
+    const testMode = !!cfg.TEST_MODE;
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+
     const defaultBasePrices = {
-      su_boregi: 700,
-      peynirli_borek: 650,
-      kiymali_borek: 730,
-      patatesli_borek: 610,
-      ispanakli_borek: 640,
-      kasarli_borek: 680,
-      kol_boregi: 760,
-      karisik_borek: 790
+      su_boregi: { name: "Su Boregi", price: 700 },
+      peynirli_borek: { name: "Peynirli Borek", price: 650 },
+      kiymali_borek: { name: "Kiymali Borek", price: 730 },
+      patatesli_borek: { name: "Patatesli Borek", price: 610 },
+      ispanakli_borek: { name: "Ispanakli Borek", price: 640 },
+      kasarli_borek: { name: "Kasarli Borek", price: 680 },
+      kol_boregi: { name: "Kol Boregi", price: 760 },
+      karisik_borek: { name: "Karisik Borek", price: 790 }
     };
 
-    const productNames = {
-      su_boregi: "Su Boregi",
-      peynirli_borek: "Peynirli Borek",
-      kiymali_borek: "Kiymali Borek",
-      patatesli_borek: "Patatesli Borek",
-      ispanakli_borek: "Ispanakli Borek",
-      kasarli_borek: "Kasarli Borek",
-      kol_boregi: "Kol Boregi",
-      karisik_borek: "Karisik Borek"
-    };
+    let branches = [];
+    let products = [];
+    let selectedBranchId = null;
 
-    let selectedBranch = null;
-
-    function seedBranches() {
-      const raw = localStorage.getItem("centerBranches");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const normalized = parsed.map(function (b) {
-          if (typeof b.active === "boolean") return b;
-          return Object.assign({}, b, { active: true });
-        });
-        localStorage.setItem("centerBranches", JSON.stringify(normalized));
-        return normalized;
+    function getAuthSession() {
+      try {
+        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+      } catch (_err) {
+        return null;
       }
-      const list = [];
-      for (let i = 1; i <= 20; i += 1) {
-        const no = String(i).padStart(2, "0");
-        list.push({
-          name: "Borekci Sube " + no,
-          manager: "Yetkili " + no,
-          phone: "0555 100 " + String(i).padStart(2, "0") + " " + String(i).padStart(2, "0"),
-          email: "sube" + no + "@ornek.com",
-          address: "Ornek Mah. Borek Sok. No:" + i,
-          active: true
-        });
+    }
+
+    async function apiRequest(path, options) {
+      const session = getAuthSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) {
+        throw new Error("Oturum bilgisi bulunamadi. Lutfen tekrar giris yapin.");
       }
-      localStorage.setItem("centerBranches", JSON.stringify(list));
-      return list;
+
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
     }
 
-    function getBasePrices() {
-      const raw = localStorage.getItem("productPrices");
-      const custom = raw ? JSON.parse(raw) : {};
-      return Object.assign({}, defaultBasePrices, custom);
-    }
-
-    function getAdjustments() {
-      const raw = localStorage.getItem("branchPriceAdjustments");
-      return raw ? JSON.parse(raw) : {};
-    }
-
-    function saveAdjustments(data) {
-      localStorage.setItem("branchPriceAdjustments", JSON.stringify(data));
+    function getSelectedBranch() {
+      return branches.find(function (b) { return b.id === selectedBranchId; }) || null;
     }
 
     function applyPercent(base, percent) {
@@ -339,89 +329,144 @@
     }
 
     function renderBranchList() {
-      const branches = seedBranches();
+      branchCountEl.textContent = String(branches.length);
       const html = branches.map(function (branch) {
-        const active = selectedBranch && selectedBranch.name === branch.name ? "active" : "";
-        const passive = branch.active ? "" : "passive";
-        const statusText = branch.active ? "Aktif" : "Pasif";
-        return '<button class="branch-btn ' + active + " " + passive + '" type="button" data-branch="' + branch.name + '">' + branch.name + " (" + statusText + ')</button>';
+        const isSelected = selectedBranchId === branch.id ? "active" : "";
+        const passive = branch.isActive ? "" : "passive";
+        const statusText = branch.isActive ? "Aktif" : "Pasif";
+        return '<button class="branch-btn ' + isSelected + " " + passive + '" type="button" data-branch-id="' + branch.id + '">' + branch.name + " (" + statusText + ')</button>';
       }).join("");
       branchListEl.innerHTML = html;
 
       branchListEl.querySelectorAll(".branch-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          const name = btn.dataset.branch;
-          const branch = branches.find(function (x) { return x.name === name; });
-          selectedBranch = branch || null;
+          selectedBranchId = btn.dataset.branchId || null;
           renderSelectedBranch();
           renderBranchList();
         });
       });
     }
 
+    function getPreviewProducts() {
+      if (!testMode && products.length) {
+        return products.map(function (p) {
+          return { name: p.name, basePrice: Number(p.basePrice || 0) };
+        });
+      }
+      return Object.keys(defaultBasePrices).map(function (key) {
+        return {
+          name: defaultBasePrices[key].name,
+          basePrice: Number(defaultBasePrices[key].price)
+        };
+      });
+    }
+
     function renderPreview() {
+      const selectedBranch = getSelectedBranch();
       if (!selectedBranch) {
         pricePreview.innerHTML = "";
         return;
       }
       const pct = Number(percentInput.value || 0);
-      const basePrices = getBasePrices();
-      const previewHtml = Object.keys(basePrices).map(function (key) {
-        const adjusted = applyPercent(Number(basePrices[key]), pct);
-        return "<li>" + productNames[key] + ": " + adjusted + " TL</li>";
+      const previewHtml = getPreviewProducts().map(function (product) {
+        const adjusted = applyPercent(Number(product.basePrice), pct);
+        return "<li>" + product.name + ": " + adjusted + " TL</li>";
       }).join("");
       pricePreview.innerHTML = previewHtml;
     }
 
     function renderSelectedBranch() {
-      if (!selectedBranch) return;
-      const branches = seedBranches();
-      const latest = branches.find(function (b) { return b.name === selectedBranch.name; });
-      if (latest) selectedBranch = latest;
-      const adjustments = getAdjustments();
-      const pct = Number(adjustments[selectedBranch.name] || 0);
+      const selectedBranch = getSelectedBranch();
+      if (!selectedBranch) {
+        dName.textContent = "-";
+        dManager.textContent = "-";
+        dPhone.textContent = "-";
+        dEmail.textContent = "-";
+        dAddress.textContent = "-";
+        dStatus.textContent = "-";
+        dStatus.className = "status-pill";
+        percentInput.value = "0";
+        renderPreview();
+        return;
+      }
+      const pct = Number(selectedBranch.priceAdjustmentPercent || 0);
       dName.textContent = selectedBranch.name;
       dManager.textContent = selectedBranch.manager;
       dPhone.textContent = selectedBranch.phone;
-      dEmail.textContent = selectedBranch.email;
+      dEmail.textContent = selectedBranch.userEmail || selectedBranch.email || "-";
       dAddress.textContent = selectedBranch.address;
-      dStatus.textContent = selectedBranch.active ? "Aktif" : "Pasif";
-      dStatus.className = selectedBranch.active ? "status-pill" : "status-pill passive";
+      dStatus.textContent = selectedBranch.isActive ? "Aktif" : "Pasif";
+      dStatus.className = selectedBranch.isActive ? "status-pill" : "status-pill passive";
       percentInput.value = String(pct);
       renderPreview();
     }
 
-    function setSelectedBranchActive(isActive) {
+    async function setSelectedBranchActive(isActive) {
+      const selectedBranch = getSelectedBranch();
       if (!selectedBranch) return;
-      const branches = seedBranches();
-      const updated = branches.map(function (b) {
-        if (b.name === selectedBranch.name) {
-          return Object.assign({}, b, { active: isActive });
+
+      if (!testMode) {
+        try {
+          const updated = await apiRequest("/branches/" + selectedBranch.id + "/status", {
+            method: "PUT",
+            body: JSON.stringify({ isActive: !!isActive })
+          });
+          branches = branches.map(function (b) {
+            return b.id === updated.id ? updated : b;
+          });
+        } catch (err) {
+          showMessage(err.message || "Sube durumu guncellenemedi.");
+          return;
         }
-        return b;
-      });
-      localStorage.setItem("centerBranches", JSON.stringify(updated));
-      selectedBranch = updated.find(function (b) { return b.name === selectedBranch.name; }) || selectedBranch;
+      } else {
+        branches = branches.map(function (b) {
+          if (b.id === selectedBranch.id) return Object.assign({}, b, { isActive: !!isActive });
+          return b;
+        });
+      }
+
       renderSelectedBranch();
       renderBranchList();
+      showMessage(isActive ? "Sube aktif yapildi." : "Sube pasif yapildi.");
+    }
+
+    function showMessage(text) {
       saveMsg.style.display = "block";
-      saveMsg.textContent = isActive ? "Sube aktif yapildi." : "Sube pasif yapildi.";
+      saveMsg.textContent = text;
       setTimeout(function () {
         saveMsg.style.display = "none";
         saveMsg.textContent = "Sube fiyat farki kaydedildi.";
       }, 2200);
     }
 
-    function saveSelectedBranchAdjustment() {
+    async function saveSelectedBranchAdjustment() {
+      const selectedBranch = getSelectedBranch();
       if (!selectedBranch) return;
       const pct = Number(percentInput.value || 0);
-      const adjustments = getAdjustments();
-      adjustments[selectedBranch.name] = pct;
-      saveAdjustments(adjustments);
-      saveMsg.style.display = "block";
-      setTimeout(function () {
-        saveMsg.style.display = "none";
-      }, 2200);
+
+      if (!testMode) {
+        try {
+          const updated = await apiRequest("/branches/" + selectedBranch.id + "/price-adjustment", {
+            method: "PUT",
+            body: JSON.stringify({ percent: pct })
+          });
+          branches = branches.map(function (b) {
+            return b.id === updated.id ? updated : b;
+          });
+        } catch (err) {
+          showMessage(err.message || "Fiyat farki kaydedilemedi.");
+          return;
+        }
+      } else {
+        branches = branches.map(function (b) {
+          if (b.id === selectedBranch.id) return Object.assign({}, b, { priceAdjustmentPercent: pct });
+          return b;
+        });
+      }
+
+      renderSelectedBranch();
+      renderBranchList();
+      showMessage("Sube fiyat farki kaydedildi.");
     }
 
     minusBtn.addEventListener("click", function () {
@@ -438,13 +483,45 @@
     setActiveBtn.addEventListener("click", function () { setSelectedBranchActive(true); });
     setPassiveBtn.addEventListener("click", function () { setSelectedBranchActive(false); });
 
-    const branches = seedBranches();
-    selectedBranch = branches[0];
-    renderBranchList();
-    renderSelectedBranch();
+    function loadLocalFallbackData() {
+      const list = [];
+      for (let i = 1; i <= 5; i += 1) {
+        const no = String(i).padStart(2, "0");
+        list.push({
+          id: "local-" + no,
+          name: "Borekci Sube " + no,
+          manager: "Yetkili " + no,
+          phone: "0555 100 " + no + " " + no,
+          email: "sube" + no + "@ornek.com",
+          userEmail: "sube" + no + "@borekci.com",
+          address: "Ornek Mah. Borek Sok. No:" + i,
+          isActive: true,
+          priceAdjustmentPercent: 0
+        });
+      }
+      branches = list;
+      products = getPreviewProducts();
+      selectedBranchId = branches.length ? branches[0].id : null;
+      renderBranchList();
+      renderSelectedBranch();
+    }
+
+    async function initApiMode() {
+      branches = await apiRequest("/branches", { method: "GET" });
+      products = await apiRequest("/products", { method: "GET" });
+      selectedBranchId = branches.length ? branches[0].id : null;
+      renderBranchList();
+      renderSelectedBranch();
+    }
+
+    if (!testMode) {
+      initApiMode().catch(function (err) {
+        showMessage((err && err.message) || "Sube bilgileri API'den alinamadi.");
+      });
+    } else {
+      loadLocalFallbackData();
+    }
   </script>
-  <script src="../assets/app-config.js"></script>
-  <script src="../assets/role-guard.js"></script>
 </body>
 </html>
 

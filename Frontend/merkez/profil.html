@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sube Profili | Nebula Studio</title>
+  <title>Merkez Profili | Nebula Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -28,23 +28,6 @@
         linear-gradient(135deg, var(--bg-1), var(--bg-2));
       padding: 1.2rem;
     }
-    .blob {
-      position: fixed;
-      z-index: -1;
-      width: 35vmax;
-      aspect-ratio: 1;
-      border-radius: 42% 58% 70% 30% / 30% 41% 59% 70%;
-      background: color-mix(in srgb, var(--accent) 60%, #fff);
-      filter: blur(30px);
-      opacity: 0.26;
-      animation: drift 14s ease-in-out infinite alternate;
-    }
-    .blob.one { top: -8vmax; left: -10vmax; }
-    .blob.two { bottom: -12vmax; right: -8vmax; animation-delay: 2s; }
-    @keyframes drift {
-      from { transform: translateY(-10px) rotate(0deg); }
-      to { transform: translateY(12px) rotate(18deg); }
-    }
     .wrap { width: min(950px, 100%); margin: 0 auto; }
     .panel {
       background: var(--card);
@@ -53,11 +36,6 @@
       border-radius: 24px;
       padding: clamp(1rem, 2.3vw, 1.9rem);
       box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
-      animation: rise 700ms ease-out both;
-    }
-    @keyframes rise {
-      from { transform: translateY(16px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
     }
     .top {
       display: flex;
@@ -125,7 +103,7 @@
     .stat strong { display: block; font-size: 1.2rem; }
     form { display: grid; gap: .7rem; }
     label { font-size: .9rem; font-weight: 600; }
-    input, textarea {
+    input {
       width: 100%;
       border: 1px solid var(--border);
       background: rgba(255, 255, 255, .85);
@@ -134,6 +112,12 @@
       font: inherit;
       margin-top: .3rem;
       outline: none;
+    }
+    .row-inline {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: .45rem;
+      align-items: end;
     }
     .btn {
       border: 0;
@@ -153,12 +137,6 @@
       border: 1px solid var(--border);
       box-shadow: none;
     }
-    .row-inline {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: .45rem;
-      align-items: end;
-    }
     .msg {
       display: none;
       border: 1px solid rgba(19, 34, 31, .2);
@@ -170,26 +148,24 @@
   </style>
 </head>
 <body>
-  <div class="blob one"></div>
-  <div class="blob two"></div>
   <div class="wrap">
     <main class="panel">
       <div class="top">
         <div>
-          <span class="eyebrow">Sube Alani</span>
+          <span class="eyebrow">Merkez Alani</span>
           <h1>Profil ve Hesap Ayarlari</h1>
         </div>
         <nav class="nav">
-          <a href="siparis.html">Siparis Ver</a>
-          <a href="siparislerim.html">Siparislerim</a>
-          <a href="../merkez/merkez.html">Merkez Paneli</a>
+          <a href="merkez.html">Merkez Paneli</a>
+          <a href="merkez-urun-fiyat.html">Urunler</a>
+          <a href="merkez-subeler.html">Subeler</a>
           <a href="../login.html">Cikis</a>
         </nav>
       </div>
 
       <section class="grid">
         <article class="card">
-          <h3>Sube Ozet</h3>
+          <h3>Merkez Ozet</h3>
           <div class="stats">
             <div class="stat">
               <span>Toplam Siparis</span>
@@ -209,20 +185,11 @@
         <article class="card">
           <h3>Profil Bilgileri</h3>
           <form id="profileForm">
-            <label>Sube Adi
-              <input type="text" id="subeAdi" required>
-            </label>
-            <label>Yetkili Ad Soyad
-              <input type="text" id="yetkili" required>
-            </label>
-            <label>Telefon
-              <input type="tel" id="telefon" placeholder="05xx xxx xx xx" required>
+            <label>Merkez Gosterim Adi
+              <input type="text" id="displayName" required>
             </label>
             <label>E-posta
               <input type="email" id="eposta" required>
-            </label>
-            <label>Sube Adresi
-              <textarea id="adres" rows="3"></textarea>
             </label>
             <button class="btn" type="submit">Bilgileri Guncelle</button>
             <div class="msg" id="profileMsg">Profil bilgileri guncellendi.</div>
@@ -263,28 +230,15 @@
     const passwordForm = document.getElementById("passwordForm");
     const profileMsg = document.getElementById("profileMsg");
     const passwordMsg = document.getElementById("passwordMsg");
-    const fields = {
-      subeAdi: document.getElementById("subeAdi"),
-      yetkili: document.getElementById("yetkili"),
-      telefon: document.getElementById("telefon"),
-      eposta: document.getElementById("eposta"),
-      adres: document.getElementById("adres")
-    };
+    const displayName = document.getElementById("displayName");
+    const eposta = document.getElementById("eposta");
     const currentPassword = document.getElementById("currentPassword");
     const newPassword = document.getElementById("newPassword");
     const newPasswordConfirm = document.getElementById("newPasswordConfirm");
+
     const cfg = window.APP_CONFIG || {};
-    const testMode = !!cfg.TEST_MODE;
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
     const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
-
-    const defaults = {
-      subeAdi: "Borekci Sube 01",
-      yetkili: "Ahmet Yilmaz",
-      telefon: "0555 123 45 67",
-      eposta: "sube01@ornek.com",
-      adres: "Ornek Mah. Borek Cad. No:12"
-    };
 
     function formatTL(value) {
       return new Intl.NumberFormat("tr-TR").format(value) + " TL";
@@ -305,9 +259,7 @@
     async function apiRequest(path, options) {
       const session = getAuthSession();
       const token = session && session.accessToken ? session.accessToken : "";
-      if (!token) {
-        throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
-      }
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
       const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
         headers: Object.assign(
           { "Content-Type": "application/json", Authorization: "Bearer " + token },
@@ -330,75 +282,49 @@
     }
 
     function applyProfileData(data) {
-      const branch = data && data.branch ? data.branch : null;
-      const user = data && data.user ? data.user : null;
-      fields.subeAdi.value = branch && branch.name ? branch.name : defaults.subeAdi;
-      fields.yetkili.value = branch && branch.manager ? branch.manager : defaults.yetkili;
-      fields.telefon.value = branch && branch.phone ? branch.phone : defaults.telefon;
-      fields.eposta.value = (user && user.email) || (branch && branch.email) || defaults.eposta;
-      fields.adres.value = branch && branch.address ? branch.address : defaults.adres;
+      displayName.value = (data && data.user && data.user.displayName) ? data.user.displayName : "";
+      eposta.value = (data && data.user && data.user.email) ? data.user.email : "";
     }
 
     async function loadProfile() {
-      if (!testMode) {
-        const data = await apiRequest("/profile/me", { method: "GET" });
-        applyProfileData(data);
-        return;
-      }
-      const raw = localStorage.getItem("branchProfile");
-      const profile = raw ? JSON.parse(raw) : defaults;
-      Object.keys(fields).forEach(function (key) {
-        fields[key].value = profile[key] || "";
-      });
+      const data = await apiRequest("/profile/me", { method: "GET" });
+      applyProfileData(data);
     }
 
     async function loadStats() {
-      let orders = [];
-      if (!testMode) {
-        orders = await apiRequest("/orders/my", { method: "GET" });
-      } else {
-        const raw = localStorage.getItem("branchOrders");
-        orders = raw ? JSON.parse(raw) : [];
-      }
+      const orders = await apiRequest("/orders", { method: "GET" });
       let tray = 0;
       let amount = 0;
-      orders.forEach(function (order) {
+      (orders || []).forEach(function (order) {
         tray += Number(order.totalTray || 0);
         amount += Number(order.totalAmount || 0);
       });
-      document.getElementById("statOrderCount").textContent = String(orders.length);
+      document.getElementById("statOrderCount").textContent = String((orders || []).length);
       document.getElementById("statTray").textContent = String(tray);
       document.getElementById("statAmount").textContent = formatTL(amount);
     }
 
     profileForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      const data = {};
-      Object.keys(fields).forEach(function (key) {
-        data[key] = fields[key].value.trim();
-      });
-      if (!testMode) {
-        try {
-          const updated = await apiRequest("/profile/me", {
-            method: "PUT",
-            body: JSON.stringify(data)
-          });
-          applyProfileData(updated);
-          const session = getAuthSession();
-          if (session) {
-            session.email = updated.user && updated.user.email ? updated.user.email : session.email;
-            session.displayName = updated.user && updated.user.displayName ? updated.user.displayName : session.displayName;
-            session.branchName = updated.branch && updated.branch.name ? updated.branch.name : session.branchName;
-            saveAuthSession(session);
-          }
-          showMessage(profileMsg, "Profil bilgileri veritabaninda guncellendi.");
-        } catch (err) {
-          showMessage(profileMsg, err.message || "Profil guncellenemedi.");
+      try {
+        const updated = await apiRequest("/profile/me", {
+          method: "PUT",
+          body: JSON.stringify({
+            displayName: String(displayName.value || "").trim(),
+            eposta: String(eposta.value || "").trim()
+          })
+        });
+        applyProfileData(updated);
+        const session = getAuthSession();
+        if (session) {
+          session.email = updated.user && updated.user.email ? updated.user.email : session.email;
+          session.displayName = updated.user && updated.user.displayName ? updated.user.displayName : session.displayName;
+          saveAuthSession(session);
         }
-        return;
+        showMessage(profileMsg, "Profil bilgileri veritabaninda guncellendi.");
+      } catch (err) {
+        showMessage(profileMsg, err.message || "Profil guncellenemedi.");
       }
-      localStorage.setItem("branchProfile", JSON.stringify(data));
-      showMessage(profileMsg, "Profil bilgileri guncellendi.");
     });
 
     passwordForm.addEventListener("submit", async function (event) {
@@ -406,6 +332,7 @@
       const current = String(currentPassword.value || "");
       const next = String(newPassword.value || "");
       const confirm = String(newPasswordConfirm.value || "");
+
       if (!current || !next || !confirm) {
         showMessage(passwordMsg, "Sifre alanlari zorunludur.");
         return;
@@ -419,26 +346,21 @@
         return;
       }
 
-      if (!testMode) {
-        try {
-          await apiRequest("/profile/password", {
-            method: "PUT",
-            body: JSON.stringify({
-              currentPassword: current,
-              newPassword: next
-            })
-          });
-          currentPassword.value = "";
-          newPassword.value = "";
-          newPasswordConfirm.value = "";
-          showMessage(passwordMsg, "Sifre veritabaninda guncellendi.");
-        } catch (err) {
-          showMessage(passwordMsg, err.message || "Sifre guncellenemedi.");
-        }
-        return;
+      try {
+        await apiRequest("/profile/password", {
+          method: "PUT",
+          body: JSON.stringify({
+            currentPassword: current,
+            newPassword: next
+          })
+        });
+        currentPassword.value = "";
+        newPassword.value = "";
+        newPasswordConfirm.value = "";
+        showMessage(passwordMsg, "Sifre veritabaninda guncellendi.");
+      } catch (err) {
+        showMessage(passwordMsg, err.message || "Sifre guncellenemedi.");
       }
-
-      showMessage(passwordMsg, "Test modda sifre guncelleme backend kapali.");
     });
 
     document.querySelectorAll("[data-toggle-password]").forEach(function (btn) {
@@ -458,5 +380,3 @@
   </script>
 </body>
 </html>
-
-

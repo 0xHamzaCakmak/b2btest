@@ -196,23 +196,51 @@
       padding: .8rem .9rem;
       font-weight: 600;
     }
-    #result {
+    .notice-modal {
+      position: fixed;
+      inset: 0;
       display: none;
-      border: 1px solid rgba(19, 34, 31, .2);
-      background: rgba(255, 255, 255, .75);
-      border-radius: 14px;
-      padding: .8rem .9rem;
-      font-weight: 600;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      z-index: 40;
+      background: rgba(19, 34, 31, .22);
+      backdrop-filter: blur(2px);
     }
-    #result.alert-success {
+    .notice-modal.show {
+      display: flex;
+    }
+    .notice-card {
+      width: min(420px, 100%);
+      border-radius: 14px;
+      border: 1px solid rgba(19, 34, 31, .2);
+      background: rgba(255, 255, 255, .95);
+      box-shadow: 0 14px 34px rgba(19, 34, 31, .22);
+      padding: .95rem 1rem;
+    }
+    .notice-card.success {
       border-color: rgba(74, 140, 92, .45);
-      background: rgba(216, 240, 227, .88);
+      background: rgba(216, 240, 227, .96);
       color: #143322;
     }
-    #result.alert-error {
+    .notice-card.error {
       border-color: rgba(171, 47, 47, .48);
-      background: rgba(255, 226, 226, .9);
+      background: rgba(255, 226, 226, .97);
       color: #6e1f1f;
+    }
+    .notice-title {
+      font-weight: 700;
+      margin-bottom: .35rem;
+    }
+    .notice-text {
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    .notice-count {
+      margin-top: .55rem;
+      font-size: .86rem;
+      font-weight: 700;
+      opacity: .86;
     }
   </style>
 </head>
@@ -229,7 +257,6 @@
           <p class="muted">Secilen borekler tepsi adedi ile merkeze iletilir.</p>
         </div>
         <nav class="nav">
-          <a href="profil.html">Profil</a>
           <a href="siparis.html">Siparis Ver</a>
           <a href="siparislerim.html">Siparislerim</a>
           <a href="../merkez/merkez.html">Merkez Paneli</a>
@@ -258,23 +285,41 @@
           <a class="btn secondary" href="siparislerim.html">Siparislerimi Gor</a>
         </div>
         <div class="cart-total" id="cartTotal">Sepet Tutari: 0 TL (0 tepsi)</div>
-        <div id="result">Siparisiniz merkeze iletildi.</div>
       </form>
     </main>
   </div>
+  <div id="noticeModal" class="notice-modal" aria-live="polite">
+    <div id="noticeCard" class="notice-card">
+      <div id="noticeTitle" class="notice-title">Bilgi</div>
+      <div id="noticeText" class="notice-text"></div>
+      <div id="noticeCount" class="notice-count"></div>
+    </div>
+  </div>
 
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
   <script>
     const form = document.getElementById("orderForm");
-    const result = document.getElementById("result");
     const cartTotal = document.getElementById("cartTotal");
     const teslimatTarihi = document.getElementById("teslimatTarihi");
     const teslimatSaati = document.getElementById("teslimatSaati");
     const merkezNotu = document.getElementById("merkezNotu");
     const productGrid = document.getElementById("productGrid");
-    const profileRaw = localStorage.getItem("branchProfile");
-    const branchProfile = profileRaw ? JSON.parse(profileRaw) : null;
-    const branchName = branchProfile && branchProfile.subeAdi ? branchProfile.subeAdi : "Borekci Sube 01";
+    const noticeModal = document.getElementById("noticeModal");
+    const noticeCard = document.getElementById("noticeCard");
+    const noticeTitle = document.getElementById("noticeTitle");
+    const noticeText = document.getElementById("noticeText");
+    const noticeCount = document.getElementById("noticeCount");
+    const cfg = window.APP_CONFIG || {};
+    const testMode = !!cfg.TEST_MODE;
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const session = window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
+    const branchName = (session && session.branchName) ? session.branchName : "Borekci Sube 01";
     let numberInputs = [];
+    let branchContext = null;
+    let noticeTimer = null;
+    let noticeTick = null;
     const defaultProducts = [
       { key: "su_boregi", name: "Su Boregi", price: 700 },
       { key: "peynirli_borek", name: "Peynirli Borek", price: 650 },
@@ -310,6 +355,43 @@
         .replaceAll('"', "&quot;");
     }
 
+    function hideNotice() {
+      if (noticeTimer) {
+        clearTimeout(noticeTimer);
+        noticeTimer = null;
+      }
+      if (noticeTick) {
+        clearInterval(noticeTick);
+        noticeTick = null;
+      }
+      noticeModal.classList.remove("show");
+      noticeText.textContent = "";
+      noticeCount.textContent = "";
+    }
+
+    function showNotice(type, message, durationMs) {
+      const duration = Math.max(500, Number(durationMs || 3000));
+      const kind = type === "success" ? "success" : "error";
+      hideNotice();
+      noticeCard.classList.remove("success", "error");
+      noticeCard.classList.add(kind);
+      noticeTitle.textContent = kind === "success" ? "Basarili" : "Uyari";
+      noticeText.textContent = message;
+      let remainSec = Math.ceil(duration / 1000);
+      noticeCount.textContent = remainSec + " sn sonra kapanacak";
+      noticeModal.classList.add("show");
+      noticeTick = setInterval(function () {
+        remainSec -= 1;
+        if (remainSec <= 0) {
+          clearInterval(noticeTick);
+          noticeTick = null;
+          return;
+        }
+        noticeCount.textContent = remainSec + " sn sonra kapanacak";
+      }, 1000);
+      noticeTimer = setTimeout(hideNotice, duration);
+    }
+
     function updateCartTotal() {
       let totalTray = 0;
       let totalAmount = 0;
@@ -337,6 +419,33 @@
       return "SP-" + String(base).padStart(4, "0");
     }
 
+    function getAuthSession() {
+      try {
+        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    async function apiRequest(path, options) {
+      const currentSession = getAuthSession();
+      const token = currentSession && currentSession.accessToken ? currentSession.accessToken : "";
+      if (!token) {
+        throw new Error("Oturum bilgisi bulunamadi. Lutfen tekrar giris yapin.");
+      }
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
     function getLivePrices() {
       const raw = localStorage.getItem("productPrices");
       const custom = raw ? JSON.parse(raw) : {};
@@ -350,6 +459,9 @@
     }
 
     function getBranchAdjustmentPercent() {
+      if (!testMode && branchContext) {
+        return Number(branchContext.percent || 0);
+      }
       const raw = localStorage.getItem("branchPriceAdjustments");
       const allAdjustments = raw ? JSON.parse(raw) : {};
       const pct = Number(allAdjustments[branchName] || 0);
@@ -364,6 +476,9 @@
     }
 
     function isBranchActive() {
+      if (!testMode && branchContext && branchContext.branch) {
+        return branchContext.branch.isActive !== false;
+      }
       const raw = localStorage.getItem("centerBranches");
       const branches = raw ? JSON.parse(raw) : [];
       const current = branches.find(function (b) { return b.name === branchName; });
@@ -378,6 +493,31 @@
     }
 
     function renderProducts() {
+      if (!testMode && branchContext) {
+        const htmlApi = (branchContext.products || [])
+          .map(function (product) {
+            const key = product.code;
+            const safeName = escapeHtml(product.name);
+            const price = Number(product.adjustedPrice || 0);
+            const isActive = product.isActive !== false;
+            return '' +
+              '<article class="item ' + (isActive ? "" : "passive") + '">' +
+              '  <strong>' + safeName + '</strong>' +
+              '  ' + (isActive ? "" : '<div class="passive-note">Pasif - Tedarik Saglanamiyor</div>') +
+              '  <div class="price">Tepsi Fiyati: <span>' + price + '</span> TL</div>' +
+              '  <label>Tepsi Sayisi<input type="number" name="' + key + '_tepsi" min="0" step="1" value="0" data-name="' + safeName + '" data-product="' + key + '" data-price="' + price + '" data-active="' + (isActive ? "true" : "false") + '"></label>' +
+              '</article>';
+          })
+          .join("");
+        productGrid.innerHTML = htmlApi;
+        numberInputs = Array.from(form.querySelectorAll('input[type="number"][data-product]'));
+        numberInputs.forEach(function (input) {
+          input.addEventListener("input", updateCartTotal);
+        });
+        updateCartTotal();
+        return;
+      }
+
       const catalog = getProductCatalog();
       const prices = getLivePrices();
       const availability = getProductAvailability();
@@ -409,28 +549,36 @@
 
     setDefaultDeliveryDate();
     teslimatSaati.value = "07:00";
-    renderProducts();
-    window.addEventListener("storage", function (event) {
-      if (event.key === "productPrices" || event.key === "branchPriceAdjustments" || event.key === "productCatalog" || event.key === "productAvailability") {
-        renderProducts();
-      }
-    });
 
-    form.addEventListener("submit", function (event) {
+    if (!testMode) {
+      apiRequest("/branches/my-context", { method: "GET" })
+        .then(function (data) {
+          branchContext = data;
+          renderProducts();
+        })
+        .catch(function (err) {
+          showNotice("error", (err && err.message) || "Sube ayarlari alinamadi.");
+        });
+    } else {
+      renderProducts();
+      window.addEventListener("storage", function (event) {
+        if (event.key === "productPrices" || event.key === "branchPriceAdjustments" || event.key === "productCatalog" || event.key === "productAvailability") {
+          renderProducts();
+        }
+      });
+    }
+
+    form.addEventListener("submit", async function (event) {
       event.preventDefault();
 
       if (!isBranchActive()) {
-        result.style.display = "block";
-        result.className = "alert-error";
-        result.textContent = "Bu siparis gerceklestirilemiyor. Lutfen merkez ile irtibata gecin.";
+        showNotice("error", "Bu siparis gerceklestirilemiyor. Lutfen merkez ile irtibata gecin.");
         return;
       }
 
       const totals = updateCartTotal();
       if (totals.totalTray === 0) {
-        result.style.display = "block";
-        result.className = "alert-error";
-        result.textContent = "En az bir urun icin tepsi sayisi girmelisin.";
+        showNotice("error", "En az bir urun icin tepsi sayisi girmelisin.");
         return;
       }
 
@@ -442,26 +590,50 @@
           return input.dataset.name;
         });
       if (passiveSelected.length) {
-        result.style.display = "block";
-        result.className = "alert-error";
-        result.textContent = passiveSelected.join(", ") + " urunu pasif durumda. Bu urun tedariki su anda saglanamiyor.";
+        showNotice("error", passiveSelected.join(", ") + " urunu pasif durumda. Bu urun tedariki su anda saglanamiyor.");
         return;
       }
 
-      const rawOrders = localStorage.getItem("branchOrders");
-      const orders = rawOrders ? JSON.parse(rawOrders) : [];
       const items = [];
       numberInputs.forEach(function (input) {
         const qty = Number(input.value || 0);
         if (qty > 0) {
           items.push({
+            productCode: input.dataset.product,
+            qtyTray: qty,
             name: input.dataset.name,
-            qty: qty,
             unitPrice: Number(input.dataset.price || 0)
           });
         }
       });
 
+      if (!testMode) {
+        try {
+          const created = await apiRequest("/orders", {
+            method: "POST",
+            body: JSON.stringify({
+              deliveryDate: teslimatTarihi.value,
+              deliveryTime: teslimatSaati.value,
+              note: merkezNotu.value.trim(),
+              items: items.map(function (item) {
+                return { productCode: item.productCode, qtyTray: item.qtyTray };
+              })
+            })
+          });
+
+          showNotice("success", "Siparis kaydedildi. Siparis No: " + created.orderNo + " | Toplam: " + formatTL(Number(created.totalAmount || totals.totalAmount)));
+          setTimeout(function () {
+            window.location.href = "siparislerim.html";
+          }, 3200);
+          return;
+        } catch (err) {
+          showNotice("error", (err && err.message) || "Siparis kaydedilemedi.");
+          return;
+        }
+      }
+
+      const rawOrders = localStorage.getItem("branchOrders");
+      const orders = rawOrders ? JSON.parse(rawOrders) : [];
       const order = {
         orderNo: nextOrderNo(orders),
         branchName: branchName,
@@ -471,23 +643,20 @@
         note: merkezNotu.value.trim(),
         totalTray: totals.totalTray,
         totalAmount: totals.totalAmount,
-        items: items,
+        items: items.map(function (item) {
+          return { name: item.name, qty: item.qtyTray, unitPrice: item.unitPrice };
+        }),
         createdAt: new Date().toISOString()
       };
-
       orders.push(order);
       localStorage.setItem("branchOrders", JSON.stringify(orders));
 
-      result.style.display = "block";
-      result.className = "alert-success";
-      result.textContent = "Siparis kaydedildi. Siparis No: " + order.orderNo + " | Toplam: " + formatTL(order.totalAmount);
+      showNotice("success", "Siparis kaydedildi. Siparis No: " + order.orderNo + " | Toplam: " + formatTL(order.totalAmount));
       setTimeout(function () {
         window.location.href = "siparislerim.html";
-      }, 900);
+      }, 3200);
     });
   </script>
-  <script src="../assets/app-config.js"></script>
-  <script src="../assets/role-guard.js"></script>
 </body>
 </html>
 
