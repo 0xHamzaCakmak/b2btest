@@ -427,3 +427,4 @@ Test sonucu:
    - Staging ve canliya hazirlik
 
 //Admin paneline geçiş yapacağız. burada kaldık. şube ve merkez tarafı sorunsuz çalışıyor database üzerinde.
+. Yedek alındı
