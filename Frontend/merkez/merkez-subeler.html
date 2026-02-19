@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Merkez Sube Yonetimi | Nebula Studio</title>
+  <title>Merkez Sube Yonetimi | B2B Tedarik</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -190,6 +190,84 @@
       margin-top: .5rem;
       font-size: .92rem;
     }
+    .adjust-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: .45rem;
+      font-size: .9rem;
+    }
+    .adjust-table th, .adjust-table td {
+      border-bottom: 1px solid rgba(19, 34, 31, .12);
+      padding: .42rem .3rem;
+      text-align: left;
+      vertical-align: middle;
+    }
+    .adjust-table th {
+      font-size: .82rem;
+      opacity: .8;
+    }
+    .adjust-table input {
+      width: 110px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .55rem;
+      font: inherit;
+      background: rgba(255, 255, 255, .9);
+    }
+    .adjust-table input.editing {
+      border-color: rgba(232, 111, 81, .95);
+      box-shadow: 0 0 0 3px rgba(232, 111, 81, .18);
+      background: rgba(255, 248, 241, .96);
+    }
+    .adjust-actions {
+      display: flex;
+      gap: .35rem;
+      align-items: center;
+    }
+    .btn.icon {
+      width: 36px;
+      min-width: 36px;
+      padding: .4rem 0;
+      text-align: center;
+      font-size: .95rem;
+    }
+    .adjust-table tr:last-child td {
+      border-bottom: 0;
+    }
+    .confirm-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(19, 34, 31, .28);
+      backdrop-filter: blur(2px);
+      z-index: 80;
+      padding: 1rem;
+    }
+    .confirm-modal.show { display: flex; }
+    .confirm-card {
+      width: min(420px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .98);
+      box-shadow: 0 12px 34px rgba(19, 34, 31, .2);
+      padding: .9rem 1rem;
+    }
+    .confirm-card h4 {
+      margin: .1rem 0 .4rem;
+      font-size: 1rem;
+    }
+    .confirm-card p {
+      margin: 0 0 .7rem;
+      font-size: .92rem;
+    }
+    .confirm-row {
+      display: flex;
+      gap: .5rem;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
     .list {
       margin: .45rem 0 0;
       padding-left: 1.1rem;
@@ -251,7 +329,20 @@
           </div>
 
           <div class="preview">
-            <strong>Onizleme (tepsi fiyati)</strong>
+            <strong>Urun Bazli Ek Fiyat Farki (TL)</strong>
+            <table class="adjust-table">
+              <thead>
+                <tr>
+                  <th>Urun</th>
+                  <th>Baz</th>
+                  <th>Ek Fark</th>
+                  <th>Son Fiyat</th>
+                  <th>Islem</th>
+                </tr>
+              </thead>
+              <tbody id="productAdjustBody"></tbody>
+            </table>
+            <strong style="display:block;margin-top:.5rem;">Onizleme (tepsi fiyati)</strong>
             <ul class="list" id="pricePreview"></ul>
           </div>
           <div class="msg" id="saveMsg">Sube fiyat farki kaydedildi.</div>
@@ -262,6 +353,16 @@
 
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <div id="confirmModal" class="confirm-modal" role="dialog" aria-modal="true">
+    <div class="confirm-card">
+      <h4>Degisikligi Onayla</h4>
+      <p id="confirmText">Urun fiyat farkini guncellemek istediginize emin misiniz?</p>
+      <div class="confirm-row">
+        <button id="confirmCancelBtn" class="btn" type="button">Iptal</button>
+        <button id="confirmOkBtn" class="btn primary" type="button">Tamam</button>
+      </div>
+    </div>
+  </div>
   <script>
     const branchListEl = document.getElementById("branchList");
     const branchCountEl = document.getElementById("branchCount");
@@ -279,13 +380,16 @@
     const applyBtn = document.getElementById("applyBtn");
     const saveBtn = document.getElementById("saveBtn");
     const pricePreview = document.getElementById("pricePreview");
+    const productAdjustBody = document.getElementById("productAdjustBody");
     const saveMsg = document.getElementById("saveMsg");
+    const confirmModal = document.getElementById("confirmModal");
+    const confirmText = document.getElementById("confirmText");
+    const confirmCancelBtn = document.getElementById("confirmCancelBtn");
+    const confirmOkBtn = document.getElementById("confirmOkBtn");
 
     const cfg = window.APP_CONFIG || {};
     const testMode = !!cfg.TEST_MODE;
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
-    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
-
     const defaultBasePrices = {
       su_boregi: { name: "Su Boregi", price: 700 },
       peynirli_borek: { name: "Peynirli Borek", price: 650 },
@@ -300,10 +404,13 @@
     let branches = [];
     let products = [];
     let selectedBranchId = null;
+    let branchProductRows = [];
+    let editingProductId = null;
+    let pendingProductAdjustment = null;
 
     function getAuthSession() {
       try {
-        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+        return window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
       } catch (_err) {
         return null;
       }
@@ -311,14 +418,11 @@
 
     async function apiRequest(path, options) {
       const session = getAuthSession();
-      const token = session && session.accessToken ? session.accessToken : "";
-      if (!token) {
-        throw new Error("Oturum bilgisi bulunamadi. Lutfen tekrar giris yapin.");
-      }
 
       const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        credentials: "include",
         headers: Object.assign(
-          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          { "Content-Type": "application/json" },
           (options && options.headers) || {}
         )
       }));
@@ -358,15 +462,25 @@
     }
 
     function getPreviewProducts() {
+      if (branchProductRows.length) {
+        return branchProductRows.map(function (row) {
+          return {
+            name: row.name,
+            basePrice: Number(row.basePrice || 0),
+            extraAmount: Number(row.extraAmount || 0)
+          };
+        });
+      }
       if (!testMode && products.length) {
         return products.map(function (p) {
-          return { name: p.name, basePrice: Number(p.basePrice || 0) };
+          return { name: p.name, basePrice: Number(p.basePrice || 0), extraAmount: 0 };
         });
       }
       return Object.keys(defaultBasePrices).map(function (key) {
         return {
           name: defaultBasePrices[key].name,
-          basePrice: Number(defaultBasePrices[key].price)
+          basePrice: Number(defaultBasePrices[key].price),
+          extraAmount: 0
         };
       });
     }
@@ -379,10 +493,104 @@
       }
       const pct = Number(percentInput.value || 0);
       const previewHtml = getPreviewProducts().map(function (product) {
-        const adjusted = applyPercent(Number(product.basePrice), pct);
+        const extra = Number(product.extraAmount || 0);
+        const adjusted = Math.max(1, Math.round((Number(product.basePrice) * (1 + pct / 100)) + extra));
         return "<li>" + product.name + ": " + adjusted + " TL</li>";
       }).join("");
       pricePreview.innerHTML = previewHtml;
+    }
+
+    function renderProductAdjustmentTable() {
+      if (!branchProductRows.length) {
+        productAdjustBody.innerHTML = '<tr><td colspan="5">Urun bilgisi bulunamadi.</td></tr>';
+        return;
+      }
+      productAdjustBody.innerHTML = branchProductRows.map(function (row) {
+        const isEditing = editingProductId === row.productId;
+        const safeName = (row.name || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+        return '' +
+          '<tr>' +
+          '  <td>' + safeName + '</td>' +
+          '  <td>' + Math.round(Number(row.basePrice || 0)) + ' TL</td>' +
+          '  <td><input class="' + (isEditing ? 'editing' : '') + '" type="number" step="1" min="-100000" max="100000" data-product-id="' + row.productId + '" value="' + Number(row.extraAmount || 0) + '" ' + (isEditing ? '' : 'disabled') + '></td>' +
+          '  <td>' + Math.round(Number(row.adjustedPrice || 0)) + ' TL</td>' +
+          '  <td><div class="adjust-actions"><button class="btn icon edit-product-btn" type="button" data-product-id="' + row.productId + '">&#9998;</button><button class="btn primary save-product-btn" type="button" data-product-id="' + row.productId + '" ' + (isEditing ? '' : 'disabled') + '>Kaydet</button></div></td>' +
+          '</tr>';
+      }).join("");
+
+      productAdjustBody.querySelectorAll(".edit-product-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          editingProductId = btn.dataset.productId || null;
+          renderProductAdjustmentTable();
+        });
+      });
+
+      productAdjustBody.querySelectorAll(".save-product-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const productId = btn.dataset.productId || "";
+          if (!productId || editingProductId !== productId) return;
+          const input = productAdjustBody.querySelector('input[data-product-id="' + productId + '"]');
+          if (!input) return;
+          const value = Number(input.value || 0);
+          const row = branchProductRows.find(function (x) { return x.productId === productId; });
+          if (!row) return;
+          pendingProductAdjustment = { productId: productId, productName: row.name, extraAmount: value };
+          confirmText.textContent = row.name + " icin ek fiyat farki " + value + " TL olarak guncellenecek. Kararinizdan emin misiniz?";
+          confirmModal.classList.add("show");
+        });
+      });
+    }
+
+    async function loadProductAdjustments() {
+      const selectedBranch = getSelectedBranch();
+      if (!selectedBranch) {
+        branchProductRows = [];
+        renderProductAdjustmentTable();
+        return;
+      }
+      if (!testMode) {
+        const data = await apiRequest("/branches/" + selectedBranch.id + "/product-adjustments", { method: "GET" });
+        branchProductRows = Array.isArray(data.products) ? data.products : [];
+      } else {
+        branchProductRows = getPreviewProducts().map(function (product, idx) {
+          return {
+            productId: "local-p-" + idx,
+            name: product.name,
+            basePrice: Number(product.basePrice || 0),
+            extraAmount: 0,
+            adjustedPrice: applyPercent(Number(product.basePrice || 0), Number(percentInput.value || 0))
+          };
+        });
+      }
+      renderProductAdjustmentTable();
+      renderPreview();
+    }
+
+    async function saveProductAdjustment(productId, extraAmount) {
+      const selectedBranch = getSelectedBranch();
+      if (!selectedBranch) return;
+      editingProductId = null;
+
+      if (!testMode) {
+        await apiRequest("/branches/" + selectedBranch.id + "/product-adjustments/" + productId, {
+          method: "PUT",
+          body: JSON.stringify({ extraAmount: Number(extraAmount || 0) })
+        });
+        await loadProductAdjustments();
+      } else {
+        branchProductRows = branchProductRows.map(function (row) {
+          if (row.productId === productId) {
+            const pct = Number(percentInput.value || 0);
+            const finalPrice = Math.max(1, Math.round((Number(row.basePrice || 0) * (1 + pct / 100)) + Number(extraAmount || 0)));
+            return Object.assign({}, row, { extraAmount: Number(extraAmount || 0), adjustedPrice: finalPrice });
+          }
+          return row;
+        });
+        renderProductAdjustmentTable();
+        renderPreview();
+      }
+      renderProductAdjustmentTable();
+      showMessage("Urun bazli fiyat farki kaydedildi.");
     }
 
     function renderSelectedBranch() {
@@ -409,6 +617,9 @@
       dStatus.className = selectedBranch.isActive ? "status-pill" : "status-pill passive";
       percentInput.value = String(pct);
       renderPreview();
+      loadProductAdjustments().catch(function (err) {
+        showMessage((err && err.message) || "Urun bazli fiyat farklari alinamadi.");
+      });
     }
 
     async function setSelectedBranchActive(isActive) {
@@ -476,6 +687,7 @@
 
       renderSelectedBranch();
       renderBranchList();
+      await loadProductAdjustments();
       showMessage("Sube fiyat farki kaydedildi.");
     }
 
@@ -492,6 +704,31 @@
     percentInput.addEventListener("input", renderPreview);
     setActiveBtn.addEventListener("click", function () { setSelectedBranchActive(true); });
     setPassiveBtn.addEventListener("click", function () { setSelectedBranchActive(false); });
+
+    confirmCancelBtn.addEventListener("click", function () {
+      pendingProductAdjustment = null;
+      confirmModal.classList.remove("show");
+    });
+
+    confirmOkBtn.addEventListener("click", function () {
+      if (!pendingProductAdjustment) {
+        confirmModal.classList.remove("show");
+        return;
+      }
+      const payload = pendingProductAdjustment;
+      pendingProductAdjustment = null;
+      confirmModal.classList.remove("show");
+      saveProductAdjustment(payload.productId, payload.extraAmount).catch(function (err) {
+        showMessage((err && err.message) || "Urun bazli fiyat farki kaydedilemedi.");
+      });
+    });
+
+    confirmModal.addEventListener("click", function (event) {
+      if (event.target === confirmModal) {
+        pendingProductAdjustment = null;
+        confirmModal.classList.remove("show");
+      }
+    });
 
     function loadLocalFallbackData() {
       const list = [];
@@ -514,6 +751,7 @@
       selectedBranchId = branches.length ? branches[0].id : null;
       renderBranchList();
       renderSelectedBranch();
+      loadProductAdjustments();
     }
 
     async function initApiMode() {
@@ -534,5 +772,11 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+
 
 

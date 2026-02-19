@@ -1,5 +1,6 @@
 const { prisma } = require("../../config/prisma");
 const { verifyAccessToken } = require("../auth/jwt");
+const { getAccessTokenFromRequest } = require("../utils/cookies");
 
 const CACHE_TTL_MS = 15000;
 let cacheState = {
@@ -11,6 +12,7 @@ let cacheState = {
 const BYPASS_PATHS = new Set([
   "/api/auth/login",
   "/api/auth/refresh",
+  "/api/auth/logout",
   "/api/admin/settings",
   "/api/admin/settings/history"
 ]);
@@ -53,8 +55,11 @@ function isBypassPath(pathOnly) {
 
 async function isAdminRequest(req) {
   const authHeader = String(req.headers.authorization || "");
-  if (!authHeader.startsWith("Bearer ")) return false;
-  const token = authHeader.slice("Bearer ".length);
+  const bearerToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  const cookieToken = getAccessTokenFromRequest(req);
+  const token = bearerToken || cookieToken;
   if (!token) return false;
 
   try {

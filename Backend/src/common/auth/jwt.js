@@ -9,12 +9,20 @@ function ensureSecret(name, value) {
 
 function signAccessToken(payload) {
   ensureSecret("JWT_ACCESS_SECRET", env.JWT_ACCESS_SECRET);
-  return jwt.sign(payload, env.JWT_ACCESS_SECRET, { expiresIn: "15m" });
+  return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
+    expiresIn: `${Math.max(1, Number(env.ACCESS_TOKEN_MINUTES || 15))}m`
+  });
 }
 
-function signRefreshToken(payload) {
+function signRefreshToken(payload, options) {
   ensureSecret("JWT_REFRESH_SECRET", env.JWT_REFRESH_SECRET);
-  return jwt.sign(payload, env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
+  const signOptions = {
+    expiresIn: `${Math.max(1, Number(env.REFRESH_TOKEN_DAYS || 7))}d`
+  };
+  if (options && options.jwtid) {
+    signOptions.jwtid = String(options.jwtid);
+  }
+  return jwt.sign(payload, env.JWT_REFRESH_SECRET, signOptions);
 }
 
 function verifyAccessToken(token) {

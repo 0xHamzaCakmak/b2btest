@@ -3,8 +3,17 @@ const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
+const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const centersRouter = express.Router();
+const centerMutationRateLimiter = createSimpleRateLimiter({
+  max: 80,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla merkez degisikligi istegi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:center-mutation`;
+  }
+});
 
 const createCenterSchema = z.object({
   name: z.string().min(2).max(120),
@@ -57,7 +66,7 @@ centersRouter.get("/", requireAuth, requireRole("admin"), async (_req, res, next
   }
 });
 
-centersRouter.post("/", requireAuth, requireRole("admin"), async (req, res, next) => {
+centersRouter.post("/", requireAuth, requireRole("admin"), centerMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = createCenterSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -91,7 +100,7 @@ centersRouter.post("/", requireAuth, requireRole("admin"), async (req, res, next
   }
 });
 
-centersRouter.put("/:id", requireAuth, requireRole("admin"), async (req, res, next) => {
+centersRouter.put("/:id", requireAuth, requireRole("admin"), centerMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = updateCenterSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -133,7 +142,7 @@ centersRouter.put("/:id", requireAuth, requireRole("admin"), async (req, res, ne
   }
 });
 
-centersRouter.put("/:id/status", requireAuth, requireRole("admin"), async (req, res, next) => {
+centersRouter.put("/:id/status", requireAuth, requireRole("admin"), centerMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = statusSchema.safeParse(req.body);
     if (!parsed.success) {

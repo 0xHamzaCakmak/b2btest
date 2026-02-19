@@ -1,4 +1,4 @@
-ï»¿# Backend
+# Backend
 
 Bu klasor, mevcut `Frontend/` prototipini bozmadan Node.js tabanli backend'e gecis icin referans calisma alanidir.
 
@@ -254,7 +254,7 @@ Tarayici test adimlari:
    - `sube01@borekci.com / 12345678`
 5. Basarili login sonrasi role uygun panele yonlendirme gorulmelidir.
 
-## 4.8 Adim 6 Durumu (Kullanici/Åžube Gorunen Isim Bilgisi Eklendi)
+## 4.8 Adim 6 Durumu (Kullanici/Þube Gorunen Isim Bilgisi Eklendi)
 
 Tamamlananlar:
 
@@ -552,7 +552,7 @@ Bugun tamamlananlar:
 3. Sube siparislerim ekraninda:
    - Onaylanmayan satirlar kirmizi ve kalin gosteriliyor.
    - Kalemler tablo duzeninde listeleniyor.
-4. Merkez siparis ust aksiyon alani sadeleÅŸtirildi:
+4. Merkez siparis ust aksiyon alani sadeleþtirildi:
    - Filtre ve onay islemleri ayri bloklara bolundu.
    - `Tum siparisleri sec` master checkbox mantigi eklendi.
    - `Tumunu Teslim Edildi Isaretle` butonu liste basina tasindi.
@@ -579,7 +579,7 @@ Tamamlananlar:
 1. Backend refresh endpoint eklendi:
    - `POST /api/auth/refresh`
    - Payload: `refreshToken`
-   - Gecerli refresh token ile yeni `accessToken` + yeni `refreshToken` doner.
+   - Gecerli refresh token ile yeni `accessToken` doner, refresh token `HttpOnly` cookie olarak yenilenir.
 2. JWT altyapisi genisletildi:
    - `verifyRefreshToken` yardimcisi eklendi.
 3. Frontend global otomatik yenileme eklendi:
@@ -837,7 +837,7 @@ Bu bolum, mevcut noktadan canliya guvenli gecis ve localStorage bagimliligini ka
    - Gerekliyse credentials ayarini explicit yonet.
 4. Rate limit ve brute-force korumasi
    - `POST /api/auth/login` icin IP + identifier bazli rate limit ekle.
-   - Kisa sureli lockout/slowdown mekaniÄŸi ekle.
+   - Kisa sureli lockout/slowdown mekaniði ekle.
    - Basarisiz login denemelerini audit log'a yaz.
 5. CSP ve guvenlik header'lari
    - Helmet CSP politikasini tanimla.
@@ -846,7 +846,7 @@ Bu bolum, mevcut noktadan canliya guvenli gecis ve localStorage bagimliligini ka
 6. Input ve upload guvenligi
    - Upload MIME/type/size whitelist uygula.
    - Dosya adi sanitize et.
-   - ZararlÄ± uzanti ve icerik kontrolu yap.
+   - Zararlý uzanti ve icerik kontrolu yap.
 7. Auth/role testleri
    - Yetkisiz erisim testleri.
    - Cross-role endpoint testleri.
@@ -894,7 +894,288 @@ Bu bolum, mevcut noktadan canliya guvenli gecis ve localStorage bagimliligini ka
 2. Sonra localStorage kaldirma (faz faz).
 3. Her faz sonunda test + geri donus noktasi.
 
+### 5.4 Guncel Durum
+
+Tamamlanan guvenlik adimlari:
+
+1. Cookie tabanli refresh altyapisi:
+   - `POST /api/auth/login` ve `POST /api/auth/refresh` refresh token'i `HttpOnly` cookie olarak set eder.
+   - `POST /api/auth/logout` refresh cookie'yi temizler.
+2. Refresh token stateful yonetim:
+   - Yeni tablo: `refresh_sessions` (`jti`, `user_id`, `expires_at`, `revoked_at`, `replaced_by_jti`, `ip_address`, `user_agent`).
+   - Refresh akisinda jti/session kontrolu zorunlu.
+   - Her refresh'te rotation uygulanir (eski session revoke, yeni session create).
+3. CORS sikilastirma:
+   - `app.use(cors())` yerine whitelist tabanli CORS.
+   - Ortam degiskeni: `CORS_ORIGINS`.
+4. Login brute-force korumasi:
+   - `POST /api/auth/login` icin basit rate limiter.
+5. Frontend uyumu:
+   - Login/refresh/logout isteklerinde `credentials: include`.
+   - Yeni loginlerde refresh token localStorage'a yazilmaz.
+   - API sayfalarinda `credentials: include` aktif, token yoksa da cookie ile oturum devam eder.
+6. Access token cookie fallback:
+   - Backend `requireAuth` artik Bearer yoksa access cookie'den kimlik dogrular.
+   - Login/refresh akisinda access token da `HttpOnly` cookie olarak set edilir.
+7. Access token localStorage bagimliligi azaltildi:
+   - Frontend sayfalardaki API cagrilarinda `Authorization` header zorunlulugu kaldirildi.
+   - `authSession` icindeki eski `accessToken/refreshToken` alanlari otomatik temizlenir.
+8. Is verisi localStorage fallbackleri kaldirildi (API-only):
+   - `sube/siparis.html`: urun katalogu/fiyat/durum ve siparis kaydi artik yalniz API ile.
+   - `sube/siparislerim.html`: siparis listesi yalniz API ile.
+   - `merkez/merkez.html`: siparis onay/teslim ve kalan raporu yalniz API ile.
+   - `merkez/merkez-urun-fiyat.html`: urun/fiyat CRUD ve aktif-pasif islemleri yalniz API ile.
+   - `sube/profil.html`: profil + istatistikte business data localStorage fallbacki kaldirildi.
+9. Guvenlik header sertlestirmesi (CSP + temel headerlar):
+   - `helmet` CSP explicit policy ile aktif edildi (`default-src 'none'` tabanli API guvenli profil).
+   - `CSP_REPORT_ONLY` env degiskeni ile policy report-only moduna alinabilir.
+   - `x-powered-by` kapatildi (`app.disable('x-powered-by')`).
+   - `referrer-policy: no-referrer` aktif.
+10. Rate limit kapsami genisletildi:
+   - Auth: `POST /api/auth/refresh`, `POST /api/auth/logout`
+   - Orders: `POST /api/orders`, `PUT /api/orders/:id/approve`, `PUT /api/orders/:id/deliver`, `PUT /api/orders/approve-bulk`
+   - Products: upload + tum mutating endpointler
+   - Branches/Centers/Users: tum mutating endpointler
+   - Profile: `PUT /api/profile/me`, `PUT /api/profile/password`
+   - Settings: `PUT /api/admin/settings`
+   - Logs: `GET /api/admin/logs` (okuma korumasi)
+   - Limit asiminda standart `429 TOO_MANY_REQUESTS` + `Retry-After` doner.
+11. Frontend session katmani localStorage'dan cikartildi:
+   - `authSession` localStorage kullanimi kaldirildi.
+   - Oturum bilgisi sayfa bazinda `GET /api/me` ile hydrate edilir.
+   - `window.AuthSession` artik memory tabanli calisir (`get/set/clear/hydrate`).
+   - Login sonrasi yonlendirme backend'den gelen role gore devam eder; oturum dogrulama cookie + `/api/me` ile yapilir.
+12. Role/Auth regression test scripti eklendi:
+   - Dosya: `Backend/tests/auth-regression.test.js`
+   - Komut: `npm run test:auth-regression`
+   - Kapsam:
+     - Anonim `/api/me` -> `401`
+     - Admin/Sube/Merkez login -> `200`
+     - Role bazli yetki kontrolleri (`/api/admin/users` icin `403` senaryolari)
+   - Refresh sonrasi `/api/me` devam ediyor mu
+   - Logout sonrasi `/api/me` -> `401`
+   - Sonuc ciktisi: `PASS auth-regression` veya `FAIL auth-regression`
+13. Production icin distributed rate limiter gecis altyapisi hazirlandi:
+   - Ortak store katmani eklendi: `Backend/src/config/rate-limit.js`
+   - Varsayilan strateji: `memory` (mevcut davranis korunur)
+   - Opsiyonel strateji: `redis` (`RATE_LIMIT_STRATEGY=redis`)
+   - `REDIS_URL` + `RATE_LIMIT_PREFIX` env degiskenleri eklendi
+   - `ioredis` yoksa veya Redis baglanamazsa otomatik memory store fallback
+   - Mevcut tum limiterlar ortak store uzerinden calisir (`createSimpleRateLimiter`)
+14. Frontend config sadeleþtirmesi tamamlandi:
+   - Kullanilmayan `AUTH_SESSION_KEY` kaldirildi.
+   - Session yonetimi tamamen `window.AuthSession` (memory + `/api/me` hydrate) uzerinden devam eder.
+15. CI pipeline'a auth regression testi eklendi:
+   - Workflow: `.github/workflows/backend-auth-regression.yml`
+   - Tetikleme:
+     - `push` ve `pull_request` (`main`, `Backend/**` degisikliklerinde)
+     - manuel `workflow_dispatch`
+   - Akis:
+     - MSSQL service container
+     - CI veritabani olusturma (`b2b_borek_ci`)
+     - `prisma:generate` + `prisma:deploy` + `seed`
+     - `npm run test:auth-regression`
+16. Redis stratejisi icin stage hazirligi tamamlandi:
+   - Fail-open rate limit store eklendi:
+     - Redis erisimi kesilirse otomatik memory store fallback (servis kesintisi olusmaz).
+   - Redis smoke test scripti eklendi:
+     - Komut: `npm run redis:smoke`
+     - Dosya: `Backend/scripts/redis-smoke.js`
+     - Dogrulama: Redis connect + `SET/GET` + `INCR`
+   - Env:
+     - `RATE_LIMIT_STRATEGY=redis`
+     - `REDIS_URL=<stage_redis_url>`
+   - Not:
+     - `ioredis` opsiyonel bagimlilik olarak kullanilir.
+     - Redis kullanilacak ortamda bir kez `npm i ioredis` kurulmalidir.
+
+Siradaki adim:
+
+1. Stage ortaminda `RATE_LIMIT_STRATEGY=redis` ile deploy alip `npm run redis:smoke` ve temel login/siparis smoke testlerini calistirmak.
+
 ## 6. API Kontrati (Referans)
 
 - Taslak kontrat dosyasi: `Backend/api-contract/openapi.yaml`
 - Frontend ve backend bu dosyaya gore paralel gelistirilir.
+
+## 7. Canliya Alma Rehberi (Uctan Uca)
+
+Bu bolum, projeyi sifirdan production ortamina almak icin adim adim referanstir.
+
+### 7.1 Onerilen Mimari
+
+1. Tek VPS uzerinde:
+   - `Nginx` (reverse proxy + SSL)
+   - `Backend (Node.js)` (PM2 veya Docker)
+   - `MSSQL` (Docker container) veya managed SQL
+2. Domain:
+   - `app.senin-domainin.com` -> Frontend + Backend tek domain
+   - API ayni domainde `/api` path'i altinda calisir
+3. SSL:
+   - Let's Encrypt (`certbot`)
+
+Not:
+- Kucuk/orta trafik icin tek VPS yeterli.
+- Buyume durumunda DB'yi managed servise tasimak daha saglikli olur.
+
+### 7.2 Minimum Sunucu Gereksinimi
+
+1. Baslangic (MVP):
+   - `2 vCPU`
+   - `4 GB RAM`
+   - `80 GB SSD`
+   - `Ubuntu 22.04 LTS`
+2. Onerilen:
+   - `4 vCPU`
+   - `8 GB RAM`
+   - `120+ GB SSD`
+
+### 7.3 Domain ve DNS
+
+1. Domain satin al.
+2. DNS kayitlari:
+   - `A` kaydi: `app` -> VPS public IP
+   - (opsiyonel) `A` kaydi: `www` -> VPS public IP
+3. DNS yayilimi tamamlaninca devam et.
+
+### 7.4 Sunucu Ilk Kurulum
+
+1. Sunucuya baglan:
+   - `ssh root@<SERVER_IP>`
+2. Sistem guncelle:
+   - `apt update && apt upgrade -y`
+3. Guvenlik duvari:
+   - `ufw allow OpenSSH`
+   - `ufw allow 80`
+   - `ufw allow 443`
+   - `ufw enable`
+4. Temel paketler:
+   - `apt install -y git curl ca-certificates gnupg lsb-release`
+
+### 7.5 Runtime Kurulumu
+
+Secenek A (onerilen): Docker ile calistir.
+
+1. Docker + Compose kur.
+2. Projeyi sunucuya cek:
+   - `git clone <repo_url> app && cd app`
+3. Uretim env dosyasi olustur:
+   - `Backend/.env.production`
+
+Zorunlu env ornegi:
+
+```env
+NODE_ENV=production
+PORT=4000
+DATABASE_URL=sqlserver://<DB_HOST>:1433;database=<DB_NAME>;user=<DB_USER>;password=<DB_PASS>;trustServerCertificate=true
+JWT_ACCESS_SECRET=<STRONG_SECRET>
+JWT_REFRESH_SECRET=<STRONG_SECRET>
+ACCESS_TOKEN_MINUTES=15
+REFRESH_TOKEN_DAYS=7
+CORS_ORIGINS=https://app.senin-domainin.com
+COOKIE_SECURE=true
+COOKIE_SAMESITE=lax
+ACCESS_COOKIE_NAME=access_token
+REFRESH_COOKIE_NAME=refresh_token
+RATE_LIMIT_STRATEGY=memory
+CSP_REPORT_ONLY=false
+```
+
+### 7.6 Veritabani Stratejisi
+
+1. Secenek A: MSSQL Docker (hizli baslangic)
+   - Avantaj: tek sunucuda kolay kurulum
+   - Dezavantaj: backup/upgrade sorumlulugu sende
+2. Secenek B: Managed SQL (onerilen uzun vadede)
+   - Avantaj: backup, HA, izleme daha kolay
+   - Dezavantaj: maliyet biraz daha yuksek
+
+### 7.7 Backend Deploy Adimlari
+
+1. `cd Backend`
+2. Paketler:
+   - `npm ci`
+3. Prisma:
+   - `npx prisma generate`
+   - `npx prisma migrate deploy`
+4. Ilk veri (gerekirse):
+   - `npm run seed`
+5. Uygulama calistir:
+   - Docker veya PM2 ile `node src/server.js`
+
+### 7.8 Nginx Reverse Proxy
+
+Nginx mantigi:
+1. `/api` -> `http://127.0.0.1:4000`
+2. `/uploads` -> `http://127.0.0.1:4000/uploads`
+3. `/` -> frontend statik dosyalari (`Frontend/`)
+
+Canliya cikmadan once:
+1. `nginx -t`
+2. `systemctl reload nginx`
+
+### 7.9 SSL (Let's Encrypt)
+
+1. Certbot kur:
+   - `apt install -y certbot python3-certbot-nginx`
+2. Sertifika al:
+   - `certbot --nginx -d app.senin-domainin.com`
+3. Otomatik yenileme:
+   - `systemctl status certbot.timer`
+
+### 7.10 Canli Oncesi Kontrol
+
+1. Health:
+   - `GET /health` -> `ok: true`
+2. Auth regression:
+   - `npm run test:auth-regression`
+3. Manuel smoke:
+   - Admin login
+   - Merkez login + siparis onay
+   - Sube login + siparis olusturma
+4. Cookie kontrol:
+   - `Secure + HttpOnly` aktif
+
+### 7.11 Yedekleme ve Izleme
+
+1. DB backup:
+   - Gunluk otomatik backup
+   - En az 7 gun saklama
+2. Uygulama log:
+   - `pm2 logs` veya container log toplama
+3. Hata izleme:
+   - Opsiyonel Sentry/benzeri
+
+### 7.12 Rollback Plani
+
+1. Her deploy oncesi:
+   - Git tag (`release-YYYYMMDD-HHMM`)
+2. Hata durumunda:
+   - Onceki tag'e don
+   - DB migration rollback gerekiyorsa yedekten don
+3. Rollback smoke:
+   - Login + siparis + admin temel akislari tekrar test et
+
+### 7.13 Redis Ne Zaman Acilmali?
+
+1. Simdilik `memory` ile devam edebilirsin.
+2. Asagidaki durumda Redis'e gec:
+   - Birden fazla backend instance
+   - Trafik artisi
+   - Tutarli dagitik rate limit ihtiyaci
+3. Gecis adimlari:
+   - `RATE_LIMIT_STRATEGY=redis`
+   - `REDIS_URL` tanimla
+   - `npm i ioredis`
+   - `npm run redis:smoke`
+
+## 8. En Altta Kalan Not (Redis)
+
+- Redis gecisi simdilik ertelendi; sistem su an `RATE_LIMIT_STRATEGY=memory` ile stabil calisir.
+- Redis zorunlu degil, performans ve dagitik ortam avantaji icin planli iyilestirmedir.
+- Redis'e gecis zamani geldiginde kontrol listesi:
+  1. `RATE_LIMIT_STRATEGY=redis`
+  2. `REDIS_URL` tanimla
+  3. `npm i ioredis`
+  4. `npm run redis:smoke`
+  5. Login + siparis + admin smoke testleri

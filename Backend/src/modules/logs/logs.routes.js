@@ -3,8 +3,17 @@ const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
+const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const logsRouter = express.Router();
+const logsReadRateLimiter = createSimpleRateLimiter({
+  max: 120,
+  windowMs: 60 * 1000,
+  message: "Cok fazla log sorgusu. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:logs-read`;
+  }
+});
 
 const querySchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -55,7 +64,7 @@ function mapLog(log) {
   };
 }
 
-logsRouter.get("/", requireAuth, requireRole("admin"), async (req, res, next) => {
+logsRouter.get("/", requireAuth, requireRole("admin"), logsReadRateLimiter, async (req, res, next) => {
   try {
     const parsed = querySchema.safeParse(req.query || {});
     if (!parsed.success) {

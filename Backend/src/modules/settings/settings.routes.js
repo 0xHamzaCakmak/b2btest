@@ -3,8 +3,17 @@ const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
+const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const settingsRouter = express.Router();
+const settingsMutationRateLimiter = createSimpleRateLimiter({
+  max: 40,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla ayar degisikligi istegi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:settings-mutation`;
+  }
+});
 
 const defaultSettings = {
   defaultDeliveryTime: "07:00",
@@ -190,7 +199,7 @@ settingsRouter.get("/history", requireAuth, requireRole("admin"), async (req, re
   }
 });
 
-settingsRouter.put("/", requireAuth, requireRole("admin"), async (req, res, next) => {
+settingsRouter.put("/", requireAuth, requireRole("admin"), settingsMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = updateSchema.safeParse(req.body || {});
     if (!parsed.success) {

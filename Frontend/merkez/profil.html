@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Merkez Profili | Nebula Studio</title>
+  <title>Merkez Profili | B2B Tedarik</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -296,31 +296,28 @@
 
     const cfg = window.APP_CONFIG || {};
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
-    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
-
     function formatTL(value) {
       return new Intl.NumberFormat("tr-TR").format(value) + " TL";
     }
 
     function getAuthSession() {
       try {
-        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+        return window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
       } catch (_err) {
         return null;
       }
     }
 
     function saveAuthSession(nextSession) {
-      localStorage.setItem(sessionKey, JSON.stringify(nextSession));
+      if (window.AuthSession && window.AuthSession.set) { window.AuthSession.set(nextSession); }
     }
 
     async function apiRequest(path, options) {
       const session = getAuthSession();
-      const token = session && session.accessToken ? session.accessToken : "";
-      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
       const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        credentials: "include",
         headers: Object.assign(
-          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          { "Content-Type": "application/json" },
           (options && options.headers) || {}
         )
       }));
@@ -476,3 +473,9 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+

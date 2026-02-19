@@ -1,0 +1,91 @@
+name: Backend Auth Regression
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "Backend/**"
+      - ".github/workflows/backend-auth-regression.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "Backend/**"
+      - ".github/workflows/backend-auth-regression.yml"
+  workflow_dispatch:
+
+jobs:
+  auth-regression:
+    runs-on: ubuntu-latest
+
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          SA_PASSWORD: "YourStrong!Passw0rd"
+        ports:
+          - 1433:1433
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: "sqlserver://localhost:1433;database=b2b_borek_ci;user=sa;password=YourStrong!Passw0rd;trustServerCertificate=true"
+      DATABASE_URL_MASTER: "sqlserver://localhost:1433;database=master;user=sa;password=YourStrong!Passw0rd;trustServerCertificate=true"
+      JWT_ACCESS_SECRET: "ci-access-secret"
+      JWT_REFRESH_SECRET: "ci-refresh-secret"
+      ACCESS_TOKEN_MINUTES: "15"
+      REFRESH_TOKEN_DAYS: "7"
+      CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://localhost:4000,http://127.0.0.1:4000"
+      COOKIE_SECURE: "false"
+      COOKIE_SAMESITE: "lax"
+      CSP_REPORT_ONLY: "false"
+      RATE_LIMIT_STRATEGY: "memory"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: Backend
+        run: npm ci
+
+      - name: Wait For SQL Server
+        working-directory: Backend
+        run: |
+          for i in {1..30}; do
+            npx prisma db execute --url "$DATABASE_URL_MASTER" --stdin <<'SQL' && break
+          SELECT 1;
+          SQL
+            echo "SQL Server hazir degil, tekrar deneniyor..."
+            sleep 3
+          done
+
+      - name: Create CI Database
+        working-directory: Backend
+        run: |
+          npx prisma db execute --url "$DATABASE_URL_MASTER" --stdin <<'SQL'
+          IF DB_ID('b2b_borek_ci') IS NULL
+            CREATE DATABASE b2b_borek_ci;
+          SQL
+
+      - name: Prisma Generate
+        working-directory: Backend
+        run: npm run prisma:generate
+
+      - name: Prisma Migrate Deploy
+        working-directory: Backend
+        run: npm run prisma:deploy
+
+      - name: Seed
+        working-directory: Backend
+        run: npm run seed
+
+      - name: Auth Regression
+        working-directory: Backend
+        run: npm run test:auth-regression

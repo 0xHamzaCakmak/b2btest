@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Giris | Nebula Studio</title>
+  <title>Giris | B2B Tedarik</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -175,7 +175,7 @@
     <h1>Hesabina Giris Yap</h1>
     <p>Devam etmek icin bilgilerini gir.</p>
 
-    <form id="loginForm" action="sube/siparis.html" method="get">
+    <form id="loginForm" action="sube/siparislerim.html" method="get">
       <label>
         E-posta / Telefon
         <input type="text" id="emailInput" name="emailOrPhone" placeholder="ornek@mail.com veya 0555..." required>
@@ -192,10 +192,6 @@
           <option value="merkez">Merkez</option>
         </select>
       </label>
-      <div class="row">
-        <span>Beni hatirla</span>
-        <input type="checkbox" name="remember" style="width: 18px; height: 18px;">
-      </div>
       <div id="loginMsg" class="msg"></div>
       <button class="btn primary" type="submit">Giris Yap</button>
     </form>
@@ -213,7 +209,6 @@
     const cfg = window.APP_CONFIG || {};
     const testMode = !!cfg.TEST_MODE;
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
-    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
     const roleHome = (cfg.ROLE_HOME || {});
 
     if (!testMode) {
@@ -247,6 +242,7 @@
           const response = await fetch(apiBaseUrl + "/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
             body: JSON.stringify({ emailOrPhone: emailOrPhone, password: password })
           });
 
@@ -259,33 +255,29 @@
 
           const user = payload.data.user || {};
           const selectedRole = String(user.role || "").toLowerCase();
-          const accessToken = payload.data.accessToken || "";
-          const refreshToken = payload.data.refreshToken || "";
 
           if (!selectedRole) {
             showError("Rol bilgisi alinmadi. Sistem yoneticisi ile gorusun.");
             return;
           }
 
-          const session = {
-            userId: user.id || null,
-            email: user.email || null,
-            phone: user.phone || null,
-            displayName: user.displayName || null,
-            role: selectedRole,
-            branchId: user.branchId || null,
-            branchName: user.branchName || null,
-            centerId: user.centerId || null,
-            centerName: user.centerName || null,
-            isActive: user.isActive !== false,
-            accessToken: accessToken,
-            refreshToken: refreshToken,
-            loginAt: new Date().toISOString()
-          };
+          if (window.AuthSession && window.AuthSession.set) {
+            window.AuthSession.set({
+              userId: user.id || null,
+              email: user.email || null,
+              phone: user.phone || null,
+              displayName: user.displayName || null,
+              role: selectedRole,
+              branchId: user.branchId || null,
+              branchName: user.branchName || null,
+              centerId: user.centerId || null,
+              centerName: user.centerName || null,
+              isActive: user.isActive !== false,
+              loginAt: new Date().toISOString()
+            });
+          }
 
-          localStorage.setItem(sessionKey, JSON.stringify(session));
-
-          const target = roleHome[selectedRole] || "sube/siparis.html";
+          const target = roleHome[selectedRole] || "sube/siparislerim.html";
           window.location.href = target;
           return;
         } catch (_err) {
@@ -298,16 +290,16 @@
         ? roleSelect.value
         : (cfg.DEFAULT_PROD_ROLE || "sube");
 
-      const session = {
-        email: emailOrPhone.includes("@") ? emailOrPhone : null,
-        phone: emailOrPhone.includes("@") ? null : emailOrPhone,
-        role: selectedRole,
-        loginAt: new Date().toISOString()
-      };
+      if (window.AuthSession && window.AuthSession.set) {
+        window.AuthSession.set({
+          email: emailOrPhone.includes("@") ? emailOrPhone : null,
+          phone: emailOrPhone.includes("@") ? null : emailOrPhone,
+          role: selectedRole,
+          loginAt: new Date().toISOString()
+        });
+      }
 
-      localStorage.setItem(sessionKey, JSON.stringify(session));
-
-      const target = roleHome[selectedRole] || "sube/siparis.html";
+      const target = roleHome[selectedRole] || "sube/siparislerim.html";
       window.location.href = target;
     });
   </script>

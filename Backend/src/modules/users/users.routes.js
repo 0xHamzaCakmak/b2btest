@@ -5,8 +5,17 @@ const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
 const { normalizePhone } = require("../../common/utils/phone");
+const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const usersRouter = express.Router();
+const userAdminMutationRateLimiter = createSimpleRateLimiter({
+  max: 100,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla kullanici yonetimi istegi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:users-admin-mutation`;
+  }
+});
 
 const roles = ["sube", "merkez", "admin"];
 
@@ -96,7 +105,7 @@ usersRouter.get("/", requireAuth, requireRole("admin"), async (_req, res, next) 
   }
 });
 
-usersRouter.post("/", requireAuth, requireRole("admin"), async (req, res, next) => {
+usersRouter.post("/", requireAuth, requireRole("admin"), userAdminMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = createUserSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -166,7 +175,7 @@ usersRouter.post("/", requireAuth, requireRole("admin"), async (req, res, next) 
   }
 });
 
-usersRouter.put("/:id", requireAuth, requireRole("admin"), async (req, res, next) => {
+usersRouter.put("/:id", requireAuth, requireRole("admin"), userAdminMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = updateUserSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -255,7 +264,7 @@ usersRouter.put("/:id", requireAuth, requireRole("admin"), async (req, res, next
   }
 });
 
-usersRouter.put("/:id/status", requireAuth, requireRole("admin"), async (req, res, next) => {
+usersRouter.put("/:id/status", requireAuth, requireRole("admin"), userAdminMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = statusSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -297,7 +306,7 @@ usersRouter.put("/:id/status", requireAuth, requireRole("admin"), async (req, re
   }
 });
 
-usersRouter.put("/:id/reset-password", requireAuth, requireRole("admin"), async (req, res, next) => {
+usersRouter.put("/:id/reset-password", requireAuth, requireRole("admin"), userAdminMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = resetPasswordSchema.safeParse(req.body || {});
     if (!parsed.success) {

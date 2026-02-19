@@ -6,8 +6,25 @@ const crypto = require("crypto");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
+const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const productsRouter = express.Router();
+const productMutationRateLimiter = createSimpleRateLimiter({
+  max: 120,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla urun degisikligi istegi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:product-mutation`;
+  }
+});
+const productUploadRateLimiter = createSimpleRateLimiter({
+  max: 30,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla gorsel yukleme istegi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:product-upload`;
+  }
+});
 const uploadsBaseDir = path.resolve(path.join(__dirname, "../../../uploads"));
 const productUploadsDir = path.join(uploadsBaseDir, "products");
 const maxImageBytes = 5 * 1024 * 1024;
@@ -91,7 +108,7 @@ async function deleteImageIfExists(imageKey) {
   }
 }
 
-productsRouter.post("/upload-image", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+productsRouter.post("/upload-image", requireAuth, requireRole("merkez", "admin"), productUploadRateLimiter, async (req, res, next) => {
   try {
     const parsed = uploadImageSchema.safeParse(req.body || {});
     if (!parsed.success) {
@@ -165,7 +182,7 @@ productsRouter.get("/", requireAuth, async (_req, res, next) => {
   }
 });
 
-productsRouter.post("/", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+productsRouter.post("/", requireAuth, requireRole("merkez", "admin"), productMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -216,7 +233,7 @@ productsRouter.post("/", requireAuth, requireRole("merkez", "admin"), async (req
   }
 });
 
-productsRouter.put("/status-bulk", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+productsRouter.put("/status-bulk", requireAuth, requireRole("merkez", "admin"), productMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = statusSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -241,7 +258,7 @@ productsRouter.put("/status-bulk", requireAuth, requireRole("merkez", "admin"), 
   }
 });
 
-productsRouter.put("/:id", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+productsRouter.put("/:id", requireAuth, requireRole("merkez", "admin"), productMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -311,7 +328,7 @@ productsRouter.put("/:id", requireAuth, requireRole("merkez", "admin"), async (r
   }
 });
 
-productsRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+productsRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), productMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = statusSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -344,7 +361,7 @@ productsRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), a
   }
 });
 
-productsRouter.delete("/:id", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+productsRouter.delete("/:id", requireAuth, requireRole("merkez", "admin"), productMutationRateLimiter, async (req, res, next) => {
   try {
     const current = await prisma.product.findUnique({
       where: { id: req.params.id },

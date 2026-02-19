@@ -1,6 +1,7 @@
 (function () {
   var cfg = window.APP_CONFIG || {};
-  var sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+  var sessionCache = null;
+  var sessionHydratePromise = null;
 
   function normalizePath() {
     var path = window.location.pathname.replace(/\\/g, "/");
@@ -21,19 +22,82 @@
   }
 
   function getSession() {
-    try {
-      return JSON.parse(localStorage.getItem(sessionKey) || "null");
-    } catch (e) {
-      return null;
-    }
+    return sessionCache;
   }
 
   function setSession(session) {
-    localStorage.setItem(sessionKey, JSON.stringify(session));
+    if (!session || typeof session !== "object") {
+      sessionCache = null;
+      return;
+    }
+    var next = Object.assign({}, session);
+    if (Object.prototype.hasOwnProperty.call(next, "accessToken")) delete next.accessToken;
+    if (Object.prototype.hasOwnProperty.call(next, "refreshToken")) delete next.refreshToken;
+    sessionCache = next;
   }
 
   function clearSession() {
-    localStorage.removeItem(sessionKey);
+    sessionCache = null;
+  }
+
+  function mapUserToSession(user) {
+    if (!user || typeof user !== "object") return null;
+    return {
+      userId: user.id || null,
+      email: user.email || null,
+      phone: user.phone || null,
+      displayName: user.displayName || null,
+      role: user.role || null,
+      branchId: user.branchId || null,
+      branchName: user.branchName || null,
+      centerId: user.centerId || null,
+      centerName: user.centerName || null,
+      isActive: user.isActive !== false,
+      hydratedAt: new Date().toISOString()
+    };
+  }
+
+  async function hydrateSessionFromApi(force) {
+    if (cfg.TEST_MODE) {
+      if (!sessionCache) {
+        setSession({
+          role: cfg.DEFAULT_TEST_ROLE || "admin",
+          displayName: "Test Kullanici",
+          hydratedAt: new Date().toISOString()
+        });
+      }
+      return sessionCache;
+    }
+    if (!force && sessionCache && sessionCache.role) return sessionCache;
+    if (!force && sessionHydratePromise) return sessionHydratePromise;
+
+    var rawFetch = window.__AUTH_RAW_FETCH || (typeof window.fetch === "function" ? window.fetch.bind(window) : null);
+    if (!rawFetch) return null;
+
+    sessionHydratePromise = rawFetch(apiBaseUrl() + "/me", {
+      method: "GET",
+      credentials: "include"
+    })
+      .then(function (response) {
+        return response.json().catch(function () { return null; }).then(function (payload) {
+          if (!response.ok || !payload || payload.ok !== true || !payload.data) {
+            clearSession();
+            return null;
+          }
+          var nextSession = mapUserToSession(payload.data);
+          setSession(nextSession);
+          return nextSession;
+        });
+      })
+      .catch(function () {
+        clearSession();
+        return null;
+      })
+      .finally(function () {
+        sessionHydratePromise = null;
+      });
+
+    return sessionHydratePromise;
   }
 
   function apiBaseUrl() {
@@ -91,36 +155,25 @@
   var refreshPromise = null;
   async function refreshAccessToken() {
     var session = getSession();
-    if (!session || !session.refreshToken) return false;
+    var requestBody = {};
+    if (session && session.refreshToken) requestBody.refreshToken = session.refreshToken;
 
     var response = await window.__AUTH_RAW_FETCH(apiBaseUrl() + "/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: session.refreshToken })
+      credentials: "include",
+      body: JSON.stringify(requestBody)
     });
     var payload = await response.json().catch(function () { return null; });
     if (!response.ok || !payload || payload.ok !== true || !payload.data) {
       return false;
     }
 
-    var nextSession = Object.assign({}, session, {
-      accessToken: payload.data.accessToken || "",
-      refreshToken: payload.data.refreshToken || session.refreshToken,
-      refreshedAt: new Date().toISOString()
-    });
     if (payload.data.user && typeof payload.data.user === "object") {
-      nextSession.userId = payload.data.user.id || nextSession.userId || null;
-      nextSession.email = payload.data.user.email || nextSession.email || null;
-      nextSession.phone = payload.data.user.phone || nextSession.phone || null;
-      nextSession.displayName = payload.data.user.displayName || nextSession.displayName || null;
-      nextSession.role = payload.data.user.role || nextSession.role || null;
-      nextSession.branchId = payload.data.user.branchId || null;
-      nextSession.branchName = payload.data.user.branchName || null;
-      nextSession.centerId = payload.data.user.centerId || null;
-      nextSession.centerName = payload.data.user.centerName || null;
-      nextSession.isActive = payload.data.user.isActive !== false;
+      setSession(mapUserToSession(payload.data.user));
+    } else {
+      await hydrateSessionFromApi(true);
     }
-    setSession(nextSession);
     return true;
   }
 
@@ -153,11 +206,7 @@
         return response;
       }
 
-      var session = getSession();
       var nextHeaders = normalizeHeaders(init && init.headers);
-      if (session && session.accessToken) {
-        nextHeaders.Authorization = "Bearer " + session.accessToken;
-      }
 
       var retryInit = Object.assign({}, init || {}, { headers: nextHeaders });
       return rawFetch(input, retryInit);
@@ -167,9 +216,8 @@
   }
 
   function currentRole() {
-    var session = getSession();
-    if (session && session.role) return session.role;
-    if (cfg.TEST_MODE) return cfg.DEFAULT_TEST_ROLE || "admin";
+    if (sessionCache && sessionCache.role) return sessionCache.role;
+    if (cfg.TEST_MODE) return (sessionCache && sessionCache.role) || cfg.DEFAULT_TEST_ROLE || "admin";
     return null;
   }
 
@@ -227,6 +275,13 @@
       var label = (a.textContent || "").trim().toLowerCase();
       if (label.indexOf("cikis") > -1 || label.indexOf("logout") > -1) {
         a.addEventListener("click", function () {
+          if (!cfg.TEST_MODE && window.__AUTH_RAW_FETCH) {
+            window.__AUTH_RAW_FETCH(apiBaseUrl() + "/auth/logout", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" }
+            }).catch(function () {});
+          }
           clearSession();
         });
       }
@@ -275,14 +330,28 @@
     var style = document.createElement("style");
     style.id = "profile-menu-styles";
     style.textContent = [
+      ".nav{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem .6rem;}",
+      ".nav > a,.nav > details > summary{min-height:40px;line-height:1.1;}",
+      ".nav > a{display:inline-flex;align-items:center;justify-content:center;padding:.55rem .8rem;}",
+      ".nav > details > summary{padding:.55rem .8rem;}",
+      ".nav > a,.nav > details > summary{font-size:.98rem;font-weight:600;}",
+      "@media (max-width: 900px){.nav{gap:.45rem .45rem;}}",
+      "@media (max-width: 700px){",
+      ".nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;}",
+      ".nav > a,.nav > details > summary{width:100%;justify-content:center;}",
+      ".nav .profile-menu{grid-column:1 / -1;margin-left:0;justify-self:stretch;}",
+      ".nav .profile-menu summary{max-width:100%;justify-content:space-between;}",
+      ".profile-menu .menu-pop{left:0;right:auto;max-width:min(92vw,360px);}",
+      "}",
       ".profile-menu{position:relative;}",
       ".nav .profile-menu{margin-left:auto;}",
       ".profile-menu summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;",
       "text-decoration:none;color:var(--ink);border:1px solid var(--border);border-radius:11px;padding:.5rem .75rem;",
-      "background:rgba(255,255,255,.72);font-weight:600;}",
+      "background:rgba(255,255,255,.72);font-weight:600;max-width:min(38vw,280px);}",
+      ".profile-menu summary span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
       ".profile-menu summary::-webkit-details-marker{display:none;}",
       ".profile-menu .menu-pop{position:absolute;right:0;top:calc(100% + .45rem);min-width:220px;z-index:20;",
-      "border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 10px 22px rgba(19,34,31,.16);padding:.45rem;}",
+      "border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 10px 22px rgba(19,34,31,.16);padding:.45rem;max-width:min(84vw,300px);}",
       ".profile-menu .menu-head{padding:.35rem .45rem .5rem;border-bottom:1px dashed var(--border);margin-bottom:.35rem;}",
       ".profile-menu .menu-name{font-weight:700;font-size:.93rem;}",
       ".profile-menu .menu-sub{font-size:.82rem;opacity:.8;}",
@@ -322,8 +391,6 @@
 
     ensureProfileMenuStyles();
 
-    var showAdminLink = cfg.TEST_MODE || role === "admin";
-
     var details = document.createElement("details");
     details.className = "profile-menu";
     details.setAttribute("data-profile-menu", "1");
@@ -337,7 +404,6 @@
       "<div class='menu-sub'>", escapeHtml(subline), "</div>",
       "</div>",
       "<a class='menu-item' href='", profileLinkByRole(role), "'>Profili Gor</a>",
-      showAdminLink ? "<a class='menu-item' href='" + toRootPage("admin/index.html") + "'>Admin Paneli</a>" : "",
       "<a class='menu-item exit' href='", toRootPage("login.html"), "'>Cikis</a>",
       "</div>"
     ].join("");
@@ -364,13 +430,14 @@
     nav.appendChild(a);
   }
 
-  function applyGuard() {
+  async function applyGuard() {
     if (cfg.TEST_MODE) return;
     var page = normalizePath();
-    var role = currentRole();
     var allowed = routeRoles(page);
 
     if (!allowed) return;
+    await hydrateSessionFromApi(false);
+    var role = currentRole();
     if (!role) {
       window.location.replace(toRootPage("login.html"));
       return;
@@ -384,12 +451,14 @@
     get: getSession,
     set: setSession,
     clear: clearSession,
-    role: currentRole
+    role: currentRole,
+    hydrate: hydrateSessionFromApi
   };
 
-  applyGuard();
   installAuthFetchInterceptor();
-  document.addEventListener("DOMContentLoaded", function () {
+  applyGuard();
+  document.addEventListener("DOMContentLoaded", async function () {
+    await hydrateSessionFromApi(false);
     var role = currentRole();
     toggleNavByRole(role);
     injectAdminLink(role);

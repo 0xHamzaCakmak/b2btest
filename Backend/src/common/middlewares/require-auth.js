@@ -1,18 +1,20 @@
 const { prisma } = require("../../config/prisma");
 const { verifyAccessToken } = require("../auth/jwt");
+const { getAccessTokenFromRequest } = require("../utils/cookies");
 
 async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.slice("Bearer ".length)
+    const bearerToken = authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length).trim()
       : "";
-
+    const cookieToken = getAccessTokenFromRequest(req);
+    const token = bearerToken || cookieToken;
     if (!token) {
       return res.status(401).json({
         ok: false,
         error: "UNAUTHORIZED",
-        message: "Missing bearer token"
+        message: "Missing access token"
       });
     }
 

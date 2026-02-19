@@ -17,11 +17,51 @@ const { settingsRouter } = require("./modules/settings/settings.routes");
 const { maintenanceMode } = require("./common/middlewares/maintenance-mode");
 
 const app = express();
+const allowedOrigins = String(env.CORS_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+function isDevLocalOrigin(origin) {
+  if (!origin || env.NODE_ENV === "production") return false;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.protocol !== "http:") return false;
+    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+  } catch (_err) {
+    return false;
+  }
+}
 
+app.disable("x-powered-by");
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'none'"],
+      baseUri: ["'none'"],
+      frameAncestors: ["'none'"],
+      formAction: ["'none'"],
+      objectSrc: ["'none'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'"]
+    },
+    reportOnly: env.CSP_REPORT_ONLY === true
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  referrerPolicy: { policy: "no-referrer" }
 }));
-app.use(cors());
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (origin === "null" && env.NODE_ENV !== "production") return callback(null, true);
+    if (isDevLocalOrigin(origin)) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("CORS_NOT_ALLOWED"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 app.use(express.json({ limit: "12mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
@@ -39,8 +79,8 @@ function buildAuditPayload(req, res, durationMs) {
   const redactedBody = req.auditBody && typeof req.auditBody === "object"
     ? req.auditBody
     : sanitizeBody(req.body);
-  const loginEmail = pathOnly === "/api/auth/login" && req.body && req.body.email
-    ? String(req.body.email).toLowerCase().trim()
+  const loginIdentifier = pathOnly === "/api/auth/login" && req.body
+    ? String(req.body.emailOrPhone || req.body.email || "").toLowerCase().trim()
     : null;
 
   return {
@@ -53,7 +93,7 @@ function buildAuditPayload(req, res, durationMs) {
       path: pathOnly,
       statusCode: res.statusCode,
       durationMs,
-      loginEmail,
+      loginIdentifier,
       body: redactedBody
     })
   };
@@ -108,7 +148,7 @@ app.get("/", (_req, res) => {
     ok: true,
     service: "b2b-borek-backend",
     message: "Backend is running. Use frontend login page for UI.",
-    endpoints: ["/health", "/api/auth/login", "/api/auth/refresh", "/api/me", "/api/products", "/api/branches", "/api/centers", "/api/orders", "/api/profile/me", "/api/admin/users", "/api/admin/logs", "/api/admin/settings"]
+    endpoints: ["/health", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/me", "/api/products", "/api/branches", "/api/centers", "/api/orders", "/api/profile/me", "/api/admin/users", "/api/admin/logs", "/api/admin/settings"]
   });
 });
 
@@ -158,6 +198,14 @@ app.use((req, res) => {
 });
 
 app.use((err, _req, res, _next) => {
+  if (err && err.message === "CORS_NOT_ALLOWED") {
+    return res.status(403).json({
+      ok: false,
+      error: "FORBIDDEN_ORIGIN",
+      message: "Origin is not allowed by CORS policy"
+    });
+  }
+
   if (err && err.type === "entity.too.large") {
     return res.status(413).json({
       ok: false,

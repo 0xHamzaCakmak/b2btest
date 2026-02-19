@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sube Profili | Nebula Studio</title>
+  <title>Sube Profili | B2B Tedarik</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -312,10 +312,7 @@
     const newPassword = document.getElementById("newPassword");
     const newPasswordConfirm = document.getElementById("newPasswordConfirm");
     const cfg = window.APP_CONFIG || {};
-    const testMode = !!cfg.TEST_MODE;
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
-    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
-
     const defaults = {
       user: {
         displayName: "Borekci Sube Yetkilisi",
@@ -337,25 +334,22 @@
 
     function getAuthSession() {
       try {
-        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+        return window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
       } catch (_err) {
         return null;
       }
     }
 
     function saveAuthSession(nextSession) {
-      localStorage.setItem(sessionKey, JSON.stringify(nextSession));
+      if (window.AuthSession && window.AuthSession.set) { window.AuthSession.set(nextSession); }
     }
 
     async function apiRequest(path, options) {
       const session = getAuthSession();
-      const token = session && session.accessToken ? session.accessToken : "";
-      if (!token) {
-        throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
-      }
       const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        credentials: "include",
         headers: Object.assign(
-          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          { "Content-Type": "application/json" },
           (options && options.headers) || {}
         )
       }));
@@ -390,38 +384,13 @@
     }
 
     async function loadProfile() {
-      if (!testMode) {
-        const data = await apiRequest("/profile/me", { method: "GET" });
-        applyProfileData(data);
-        return;
-      }
-
-      const raw = localStorage.getItem("branchProfile");
-      const profile = raw ? JSON.parse(raw) : defaults;
-      applyProfileData({
-        user: {
-          displayName: profile.user && profile.user.displayName ? profile.user.displayName : defaults.user.displayName,
-          email: profile.user && profile.user.email ? profile.user.email : defaults.user.email,
-          phone: profile.user && profile.user.phone ? profile.user.phone : defaults.user.phone
-        },
-        branch: {
-          name: profile.branch && profile.branch.subeAdi ? profile.branch.subeAdi : defaults.branch.subeAdi,
-          manager: profile.branch && profile.branch.yetkili ? profile.branch.yetkili : defaults.branch.yetkili,
-          phone: profile.branch && profile.branch.telefon ? profile.branch.telefon : defaults.branch.telefon,
-          email: profile.branch && profile.branch.eposta ? profile.branch.eposta : defaults.branch.eposta,
-          address: profile.branch && profile.branch.adres ? profile.branch.adres : defaults.branch.adres
-        }
-      });
+      const data = await apiRequest("/profile/me", { method: "GET" });
+      applyProfileData(data);
     }
 
     async function loadStats() {
       let orders = [];
-      if (!testMode) {
-        orders = await apiRequest("/orders/my", { method: "GET" });
-      } else {
-        const raw = localStorage.getItem("branchOrders");
-        orders = raw ? JSON.parse(raw) : [];
-      }
+      orders = await apiRequest("/orders/my", { method: "GET" });
       let tray = 0;
       let amount = 0;
       orders.forEach(function (order) {
@@ -436,43 +405,28 @@
     userForm.addEventListener("submit", async function (event) {
       event.preventDefault();
 
-      if (!testMode) {
-        try {
-          const updated = await apiRequest("/profile/me", {
-            method: "PUT",
-            body: JSON.stringify({
-              displayName: String(userFields.displayName.value || "").trim(),
-              userEmail: String(userFields.email.value || "").trim(),
-              userPhone: String(userFields.phone.value || "").trim()
-            })
-          });
-          applyProfileData(updated);
-          const session = getAuthSession();
-          if (session) {
-            session.email = updated.user && updated.user.email ? updated.user.email : session.email;
-            session.phone = updated.user && updated.user.phone ? updated.user.phone : session.phone;
-            session.displayName = updated.user && updated.user.displayName ? updated.user.displayName : session.displayName;
-            session.branchName = updated.branch && updated.branch.name ? updated.branch.name : session.branchName;
-            saveAuthSession(session);
-          }
-          showMessage(userMsg, "Kullanici bilgileri veritabaninda guncellendi.");
-        } catch (err) {
-          showMessage(userMsg, err.message || "Kullanici bilgileri guncellenemedi.");
+      try {
+        const updated = await apiRequest("/profile/me", {
+          method: "PUT",
+          body: JSON.stringify({
+            displayName: String(userFields.displayName.value || "").trim(),
+            userEmail: String(userFields.email.value || "").trim(),
+            userPhone: String(userFields.phone.value || "").trim()
+          })
+        });
+        applyProfileData(updated);
+        const session = getAuthSession();
+        if (session) {
+          session.email = updated.user && updated.user.email ? updated.user.email : session.email;
+          session.phone = updated.user && updated.user.phone ? updated.user.phone : session.phone;
+          session.displayName = updated.user && updated.user.displayName ? updated.user.displayName : session.displayName;
+          session.branchName = updated.branch && updated.branch.name ? updated.branch.name : session.branchName;
+          saveAuthSession(session);
         }
-        return;
+        showMessage(userMsg, "Kullanici bilgileri veritabaninda guncellendi.");
+      } catch (err) {
+        showMessage(userMsg, err.message || "Kullanici bilgileri guncellenemedi.");
       }
-
-      const raw = localStorage.getItem("branchProfile");
-      const current = raw ? JSON.parse(raw) : {};
-      const next = Object.assign({}, current, {
-        user: {
-          displayName: String(userFields.displayName.value || "").trim(),
-          email: String(userFields.email.value || "").trim(),
-          phone: String(userFields.phone.value || "").trim()
-        }
-      });
-      localStorage.setItem("branchProfile", JSON.stringify(next));
-      showMessage(userMsg, "Kullanici bilgileri guncellendi.");
     });
 
     branchForm.addEventListener("submit", async function (event) {
@@ -485,38 +439,21 @@
         branchAddress: String(branchFields.adres.value || "").trim()
       };
 
-      if (!testMode) {
-        try {
-          const updated = await apiRequest("/profile/me", {
-            method: "PUT",
-            body: JSON.stringify(payload)
-          });
-          applyProfileData(updated);
-          const session = getAuthSession();
-          if (session) {
-            session.branchName = updated.branch && updated.branch.name ? updated.branch.name : session.branchName;
-            saveAuthSession(session);
-          }
-          showMessage(branchMsg, "Sube bilgileri veritabaninda guncellendi.");
-        } catch (err) {
-          showMessage(branchMsg, err.message || "Sube bilgileri guncellenemedi.");
+      try {
+        const updated = await apiRequest("/profile/me", {
+          method: "PUT",
+          body: JSON.stringify(payload)
+        });
+        applyProfileData(updated);
+        const session = getAuthSession();
+        if (session) {
+          session.branchName = updated.branch && updated.branch.name ? updated.branch.name : session.branchName;
+          saveAuthSession(session);
         }
-        return;
+        showMessage(branchMsg, "Sube bilgileri veritabaninda guncellendi.");
+      } catch (err) {
+        showMessage(branchMsg, err.message || "Sube bilgileri guncellenemedi.");
       }
-
-      const raw = localStorage.getItem("branchProfile");
-      const current = raw ? JSON.parse(raw) : {};
-      const next = Object.assign({}, current, {
-        branch: {
-          subeAdi: payload.branchName,
-          yetkili: payload.branchManager,
-          telefon: payload.branchPhone,
-          eposta: payload.branchEmail,
-          adres: payload.branchAddress
-        }
-      });
-      localStorage.setItem("branchProfile", JSON.stringify(next));
-      showMessage(branchMsg, "Sube bilgileri guncellendi.");
     });
 
     passwordForm.addEventListener("submit", async function (event) {
@@ -537,26 +474,21 @@
         return;
       }
 
-      if (!testMode) {
-        try {
-          await apiRequest("/profile/password", {
-            method: "PUT",
-            body: JSON.stringify({
-              currentPassword: current,
-              newPassword: next
-            })
-          });
-          currentPassword.value = "";
-          newPassword.value = "";
-          newPasswordConfirm.value = "";
-          showMessage(passwordMsg, "Sifre veritabaninda guncellendi.");
-        } catch (err) {
-          showMessage(passwordMsg, err.message || "Sifre guncellenemedi.");
-        }
-        return;
+      try {
+        await apiRequest("/profile/password", {
+          method: "PUT",
+          body: JSON.stringify({
+            currentPassword: current,
+            newPassword: next
+          })
+        });
+        currentPassword.value = "";
+        newPassword.value = "";
+        newPasswordConfirm.value = "";
+        showMessage(passwordMsg, "Sifre veritabaninda guncellendi.");
+      } catch (err) {
+        showMessage(passwordMsg, err.message || "Sifre guncellenemedi.");
       }
-
-      showMessage(passwordMsg, "Test modda sifre guncelleme backend kapali.");
     });
 
     document.querySelectorAll("[data-toggle-password]").forEach(function (btn) {
@@ -576,3 +508,8 @@
   </script>
 </body>
 </html>
+
+
+
+
+

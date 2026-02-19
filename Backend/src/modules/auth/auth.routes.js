@@ -1,9 +1,19 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
+const { randomUUID } = require("crypto");
 const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require("../../common/auth/jwt");
 const { normalizePhone, looksLikePhone } = require("../../common/utils/phone");
+const { env } = require("../../config/env");
+const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
+const {
+  setAccessTokenCookie,
+  clearAccessTokenCookie,
+  setRefreshTokenCookie,
+  clearRefreshTokenCookie,
+  getRefreshTokenFromRequest
+} = require("../../common/utils/cookies");
 
 const authRouter = express.Router();
 
@@ -17,10 +27,63 @@ const loginSchema = z.object({
   message: "emailOrPhone is required"
 });
 const refreshSchema = z.object({
-  refreshToken: z.string().min(20)
+  refreshToken: z.string().min(20).optional()
 });
 
-authRouter.post("/login", async (req, res, next) => {
+function getClientIp(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  if (forwarded) return forwarded;
+  return req.ip || "";
+}
+
+function getRefreshExpiryDate() {
+  const days = Math.max(1, Number(env.REFRESH_TOKEN_DAYS || 7));
+  return new Date(Date.now() + (days * 24 * 60 * 60 * 1000));
+}
+
+async function createRefreshSession(userId, req, jti) {
+  await prisma.refreshSession.create({
+    data: {
+      jti,
+      userId,
+      expiresAt: getRefreshExpiryDate(),
+      ipAddress: getClientIp(req) || null,
+      userAgent: String(req.headers["user-agent"] || "").slice(0, 1000) || null
+    }
+  });
+}
+
+const loginRateLimiter = createSimpleRateLimiter({
+  max: 10,
+  windowMs: 15 * 60 * 1000,
+  message: "Cok fazla giris denemesi. Lutfen daha sonra tekrar deneyin.",
+  keyFn(req) {
+    const identifier = String(
+      (req.body && (req.body.emailOrPhone || req.body.email)) || ""
+    )
+      .trim()
+      .toLowerCase();
+    return `${req.ip || "ip"}:${identifier || "unknown"}`;
+  }
+});
+const refreshRateLimiter = createSimpleRateLimiter({
+  max: 30,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla token yenileme istegi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.ip || "ip"}:refresh`;
+  }
+});
+const logoutRateLimiter = createSimpleRateLimiter({
+  max: 60,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla cikis istegi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.ip || "ip"}:logout`;
+  }
+});
+
+authRouter.post("/login", loginRateLimiter, async (req, res, next) => {
   try {
     const parsed = loginSchema.safeParse(req.body);
 
@@ -91,13 +154,16 @@ authRouter.post("/login", async (req, res, next) => {
     };
 
     const accessToken = signAccessToken(tokenPayload);
-    const refreshToken = signRefreshToken({ sub: user.id });
+    const refreshJti = randomUUID();
+    const refreshToken = signRefreshToken({ sub: user.id }, { jwtid: refreshJti });
+    await createRefreshSession(user.id, req, refreshJti);
+    setAccessTokenCookie(res, accessToken);
+    setRefreshTokenCookie(res, refreshToken);
 
     return res.status(200).json({
       ok: true,
       data: {
         accessToken,
-        refreshToken,
         user: {
           id: user.id,
           email: user.email,
@@ -117,7 +183,7 @@ authRouter.post("/login", async (req, res, next) => {
   }
 });
 
-authRouter.post("/refresh", async (req, res, next) => {
+authRouter.post("/refresh", refreshRateLimiter, async (req, res, next) => {
   try {
     const parsed = refreshSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -129,10 +195,26 @@ authRouter.post("/refresh", async (req, res, next) => {
       });
     }
 
+    const tokenFromBody = parsed.data.refreshToken || "";
+    const tokenFromCookie = getRefreshTokenFromRequest(req);
+    const refreshTokenInput = tokenFromBody || tokenFromCookie;
+
+    if (!refreshTokenInput) {
+      clearAccessTokenCookie(res);
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        ok: false,
+        error: "UNAUTHORIZED",
+        message: "Refresh token is missing"
+      });
+    }
+
     let payload;
     try {
-      payload = verifyRefreshToken(parsed.data.refreshToken);
+      payload = verifyRefreshToken(refreshTokenInput);
     } catch (_err) {
+      clearAccessTokenCookie(res);
+      clearRefreshTokenCookie(res);
       return res.status(401).json({
         ok: false,
         error: "UNAUTHORIZED",
@@ -141,11 +223,41 @@ authRouter.post("/refresh", async (req, res, next) => {
     }
 
     const userId = payload && payload.sub ? String(payload.sub) : "";
+    const tokenJti = payload && payload.jti ? String(payload.jti) : "";
     if (!userId) {
+      clearAccessTokenCookie(res);
+      clearRefreshTokenCookie(res);
       return res.status(401).json({
         ok: false,
         error: "UNAUTHORIZED",
         message: "Refresh token payload is invalid"
+      });
+    }
+    if (!tokenJti) {
+      clearAccessTokenCookie(res);
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        ok: false,
+        error: "UNAUTHORIZED",
+        message: "Refresh token jti is missing"
+      });
+    }
+
+    const refreshSession = await prisma.refreshSession.findUnique({
+      where: { jti: tokenJti }
+    });
+    if (
+      !refreshSession ||
+      refreshSession.userId !== userId ||
+      !!refreshSession.revokedAt ||
+      refreshSession.expiresAt <= new Date()
+    ) {
+      clearAccessTokenCookie(res);
+      clearRefreshTokenCookie(res);
+      return res.status(401).json({
+        ok: false,
+        error: "UNAUTHORIZED",
+        message: "Refresh session is invalid"
       });
     }
 
@@ -171,13 +283,33 @@ authRouter.post("/refresh", async (req, res, next) => {
     };
 
     const accessToken = signAccessToken(tokenPayload);
-    const refreshToken = signRefreshToken({ sub: user.id });
+    const nextRefreshJti = randomUUID();
+    const refreshToken = signRefreshToken({ sub: user.id }, { jwtid: nextRefreshJti });
+    await prisma.$transaction([
+      prisma.refreshSession.update({
+        where: { jti: tokenJti },
+        data: {
+          revokedAt: new Date(),
+          replacedByJti: nextRefreshJti
+        }
+      }),
+      prisma.refreshSession.create({
+        data: {
+          jti: nextRefreshJti,
+          userId: user.id,
+          expiresAt: getRefreshExpiryDate(),
+          ipAddress: getClientIp(req) || null,
+          userAgent: String(req.headers["user-agent"] || "").slice(0, 1000) || null
+        }
+      })
+    ]);
+    setAccessTokenCookie(res, accessToken);
+    setRefreshTokenCookie(res, refreshToken);
 
     return res.status(200).json({
       ok: true,
       data: {
         accessToken,
-        refreshToken,
         user: {
           id: user.id,
           email: user.email,
@@ -195,6 +327,33 @@ authRouter.post("/refresh", async (req, res, next) => {
   } catch (err) {
     return next(err);
   }
+});
+
+authRouter.post("/logout", logoutRateLimiter, async (_req, res) => {
+  const refreshTokenInput = getRefreshTokenFromRequest(_req);
+  if (refreshTokenInput) {
+    try {
+      const payload = verifyRefreshToken(refreshTokenInput);
+      const tokenJti = payload && payload.jti ? String(payload.jti) : "";
+      if (tokenJti) {
+        await prisma.refreshSession.updateMany({
+          where: {
+            jti: tokenJti,
+            revokedAt: null
+          },
+          data: { revokedAt: new Date() }
+        });
+      }
+    } catch (_err) {
+      // Ignore invalid token on logout; cookie will be cleared anyway.
+    }
+  }
+  clearAccessTokenCookie(res);
+  clearRefreshTokenCookie(res);
+  return res.status(200).json({
+    ok: true,
+    data: { loggedOut: true }
+  });
 });
 
 module.exports = { authRouter };

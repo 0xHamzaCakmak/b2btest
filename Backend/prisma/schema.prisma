@@ -22,6 +22,7 @@ model User {
   branch         Branch?    @relation(fields: [branchId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   center         Center?    @relation(fields: [centerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   auditLogs      AuditLog[]
+  refreshSessions RefreshSession[]
   approvedOrders Order[] @relation("OrderApprovedBy")
   deliveredOrders Order[] @relation("OrderDeliveredBy")
 
@@ -62,6 +63,7 @@ model Branch {
   users           User[]
   orders          Order[]
   priceAdjustment BranchPriceAdjustment?
+  productAdjustments BranchProductAdjustment[]
 
   @@index([centerId], map: "idx_branches_center_id")
   @@map("branches")
@@ -79,6 +81,7 @@ model Product {
   updatedAt  DateTime    @updatedAt @map("updated_at")
   orderItems OrderItem[]
   carryovers OrderCarryover[]
+  branchAdjustments BranchProductAdjustment[]
 
   @@map("products")
 }
@@ -92,6 +95,22 @@ model BranchPriceAdjustment {
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@map("branch_price_adjustments")
+}
+
+model BranchProductAdjustment {
+  id          String   @id @default(uuid())
+  branchId    String   @map("branch_id")
+  productId   String   @map("product_id")
+  extraAmount Decimal  @map("extra_amount") @db.Decimal(12, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, productId], map: "uq_branch_product_adjustments_branch_product")
+  @@index([branchId], map: "idx_branch_product_adjustments_branch_id")
+  @@index([productId], map: "idx_branch_product_adjustments_product_id")
+  @@map("branch_product_adjustments")
 }
 
 model Order {
@@ -177,4 +196,21 @@ model SystemSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
+}
+
+model RefreshSession {
+  id           String    @id @default(uuid())
+  jti          String    @unique
+  userId       String    @map("user_id")
+  expiresAt    DateTime  @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  replacedByJti String?  @map("replaced_by_jti")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_refresh_sessions_user_id")
+  @@index([expiresAt], map: "idx_refresh_sessions_expires_at")
+  @@map("refresh_sessions")
 }

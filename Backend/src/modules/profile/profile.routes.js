@@ -4,8 +4,25 @@ const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { normalizePhone } = require("../../common/utils/phone");
+const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const profileRouter = express.Router();
+const profileUpdateRateLimiter = createSimpleRateLimiter({
+  max: 60,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla profil guncelleme istegi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:profile-update`;
+  }
+});
+const passwordChangeRateLimiter = createSimpleRateLimiter({
+  max: 12,
+  windowMs: 15 * 60 * 1000,
+  message: "Cok fazla sifre degisikligi denemesi. Lutfen daha sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:password-change`;
+  }
+});
 
 const updateProfileSchema = z.object({
   subeAdi: z.string().min(2).max(120).optional(),
@@ -79,7 +96,7 @@ profileRouter.get("/me", requireAuth, async (req, res, next) => {
   }
 });
 
-profileRouter.put("/me", requireAuth, async (req, res, next) => {
+profileRouter.put("/me", requireAuth, profileUpdateRateLimiter, async (req, res, next) => {
   try {
     const parsed = updateProfileSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -199,7 +216,7 @@ profileRouter.put("/me", requireAuth, async (req, res, next) => {
   }
 });
 
-profileRouter.put("/password", requireAuth, async (req, res, next) => {
+profileRouter.put("/password", requireAuth, passwordChangeRateLimiter, async (req, res, next) => {
   try {
     const parsed = changePasswordSchema.safeParse(req.body);
     if (!parsed.success) {

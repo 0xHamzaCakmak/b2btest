@@ -193,9 +193,7 @@
   <script src="../assets/role-guard.js"></script>
   <script>
     const cfg = window.APP_CONFIG || {};
-    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
-    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
-    const productsBody = document.getElementById("productsBody");
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");    const productsBody = document.getElementById("productsBody");
     const selectedInfo = document.getElementById("selectedInfo");
     const createMsg = document.getElementById("createMsg");
     const editMsg = document.getElementById("editMsg");
@@ -212,7 +210,7 @@
 
     function getSession() {
       try {
-        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+        return window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
       } catch (_err) {
         return null;
       }
@@ -220,12 +218,11 @@
 
     async function apiRequest(path, options) {
       const session = getSession();
-      const token = session && session.accessToken ? session.accessToken : "";
-      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
 
       const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        credentials: "include",
         headers: Object.assign(
-          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          { "Content-Type": "application/json" },
           (options && options.headers) || {}
         )
       }));
@@ -419,6 +416,12 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+
 
 
 

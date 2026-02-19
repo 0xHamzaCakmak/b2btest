@@ -3,8 +3,17 @@ const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
+const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const branchesRouter = express.Router();
+const branchMutationRateLimiter = createSimpleRateLimiter({
+  max: 120,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla sube degisikligi istegi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:branch-mutation`;
+  }
+});
 
 const statusSchema = z.object({
   isActive: z.boolean()
@@ -34,6 +43,10 @@ const adjustmentSchema = z.object({
   percent: z.number().min(-90).max(200)
 });
 
+const productAdjustmentSchema = z.object({
+  extraAmount: z.number().min(-100000).max(100000)
+});
+
 function toNumber(value, fallback) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -41,6 +54,11 @@ function toNumber(value, fallback) {
 
 function applyPercent(basePrice, percent) {
   return Math.max(1, Math.round(basePrice * (1 + percent / 100)));
+}
+
+function applyPricing(basePrice, percent, extraAmount) {
+  const percentApplied = Number(basePrice) * (1 + Number(percent || 0) / 100);
+  return Math.max(1, Math.round(percentApplied + Number(extraAmount || 0)));
 }
 
 function mapBranch(branch) {
@@ -56,6 +74,7 @@ function mapBranch(branch) {
     centerId: branch.centerId || null,
     centerName: branch.center ? branch.center.name : null,
     priceAdjustmentPercent: toNumber(branch.priceAdjustment && branch.priceAdjustment.percent, 0),
+    productAdjustmentCount: Array.isArray(branch.productAdjustments) ? branch.productAdjustments.length : 0,
     userEmail: branchUser ? branchUser.email : null
   };
 }
@@ -89,6 +108,9 @@ branchesRouter.get("/", requireAuth, requireRole("merkez", "admin"), async (req,
       include: {
         center: true,
         priceAdjustment: true,
+        productAdjustments: {
+          select: { id: true }
+        },
         users: {
           select: { email: true, role: true }
         }
@@ -104,7 +126,7 @@ branchesRouter.get("/", requireAuth, requireRole("merkez", "admin"), async (req,
   }
 });
 
-branchesRouter.post("/", requireAuth, requireRole("admin"), async (req, res, next) => {
+branchesRouter.post("/", requireAuth, requireRole("admin"), branchMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = createBranchSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -139,6 +161,9 @@ branchesRouter.post("/", requireAuth, requireRole("admin"), async (req, res, nex
       include: {
         center: true,
         priceAdjustment: true,
+        productAdjustments: {
+          select: { id: true }
+        },
         users: {
           select: { email: true, role: true }
         }
@@ -158,6 +183,9 @@ branchesRouter.post("/", requireAuth, requireRole("admin"), async (req, res, nex
       include: {
         center: true,
         priceAdjustment: true,
+        productAdjustments: {
+          select: { id: true }
+        },
         users: {
           select: { email: true, role: true }
         }
@@ -173,7 +201,7 @@ branchesRouter.post("/", requireAuth, requireRole("admin"), async (req, res, nex
   }
 });
 
-branchesRouter.put("/:id", requireAuth, requireRole("admin"), async (req, res, next) => {
+branchesRouter.put("/:id", requireAuth, requireRole("admin"), branchMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = updateBranchSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -218,6 +246,9 @@ branchesRouter.put("/:id", requireAuth, requireRole("admin"), async (req, res, n
       include: {
         center: true,
         priceAdjustment: true,
+        productAdjustments: {
+          select: { id: true }
+        },
         users: {
           select: { email: true, role: true }
         }
@@ -240,7 +271,7 @@ branchesRouter.put("/:id", requireAuth, requireRole("admin"), async (req, res, n
   }
 });
 
-branchesRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+branchesRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), branchMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = statusSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -286,6 +317,9 @@ branchesRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), a
       include: {
         center: true,
         priceAdjustment: true,
+        productAdjustments: {
+          select: { id: true }
+        },
         users: {
           select: { email: true, role: true }
         }
@@ -308,7 +342,7 @@ branchesRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), a
   }
 });
 
-branchesRouter.put("/:id/price-adjustment", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+branchesRouter.put("/:id/price-adjustment", requireAuth, requireRole("merkez", "admin"), branchMutationRateLimiter, async (req, res, next) => {
   try {
     const parsed = adjustmentSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -360,6 +394,9 @@ branchesRouter.put("/:id/price-adjustment", requireAuth, requireRole("merkez", "
       include: {
         center: true,
         priceAdjustment: true,
+        productAdjustments: {
+          select: { id: true }
+        },
         users: {
           select: { email: true, role: true }
         }
@@ -402,15 +439,27 @@ branchesRouter.get("/my-context", requireAuth, async (req, res, next) => {
       orderBy: [{ createdAt: "asc" }]
     });
 
+    const productAdjustments = await prisma.branchProductAdjustment.findMany({
+      where: {
+        branchId: branch.id,
+        productId: { in: products.map((p) => p.id) }
+      }
+    });
+    const adjustmentByProductId = new Map(
+      productAdjustments.map((row) => [row.productId, toNumber(row.extraAmount, 0)])
+    );
+
     const percent = toNumber(branch.priceAdjustment && branch.priceAdjustment.percent, 0);
     const productData = products.map((p) => {
       const basePrice = toNumber(p.basePrice, 0);
+      const extraAmount = adjustmentByProductId.has(p.id) ? adjustmentByProductId.get(p.id) : 0;
       return {
         id: p.id,
         code: p.code,
         name: p.name,
         basePrice,
-        adjustedPrice: applyPercent(basePrice, percent),
+        extraAmount,
+        adjustedPrice: applyPricing(basePrice, percent, extraAmount),
         isActive: p.isActive,
         imageUrl: p.imageUrl || null
       };
@@ -426,6 +475,170 @@ branchesRouter.get("/my-context", requireAuth, async (req, res, next) => {
         },
         percent,
         products: productData
+      }
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+branchesRouter.get("/:id/product-adjustments", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+  try {
+    const branch = await prisma.branch.findUnique({
+      where: { id: req.params.id },
+      include: { priceAdjustment: true }
+    });
+
+    if (!branch) {
+      return res.status(404).json({
+        ok: false,
+        error: "NOT_FOUND",
+        message: "Branch not found"
+      });
+    }
+
+    if (req.user.role === "merkez") {
+      if (!req.user.centerId) {
+        return res.status(400).json({
+          ok: false,
+          error: "CENTER_REQUIRED",
+          message: "Current merkez user is not linked to a center"
+        });
+      }
+      if (branch.centerId !== req.user.centerId) {
+        return res.status(403).json({
+          ok: false,
+          error: "FORBIDDEN",
+          message: "Bu sube baska bir merkeze bagli."
+        });
+      }
+    }
+
+    const products = await prisma.product.findMany({
+      orderBy: [{ createdAt: "asc" }]
+    });
+    const rows = await prisma.branchProductAdjustment.findMany({
+      where: {
+        branchId: branch.id,
+        productId: { in: products.map((p) => p.id) }
+      }
+    });
+    const byProductId = new Map(rows.map((row) => [row.productId, toNumber(row.extraAmount, 0)]));
+    const percent = toNumber(branch.priceAdjustment && branch.priceAdjustment.percent, 0);
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        branchId: branch.id,
+        percent,
+        products: products.map((p) => {
+          const basePrice = toNumber(p.basePrice, 0);
+          const extraAmount = byProductId.has(p.id) ? byProductId.get(p.id) : 0;
+          return {
+            productId: p.id,
+            code: p.code,
+            name: p.name,
+            basePrice,
+            extraAmount,
+            hasOverride: byProductId.has(p.id),
+            adjustedPrice: applyPricing(basePrice, percent, extraAmount)
+          };
+        })
+      }
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+branchesRouter.put("/:id/product-adjustments/:productId", requireAuth, requireRole("merkez", "admin"), branchMutationRateLimiter, async (req, res, next) => {
+  try {
+    const parsed = productAdjustmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Invalid product adjustment payload",
+        details: parsed.error.flatten()
+      });
+    }
+
+    const branch = await prisma.branch.findUnique({
+      where: { id: req.params.id },
+      include: { priceAdjustment: true }
+    });
+    if (!branch) {
+      return res.status(404).json({
+        ok: false,
+        error: "NOT_FOUND",
+        message: "Branch not found"
+      });
+    }
+
+    if (req.user.role === "merkez") {
+      if (!req.user.centerId) {
+        return res.status(400).json({
+          ok: false,
+          error: "CENTER_REQUIRED",
+          message: "Current merkez user is not linked to a center"
+        });
+      }
+      if (branch.centerId !== req.user.centerId) {
+        return res.status(403).json({
+          ok: false,
+          error: "FORBIDDEN",
+          message: "Bu sube baska bir merkeze bagli."
+        });
+      }
+    }
+
+    const product = await prisma.product.findUnique({
+      where: { id: req.params.productId },
+      select: { id: true, code: true, name: true, basePrice: true }
+    });
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        error: "NOT_FOUND",
+        message: "Product not found"
+      });
+    }
+
+    const extraAmount = Number(parsed.data.extraAmount || 0);
+    if (Math.abs(extraAmount) < 0.000001) {
+      await prisma.branchProductAdjustment.deleteMany({
+        where: {
+          branchId: branch.id,
+          productId: product.id
+        }
+      });
+    } else {
+      await prisma.branchProductAdjustment.upsert({
+        where: {
+          branchId_productId: {
+            branchId: branch.id,
+            productId: product.id
+          }
+        },
+        update: { extraAmount },
+        create: {
+          branchId: branch.id,
+          productId: product.id,
+          extraAmount
+        }
+      });
+    }
+
+    const percent = toNumber(branch.priceAdjustment && branch.priceAdjustment.percent, 0);
+    return res.status(200).json({
+      ok: true,
+      data: {
+        branchId: branch.id,
+        productId: product.id,
+        productCode: product.code,
+        productName: product.name,
+        extraAmount,
+        adjustedPrice: applyPricing(toNumber(product.basePrice, 0), percent, extraAmount)
       }
     });
   } catch (err) {

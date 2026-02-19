@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Borekci Siparis | Nebula Studio</title>
+  <title>Borekci Siparis | B2B Tedarik</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -418,10 +418,7 @@
     const carryoverSkipBtn = document.getElementById("carryoverSkipBtn");
     const carryoverConfirmBtn = document.getElementById("carryoverConfirmBtn");
     const cfg = window.APP_CONFIG || {};
-    const testMode = !!cfg.TEST_MODE;
-    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
-    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
-    const session = window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");    const session = window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
     const branchName = (session && session.branchName) ? session.branchName : "Borekci Sube 01";
     let numberInputs = [];
     let branchContext = null;
@@ -429,28 +426,6 @@
     let carryoverCandidates = [];
     let noticeTimer = null;
     let noticeTick = null;
-    const defaultProducts = [
-      { key: "su_boregi", name: "Su Boregi", price: 700 },
-      { key: "peynirli_borek", name: "Peynirli Borek", price: 650 },
-      { key: "kiymali_borek", name: "Kiymali Borek", price: 730 },
-      { key: "patatesli_borek", name: "Patatesli Borek", price: 610 },
-      { key: "ispanakli_borek", name: "Ispanakli Borek", price: 640 },
-      { key: "kasarli_borek", name: "Kasarli Borek", price: 680 },
-      { key: "kol_boregi", name: "Kol Boregi", price: 760 },
-      { key: "karisik_borek", name: "Karisik Borek", price: 790 }
-    ];
-    const defaultProductPrices = defaultProducts.reduce(function (acc, product) {
-      acc[product.key] = product.price;
-      return acc;
-    }, {});
-    const defaultProductCatalog = defaultProducts.reduce(function (acc, product) {
-      acc[product.key] = product.name;
-      return acc;
-    }, {});
-    const defaultProductAvailability = defaultProducts.reduce(function (acc, product) {
-      acc[product.key] = true;
-      return acc;
-    }, {});
 
     function formatTL(value) {
       return new Intl.NumberFormat("tr-TR").format(value) + " TL";
@@ -520,35 +495,9 @@
       carryoverSkipBtn.disabled = false;
     }
 
-    function findYesterdayCarryoverCandidatesFromLocal() {
-      const rawOrders = localStorage.getItem("branchOrders");
-      const allOrders = rawOrders ? JSON.parse(rawOrders) : [];
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const key = toDateKey(yesterday);
-      const byName = {};
-      allOrders.forEach(function (order) {
-        if ((order.branchName || "") !== branchName) return;
-        if (orderDateKey(order.createdAt) !== key) return;
-        (order.items || []).forEach(function (item) {
-          const name = String(item.name || "").trim();
-          const productCode = String(item.productCode || item.name || "").trim().toLowerCase().replaceAll(" ", "_");
-          if (!name || !productCode) return;
-          if (!byName[productCode]) {
-            byName[productCode] = { productCode: productCode, name: name, yesterdayTray: 0, defaultKg: 0 };
-          }
-          byName[productCode].yesterdayTray += Number(item.qty || 0);
-        });
-      });
-      return Object.values(byName);
-    }
-
     async function loadCarryoverCandidates() {
-      if (!testMode) {
-        const rows = await apiRequest("/orders/my/carryover-candidates", { method: "GET" });
-        return Array.isArray(rows) ? rows : [];
-      }
-      return findYesterdayCarryoverCandidatesFromLocal();
+      const rows = await apiRequest("/orders/my/carryover-candidates", { method: "GET" });
+      return Array.isArray(rows) ? rows : [];
     }
 
     function renderCarryoverRows(rows) {
@@ -614,7 +563,7 @@
 
     function getAuthSession() {
       try {
-        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+        return window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
       } catch (_err) {
         return null;
       }
@@ -622,13 +571,10 @@
 
     async function apiRequest(path, options) {
       const currentSession = getAuthSession();
-      const token = currentSession && currentSession.accessToken ? currentSession.accessToken : "";
-      if (!token) {
-        throw new Error("Oturum bilgisi bulunamadi. Lutfen tekrar giris yapin.");
-      }
       const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        credentials: "include",
         headers: Object.assign(
-          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          { "Content-Type": "application/json" },
           (options && options.headers) || {}
         )
       }));
@@ -639,97 +585,29 @@
       return payload.data;
     }
 
-    function getLivePrices() {
-      const raw = localStorage.getItem("productPrices");
-      const custom = raw ? JSON.parse(raw) : {};
-      return Object.assign({}, defaultProductPrices, custom);
-    }
-
-    function getProductCatalog() {
-      const raw = localStorage.getItem("productCatalog");
-      const custom = raw ? JSON.parse(raw) : {};
-      return Object.assign({}, defaultProductCatalog, custom);
-    }
-
-    function getBranchAdjustmentPercent() {
-      if (!testMode && branchContext) {
-        return Number(branchContext.percent || 0);
-      }
-      const raw = localStorage.getItem("branchPriceAdjustments");
-      const allAdjustments = raw ? JSON.parse(raw) : {};
-      const pct = Number(allAdjustments[branchName] || 0);
-      if (Number.isNaN(pct)) return 0;
-      return pct;
-    }
-
-    function getProductAvailability() {
-      const raw = localStorage.getItem("productAvailability");
-      const custom = raw ? JSON.parse(raw) : {};
-      return Object.assign({}, defaultProductAvailability, custom);
-    }
-
     function isBranchActive() {
-      if (!testMode && branchContext && branchContext.branch) {
-        return branchContext.branch.isActive !== false;
+      if (!branchContext || !branchContext.branch) {
+        return true;
       }
-      const raw = localStorage.getItem("centerBranches");
-      const branches = raw ? JSON.parse(raw) : [];
-      const current = branches.find(function (b) { return b.name === branchName; });
-      if (!current) return true;
-      if (typeof current.active === "boolean") return current.active;
+      if (typeof branchContext.branch.isActive === "boolean") {
+        return branchContext.branch.isActive;
+      }
       return true;
     }
 
-    function applyPercent(base, percent) {
-      const adjusted = base * (1 + percent / 100);
-      return Math.max(1, Math.round(adjusted));
-    }
-
     function renderProducts() {
-      if (!testMode && branchContext) {
-        const htmlApi = (branchContext.products || [])
-          .map(function (product) {
-            const key = product.code;
-            const safeName = escapeHtml(product.name);
-            const price = Number(product.adjustedPrice || 0);
-            const isActive = product.isActive !== false;
-            const imageUrl = product.imageUrl ? escapeHtml(product.imageUrl) : "";
-            return '' +
-              '<article class="item ' + (isActive ? "" : "passive") + ' ' + (imageUrl ? "with-thumb" : "") + '">' +
-              (imageUrl
-                ? ('<img class="item-thumb" src="' + imageUrl + '" alt="' + safeName + '">')
-                : '<div class="item-thumb empty">Resim Yok</div>') +
-              '  <strong>' + safeName + '</strong>' +
-              '  ' + (isActive ? "" : '<div class="passive-note">Pasif - Tedarik Saglanamiyor</div>') +
-              '  <div class="price">Tepsi Fiyati: <span>' + price + '</span> TL</div>' +
-              '  <label>Tepsi Sayisi<input type="number" name="' + key + '_tepsi" min="0" step="1" value="0" data-name="' + safeName + '" data-product="' + key + '" data-price="' + price + '" data-active="' + (isActive ? "true" : "false") + '"></label>' +
-              '</article>';
-          })
-          .join("");
-        productGrid.innerHTML = htmlApi;
-        numberInputs = Array.from(form.querySelectorAll('input[type="number"][data-product]'));
-        numberInputs.forEach(function (input) {
-          input.addEventListener("input", updateCartTotal);
-        });
-        updateCartTotal();
-        return;
-      }
-
-      const catalog = getProductCatalog();
-      const prices = getLivePrices();
-      const availability = getProductAvailability();
-      const branchPercent = getBranchAdjustmentPercent();
-      const html = Object.entries(catalog)
-        .map(function (entry) {
-          const key = entry[0];
-          const name = entry[1];
-          const isActive = availability[key] !== false;
-          const basePrice = Number(prices[key] || defaultProductPrices[key] || 1);
-          const price = applyPercent(basePrice, branchPercent);
-          const safeName = escapeHtml(name);
+      const htmlApi = (branchContext && branchContext.products ? branchContext.products : [])
+        .map(function (product) {
+          const key = product.code;
+          const safeName = escapeHtml(product.name);
+          const price = Number(product.adjustedPrice || 0);
+          const isActive = product.isActive !== false;
+          const imageUrl = product.imageUrl ? escapeHtml(product.imageUrl) : "";
           return '' +
-            '<article class="item ' + (isActive ? "" : "passive") + '">' +
-            '<div class="item-thumb empty">Resim Yok</div>' +
+            '<article class="item ' + (isActive ? "" : "passive") + ' ' + (imageUrl ? "with-thumb" : "") + '">' +
+            (imageUrl
+              ? ('<img class="item-thumb" src="' + imageUrl + '" alt="' + safeName + '">')
+              : '<div class="item-thumb empty">Resim Yok</div>') +
             '  <strong>' + safeName + '</strong>' +
             '  ' + (isActive ? "" : '<div class="passive-note">Pasif - Tedarik Saglanamiyor</div>') +
             '  <div class="price">Tepsi Fiyati: <span>' + price + '</span> TL</div>' +
@@ -737,7 +615,7 @@
             '</article>';
         })
         .join("");
-      productGrid.innerHTML = html;
+      productGrid.innerHTML = htmlApi;
       numberInputs = Array.from(form.querySelectorAll('input[type="number"][data-product]'));
       numberInputs.forEach(function (input) {
         input.addEventListener("input", updateCartTotal);
@@ -748,23 +626,14 @@
     setDefaultDeliveryDate();
     teslimatSaati.value = "07:00";
 
-    if (!testMode) {
-      apiRequest("/branches/my-context", { method: "GET" })
-        .then(function (data) {
-          branchContext = data;
-          renderProducts();
-        })
-        .catch(function (err) {
-          showNotice("error", (err && err.message) || "Sube ayarlari alinamadi.");
-        });
-    } else {
-      renderProducts();
-      window.addEventListener("storage", function (event) {
-        if (event.key === "productPrices" || event.key === "branchPriceAdjustments" || event.key === "productCatalog" || event.key === "productAvailability") {
-          renderProducts();
-        }
+    apiRequest("/branches/my-context", { method: "GET" })
+      .then(function (data) {
+        branchContext = data;
+        renderProducts();
+      })
+      .catch(function (err) {
+        showNotice("error", (err && err.message) || "Sube ayarlari alinamadi.");
       });
-    }
 
     form.addEventListener("submit", async function (event) {
       event.preventDefault();
@@ -824,68 +693,31 @@
       if (!pendingSubmit) return;
       const payload = pendingSubmit;
 
-      if (!testMode) {
-        try {
-          const created = await apiRequest("/orders", {
-            method: "POST",
-            body: JSON.stringify({
-              deliveryDate: payload.deliveryDate,
-              deliveryTime: payload.deliveryTime,
-              note: payload.note,
-              items: payload.items.map(function (item) {
-                return { productCode: item.productCode, qtyTray: item.qtyTray };
-              }),
-              carryovers: carryovers.map(function (row) {
-                return { productCode: row.productCode, qtyKg: row.qtyKg };
-              })
+      try {
+        const created = await apiRequest("/orders", {
+          method: "POST",
+          body: JSON.stringify({
+            deliveryDate: payload.deliveryDate,
+            deliveryTime: payload.deliveryTime,
+            note: payload.note,
+            items: payload.items.map(function (item) {
+              return { productCode: item.productCode, qtyTray: item.qtyTray };
+            }),
+            carryovers: carryovers.map(function (row) {
+              return { productCode: row.productCode, qtyKg: row.qtyKg };
             })
-          });
+          })
+        });
 
-          showNotice("success", "Siparis kaydedildi. Siparis No: " + created.orderNo + " | Toplam: " + formatTL(Number(created.totalAmount || payload.totals.totalAmount)));
-          setTimeout(function () {
-            window.location.href = "siparislerim.html";
-          }, 3200);
-          pendingSubmit = null;
-          return;
-        } catch (err) {
-          showNotice("error", (err && err.message) || "Siparis kaydedilemedi.");
-          pendingSubmit = null;
-          return;
-        }
+        showNotice("success", "Siparis kaydedildi. Siparis No: " + created.orderNo + " | Toplam: " + formatTL(Number(created.totalAmount || payload.totals.totalAmount)));
+        setTimeout(function () {
+          window.location.href = "siparislerim.html";
+        }, 3200);
+        pendingSubmit = null;
+      } catch (err) {
+        showNotice("error", (err && err.message) || "Siparis kaydedilemedi.");
+        pendingSubmit = null;
       }
-
-      const rawOrders = localStorage.getItem("branchOrders");
-      const orders = rawOrders ? JSON.parse(rawOrders) : [];
-      const carryoverNameMap = carryovers.reduce(function (acc, row) {
-        acc[row.productCode] = row.name || row.productCode;
-        return acc;
-      }, {});
-      const order = {
-        orderNo: nextOrderNo(orders),
-        branchName: branchName,
-        status: "Onay Bekliyor",
-        deliveryStatus: "Teslim Bekliyor",
-        deliveryDate: payload.deliveryDate,
-        deliveryTime: payload.deliveryTime,
-        note: payload.note,
-        totalTray: payload.totals.totalTray,
-        totalAmount: payload.totals.totalAmount,
-        items: payload.items.map(function (item) {
-          return { name: item.name, qty: item.qtyTray, unitPrice: item.unitPrice, productCode: item.productCode };
-        }),
-        carryovers: carryovers.map(function (row) {
-          return { productCode: row.productCode, name: carryoverNameMap[row.productCode] || row.productCode, qtyKg: row.qtyKg };
-        }),
-        createdAt: new Date().toISOString()
-      };
-      orders.push(order);
-      localStorage.setItem("branchOrders", JSON.stringify(orders));
-
-      showNotice("success", "Siparis kaydedildi. Siparis No: " + order.orderNo + " | Toplam: " + formatTL(order.totalAmount));
-      setTimeout(function () {
-        window.location.href = "siparislerim.html";
-      }, 3200);
-      pendingSubmit = null;
     }
 
     carryoverSkipBtn.addEventListener("click", function () {
@@ -903,5 +735,11 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+
 
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Merkez Paneli | Nebula Studio</title>
+  <title>Merkez Paneli | B2B Tedarik</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -630,22 +630,10 @@
     let currentFilteredOrders = [];
     let currentProductTotals = {};
     const cfg = window.APP_CONFIG || {};
-    const testMode = !!cfg.TEST_MODE;
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
-    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
-
-    function getOrders() {
-      const raw = localStorage.getItem("branchOrders");
-      return raw ? JSON.parse(raw) : [];
-    }
-
-    function saveOrders(orders) {
-      localStorage.setItem("branchOrders", JSON.stringify(orders));
-    }
-
     function getAuthSession() {
       try {
-        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+        return window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
       } catch (_err) {
         return null;
       }
@@ -653,13 +641,10 @@
 
     async function apiRequest(path, options) {
       const session = getAuthSession();
-      const token = session && session.accessToken ? session.accessToken : "";
-      if (!token) {
-        throw new Error("Oturum bilgisi bulunamadi. Lutfen tekrar giris yapin.");
-      }
       const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        credentials: "include",
         headers: Object.assign(
-          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          { "Content-Type": "application/json" },
           (options && options.headers) || {}
         )
       }));
@@ -683,13 +668,6 @@
 
     function todayKey() {
       return toDateKey(new Date());
-    }
-
-    function orderDateKey(isoText) {
-      if (!isoText) return "";
-      const d = new Date(isoText);
-      if (Number.isNaN(d.getTime())) return "";
-      return toDateKey(d);
     }
 
     function formatDate(isoText) {
@@ -818,25 +796,12 @@
 
     async function loadCarryoverOrdersByRange() {
       const range = selectedCarryoverRange();
-      if (!testMode) {
-        const query = [];
-        if (range.from) query.push("from=" + encodeURIComponent(range.from));
-        if (range.to) query.push("to=" + encodeURIComponent(range.to));
-        const path = "/orders" + (query.length ? "?" + query.join("&") : "");
-        const rows = await apiRequest(path, { method: "GET" });
-        return Array.isArray(rows) ? rows : [];
-      }
-
-      const allOrders = getOrders();
-      const fromDate = range.from ? new Date(range.from + "T00:00:00") : null;
-      const toDate = range.to ? new Date(range.to + "T23:59:59") : null;
-      return allOrders.filter(function (order) {
-        const d = new Date(order.createdAt);
-        if (Number.isNaN(d.getTime())) return false;
-        if (fromDate && d < fromDate) return false;
-        if (toDate && d > toDate) return false;
-        return true;
-      });
+      const query = [];
+      if (range.from) query.push("from=" + encodeURIComponent(range.from));
+      if (range.to) query.push("to=" + encodeURIComponent(range.to));
+      const path = "/orders" + (query.length ? "?" + query.join("&") : "");
+      const rows = await apiRequest(path, { method: "GET" });
+      return Array.isArray(rows) ? rows : [];
     }
 
     function renderCarryoverTable(rows) {
@@ -904,19 +869,12 @@
       });
       const activeDateKey = selectedDateKey();
       let filteredOrders = [];
-      if (!testMode) {
-        try {
-          filteredOrders = await apiRequest("/orders?date=" + encodeURIComponent(activeDateKey), { method: "GET" });
-        } catch (err) {
-          ordersList.innerHTML = '<div class="empty">' + ((err && err.message) || "Siparisler alinamadi.") + '</div>';
-          totalByProduct.innerHTML = '<div class="empty">Total alani siparis geldikce dolacak.</div>';
-          return;
-        }
-      } else {
-        const allOrders = getOrders();
-        filteredOrders = allOrders.filter(function (order) {
-          return orderDateKey(order.createdAt) === activeDateKey;
-        });
+      try {
+        filteredOrders = await apiRequest("/orders?date=" + encodeURIComponent(activeDateKey), { method: "GET" });
+      } catch (err) {
+        ordersList.innerHTML = '<div class="empty">' + ((err && err.message) || "Siparisler alinamadi.") + '</div>';
+        totalByProduct.innerHTML = '<div class="empty">Total alani siparis geldikce dolacak.</div>';
+        return;
       }
       currentFilteredOrders = filteredOrders.slice();
 
@@ -1140,38 +1098,14 @@
         });
       if (!orderItemDecisions.length) return;
 
-      if (!testMode) {
-        try {
-          await apiRequest("/orders/approve-bulk", {
-            method: "PUT",
-            body: JSON.stringify({ orderItemDecisions: orderItemDecisions })
-          });
-          orderNos.forEach(function (no) { openOrderNos.add(no || ""); });
-          await render();
-        } catch (_err) {}
-        return;
-      }
-
-      const allOrders = getOrders();
-      const decisionMap = new Map(orderItemDecisions.map(function (d) { return [d.orderId, d]; }));
-      allOrders.forEach(function (order) {
-        const decision = decisionMap.get(order.id);
-        if (!decision) return;
-        const approveSet = new Set(decision.approveItemIds || []);
-        let approvedCount = 0;
-        (order.items || []).forEach(function (item) {
-          const ok = approveSet.has(item.id);
-          item.approvedQty = ok ? Number(item.qty || 0) : 0;
-          item.itemStatus = ok ? "Onaylandi" : "Onaylanmadi";
-          if (ok) approvedCount += 1;
+      try {
+        await apiRequest("/orders/approve-bulk", {
+          method: "PUT",
+          body: JSON.stringify({ orderItemDecisions: orderItemDecisions })
         });
-        if (approvedCount === 0) order.status = "Onaylanmadi";
-        else if (approvedCount === (order.items || []).length) order.status = "Onaylandi";
-        else order.status = "Kismen Onaylandi";
-        openOrderNos.add(order.orderNo || "");
-      });
-      saveOrders(allOrders);
-      await render();
+        orderNos.forEach(function (no) { openOrderNos.add(no || ""); });
+        await render();
+      } catch (_err) {}
     }
 
     async function approveSelected() {
@@ -1262,81 +1196,34 @@
     async function processBulkApprovalByCheckboxes() {
       const ids = collectPendingDecisionIds();
       if (!ids.orderItemDecisions.length && !ids.approveIds.length && !ids.rejectIds.length) return;
-      if (!testMode) {
-        try {
-          await apiRequest("/orders/approve-bulk", {
-            method: "PUT",
-            body: JSON.stringify({
-              approveIds: ids.approveIds,
-              rejectIds: ids.rejectIds,
-              orderItemDecisions: ids.orderItemDecisions
-            })
-          });
-          await render();
-        } catch (_err) {}
-        return;
-      }
-
-      const allOrders = getOrders();
-      const approveSet = new Set(ids.approveOrderNos);
-      const rejectSet = new Set(ids.rejectOrderNos);
-      const decisionMap = new Map(ids.orderItemDecisions.map(function (d) { return [d.orderId, d]; }));
-      allOrders.forEach(function (order) {
-        const key = order.orderNo || "";
-        if (!key) return;
-        const decision = decisionMap.get(order.id);
-        if (decision) {
-          const approveItems = new Set((decision.approveItemIds || []).filter(Boolean));
-          let approvedCount = 0;
-          (order.items || []).forEach(function (item) {
-            const isApprovedItem = approveItems.has(item.id);
-            item.approvedQty = isApprovedItem ? Number(item.qty || 0) : 0;
-            item.itemStatus = isApprovedItem ? "Onaylandi" : "Onaylanmadi";
-            if (isApprovedItem) approvedCount += 1;
-          });
-          if (approvedCount === 0) order.status = "Onaylanmadi";
-          else if (approvedCount === (order.items || []).length) order.status = "Onaylandi";
-          else order.status = "Kismen Onaylandi";
-          return;
-        }
-        if (approveSet.has(key)) order.status = "Onaylandi";
-        if (rejectSet.has(key)) order.status = "Onaylanmadi";
-      });
-      saveOrders(allOrders);
-      await render();
+      try {
+        await apiRequest("/orders/approve-bulk", {
+          method: "PUT",
+          body: JSON.stringify({
+            approveIds: ids.approveIds,
+            rejectIds: ids.rejectIds,
+            orderItemDecisions: ids.orderItemDecisions
+          })
+        });
+        await render();
+      } catch (_err) {}
     }
 
     async function deliverOrdersByNos(orderNos) {
       if (!orderNos.length) return;
-      if (!testMode) {
-        const setNos = new Set(orderNos);
-        const ids = currentFilteredOrders
-          .filter(function (order) { return setNos.has(order.orderNo); })
-          .map(function (order) { return order.id; })
-          .filter(Boolean);
-        if (!ids.length) return;
-        try {
-          for (const id of ids) {
-            await apiRequest("/orders/" + encodeURIComponent(id) + "/deliver", { method: "PUT" });
-          }
-          await render();
-          await renderCarryoverReport();
-        } catch (_err) {}
-        return;
-      }
-
-      const allOrders = getOrders();
       const setNos = new Set(orderNos);
-      allOrders.forEach(function (order) {
-        if (setNos.has(order.orderNo) && normalizeStatus(order.status) === "Onaylandi") {
-          order.deliveryStatus = "Teslim Edildi";
-          order.deliveredAt = new Date().toISOString();
-          order.deliveredByName = "Merkez";
+      const ids = currentFilteredOrders
+        .filter(function (order) { return setNos.has(order.orderNo); })
+        .map(function (order) { return order.id; })
+        .filter(Boolean);
+      if (!ids.length) return;
+      try {
+        for (const id of ids) {
+          await apiRequest("/orders/" + encodeURIComponent(id) + "/deliver", { method: "PUT" });
         }
-      });
-      saveOrders(allOrders);
-      await render();
-      await renderCarryoverReport();
+        await render();
+        await renderCarryoverReport();
+      } catch (_err) {}
     }
 
     async function deliverAllApprovedForSelectedDate() {
@@ -1430,12 +1317,15 @@
       });
       syncSelectAllState();
     });
-    if (testMode) {
-      window.addEventListener("storage", render);
-    }
   </script>
 </body>
 </html>
+
+
+
+
+
+
 
 
 

@@ -3,8 +3,25 @@ const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
+const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const ordersRouter = express.Router();
+const createOrderRateLimiter = createSimpleRateLimiter({
+  max: 30,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla siparis olusturma istegi. Lutfen biraz bekleyip tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:order-create`;
+  }
+});
+const centerActionRateLimiter = createSimpleRateLimiter({
+  max: 120,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla siparis aksiyonu. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:order-center-action`;
+  }
+});
 
 const createOrderSchema = z.object({
   deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -49,6 +66,11 @@ const carryoverQuerySchema = z.object({
 
 function applyPercent(basePrice, percent) {
   return Math.max(1, Math.round(basePrice * (1 + percent / 100)));
+}
+
+function applyPricing(basePrice, percent, extraAmount) {
+  const percentApplied = Number(basePrice) * (1 + Number(percent || 0) / 100);
+  return Math.max(1, Math.round(percentApplied + Number(extraAmount || 0)));
 }
 
 function toUiStatus(dbStatus) {
@@ -156,7 +178,7 @@ function parseDateStrict(dateText, mode) {
   return parsed;
 }
 
-ordersRouter.post("/", requireAuth, requireRole("sube", "admin"), async (req, res, next) => {
+ordersRouter.post("/", requireAuth, requireRole("sube", "admin"), createOrderRateLimiter, async (req, res, next) => {
   try {
     const parsed = createOrderSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -240,6 +262,15 @@ ordersRouter.post("/", requireAuth, requireRole("sube", "admin"), async (req, re
     }
 
     const percent = Number(branch.priceAdjustment ? branch.priceAdjustment.percent : 0);
+    const productAdjustments = await prisma.branchProductAdjustment.findMany({
+      where: {
+        branchId: branch.id,
+        productId: { in: products.map((p) => p.id) }
+      }
+    });
+    const adjustmentByProductId = new Map(
+      productAdjustments.map((row) => [row.productId, Number(row.extraAmount || 0)])
+    );
     const orderItems = [];
     let totalTray = 0;
     let totalAmount = 0;
@@ -248,7 +279,8 @@ ordersRouter.post("/", requireAuth, requireRole("sube", "admin"), async (req, re
       const qtyTray = Number(qtyByCode[code] || 0);
       const product = productMap[code];
       const base = Number(product.basePrice);
-      const unitPrice = applyPercent(base, percent);
+      const extraAmount = adjustmentByProductId.has(product.id) ? adjustmentByProductId.get(product.id) : 0;
+      const unitPrice = applyPricing(base, percent, extraAmount);
       totalTray += qtyTray;
       totalAmount += qtyTray * unitPrice;
       orderItems.push({
@@ -512,7 +544,7 @@ ordersRouter.get("/", requireAuth, requireRole("merkez", "admin"), async (req, r
   }
 });
 
-ordersRouter.put("/:id/approve", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+ordersRouter.put("/:id/approve", requireAuth, requireRole("merkez", "admin"), centerActionRateLimiter, async (req, res, next) => {
   try {
     const orderForTotals = await prisma.order.findUnique({
       where: { id: req.params.id },
@@ -592,7 +624,7 @@ ordersRouter.put("/:id/approve", requireAuth, requireRole("merkez", "admin"), as
   }
 });
 
-ordersRouter.put("/:id/deliver", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+ordersRouter.put("/:id/deliver", requireAuth, requireRole("merkez", "admin"), centerActionRateLimiter, async (req, res, next) => {
   try {
     if (req.user.role === "merkez" && !req.user.centerId) {
       return res.status(400).json({
@@ -659,7 +691,7 @@ ordersRouter.put("/:id/deliver", requireAuth, requireRole("merkez", "admin"), as
   }
 });
 
-ordersRouter.put("/approve-bulk", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+ordersRouter.put("/approve-bulk", requireAuth, requireRole("merkez", "admin"), centerActionRateLimiter, async (req, res, next) => {
   try {
     const parsed = bulkApproveSchema.safeParse(req.body);
     if (!parsed.success) {
