@@ -10,6 +10,26 @@ const statusSchema = z.object({
   isActive: z.boolean()
 });
 
+const createBranchSchema = z.object({
+  name: z.string().min(2).max(120),
+  manager: z.string().max(120).optional(),
+  phone: z.string().max(40).optional(),
+  email: z.string().email().optional(),
+  address: z.string().max(500).optional(),
+  centerId: z.string().uuid(),
+  isActive: z.boolean().optional(),
+  priceAdjustmentPercent: z.number().min(-90).max(200).optional()
+});
+
+const updateBranchSchema = z.object({
+  name: z.string().min(2).max(120).optional(),
+  manager: z.string().max(120).optional(),
+  phone: z.string().max(40).optional(),
+  email: z.string().email().optional(),
+  address: z.string().max(500).optional(),
+  centerId: z.string().uuid().optional()
+});
+
 const adjustmentSchema = z.object({
   percent: z.number().min(-90).max(200)
 });
@@ -33,16 +53,41 @@ function mapBranch(branch) {
     email: branch.email,
     address: branch.address,
     isActive: branch.isActive,
+    centerId: branch.centerId || null,
+    centerName: branch.center ? branch.center.name : null,
     priceAdjustmentPercent: toNumber(branch.priceAdjustment && branch.priceAdjustment.percent, 0),
     userEmail: branchUser ? branchUser.email : null
   };
 }
 
-branchesRouter.get("/", requireAuth, requireRole("merkez", "admin"), async (_req, res, next) => {
+async function ensureCenter(centerId) {
+  const center = await prisma.center.findUnique({
+    where: { id: centerId },
+    select: { id: true, isActive: true }
+  });
+  if (!center) return { ok: false, error: "Center bulunamadi." };
+  return { ok: true, center };
+}
+
+branchesRouter.get("/", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
   try {
+    const where = {};
+    if (req.user.role === "merkez") {
+      if (!req.user.centerId) {
+        return res.status(400).json({
+          ok: false,
+          error: "CENTER_REQUIRED",
+          message: "Current merkez user is not linked to a center"
+        });
+      }
+      where.centerId = req.user.centerId;
+    }
+
     const branches = await prisma.branch.findMany({
+      where,
       orderBy: [{ name: "asc" }],
       include: {
+        center: true,
         priceAdjustment: true,
         users: {
           select: { email: true, role: true }
@@ -59,6 +104,142 @@ branchesRouter.get("/", requireAuth, requireRole("merkez", "admin"), async (_req
   }
 });
 
+branchesRouter.post("/", requireAuth, requireRole("admin"), async (req, res, next) => {
+  try {
+    const parsed = createBranchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Invalid branch payload",
+        details: parsed.error.flatten()
+      });
+    }
+
+    const payload = parsed.data;
+    const centerCheck = await ensureCenter(payload.centerId);
+    if (!centerCheck.ok) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: centerCheck.error
+      });
+    }
+
+    const created = await prisma.branch.create({
+      data: {
+        name: payload.name.trim(),
+        manager: payload.manager ? payload.manager.trim() : null,
+        phone: payload.phone ? payload.phone.trim() : null,
+        email: payload.email ? payload.email.trim() : null,
+        address: payload.address ? payload.address.trim() : null,
+        centerId: payload.centerId,
+        isActive: payload.isActive !== false
+      },
+      include: {
+        center: true,
+        priceAdjustment: true,
+        users: {
+          select: { email: true, role: true }
+        }
+      }
+    });
+
+    if (typeof payload.priceAdjustmentPercent === "number") {
+      await prisma.branchPriceAdjustment.upsert({
+        where: { branchId: created.id },
+        update: { percent: payload.priceAdjustmentPercent },
+        create: { branchId: created.id, percent: payload.priceAdjustmentPercent }
+      });
+    }
+
+    const fullCreated = await prisma.branch.findUnique({
+      where: { id: created.id },
+      include: {
+        center: true,
+        priceAdjustment: true,
+        users: {
+          select: { email: true, role: true }
+        }
+      }
+    });
+
+    return res.status(201).json({
+      ok: true,
+      data: mapBranch(fullCreated)
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+branchesRouter.put("/:id", requireAuth, requireRole("admin"), async (req, res, next) => {
+  try {
+    const parsed = updateBranchSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Invalid branch update payload",
+        details: parsed.error.flatten()
+      });
+    }
+
+    const payload = parsed.data;
+    const data = {};
+    if (typeof payload.name === "string") data.name = payload.name.trim();
+    if (typeof payload.manager === "string") data.manager = payload.manager.trim();
+    if (typeof payload.phone === "string") data.phone = payload.phone.trim();
+    if (typeof payload.email === "string") data.email = payload.email.trim();
+    if (typeof payload.address === "string") data.address = payload.address.trim();
+    if (typeof payload.centerId === "string") {
+      const centerCheck = await ensureCenter(payload.centerId);
+      if (!centerCheck.ok) {
+        return res.status(400).json({
+          ok: false,
+          error: "VALIDATION_ERROR",
+          message: centerCheck.error
+        });
+      }
+      data.centerId = payload.centerId;
+    }
+
+    if (!Object.keys(data).length) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "No fields to update"
+      });
+    }
+
+    const updated = await prisma.branch.update({
+      where: { id: req.params.id },
+      data,
+      include: {
+        center: true,
+        priceAdjustment: true,
+        users: {
+          select: { email: true, role: true }
+        }
+      }
+    });
+
+    return res.status(200).json({
+      ok: true,
+      data: mapBranch(updated)
+    });
+  } catch (err) {
+    if (err && err.code === "P2025") {
+      return res.status(404).json({
+        ok: false,
+        error: "NOT_FOUND",
+        message: "Branch not found"
+      });
+    }
+    return next(err);
+  }
+});
+
 branchesRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
   try {
     const parsed = statusSchema.safeParse(req.body);
@@ -71,10 +252,39 @@ branchesRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), a
       });
     }
 
+    if (req.user.role === "merkez") {
+      if (!req.user.centerId) {
+        return res.status(400).json({
+          ok: false,
+          error: "CENTER_REQUIRED",
+          message: "Current merkez user is not linked to a center"
+        });
+      }
+      const target = await prisma.branch.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, centerId: true }
+      });
+      if (!target) {
+        return res.status(404).json({
+          ok: false,
+          error: "NOT_FOUND",
+          message: "Branch not found"
+        });
+      }
+      if (target.centerId !== req.user.centerId) {
+        return res.status(403).json({
+          ok: false,
+          error: "FORBIDDEN",
+          message: "Bu sube baska bir merkeze bagli."
+        });
+      }
+    }
+
     const updated = await prisma.branch.update({
       where: { id: req.params.id },
       data: { isActive: parsed.data.isActive },
       include: {
+        center: true,
         priceAdjustment: true,
         users: {
           select: { email: true, role: true }
@@ -112,7 +322,7 @@ branchesRouter.put("/:id/price-adjustment", requireAuth, requireRole("merkez", "
 
     const branch = await prisma.branch.findUnique({
       where: { id: req.params.id },
-      select: { id: true }
+      select: { id: true, centerId: true }
     });
 
     if (!branch) {
@@ -121,6 +331,22 @@ branchesRouter.put("/:id/price-adjustment", requireAuth, requireRole("merkez", "
         error: "NOT_FOUND",
         message: "Branch not found"
       });
+    }
+    if (req.user.role === "merkez") {
+      if (!req.user.centerId) {
+        return res.status(400).json({
+          ok: false,
+          error: "CENTER_REQUIRED",
+          message: "Current merkez user is not linked to a center"
+        });
+      }
+      if (branch.centerId !== req.user.centerId) {
+        return res.status(403).json({
+          ok: false,
+          error: "FORBIDDEN",
+          message: "Bu sube baska bir merkeze bagli."
+        });
+      }
     }
 
     await prisma.branchPriceAdjustment.upsert({
@@ -132,6 +358,7 @@ branchesRouter.put("/:id/price-adjustment", requireAuth, requireRole("merkez", "
     const updated = await prisma.branch.findUnique({
       where: { id: req.params.id },
       include: {
+        center: true,
         priceAdjustment: true,
         users: {
           select: { email: true, role: true }
@@ -184,7 +411,8 @@ branchesRouter.get("/my-context", requireAuth, async (req, res, next) => {
         name: p.name,
         basePrice,
         adjustedPrice: applyPercent(basePrice, percent),
-        isActive: p.isActive
+        isActive: p.isActive,
+        imageUrl: p.imageUrl || null
       };
     });
 

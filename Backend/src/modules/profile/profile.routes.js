@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
+const { normalizePhone } = require("../../common/utils/phone");
 
 const profileRouter = express.Router();
 
@@ -12,7 +13,19 @@ const updateProfileSchema = z.object({
   telefon: z.string().min(5).max(40).optional(),
   eposta: z.string().email().optional(),
   adres: z.string().max(500).optional(),
-  displayName: z.string().min(2).max(120).optional()
+  displayName: z.string().min(2).max(120).optional(),
+  userEmail: z.string().email().optional(),
+  userPhone: z.string().min(5).max(40).optional(),
+  branchName: z.string().min(2).max(120).optional(),
+  branchManager: z.string().min(2).max(120).optional(),
+  branchPhone: z.string().min(5).max(40).optional(),
+  branchEmail: z.string().email().optional(),
+  branchAddress: z.string().max(500).optional(),
+  centerName: z.string().min(2).max(120).optional(),
+  centerManager: z.string().min(2).max(120).optional(),
+  centerPhone: z.string().min(5).max(40).optional(),
+  centerEmail: z.string().email().optional(),
+  centerAddress: z.string().max(500).optional()
 });
 
 const changePasswordSchema = z.object({
@@ -25,9 +38,19 @@ function mapProfile(user) {
     user: {
       id: user.id,
       email: user.email,
+      phone: user.phone || "",
       displayName: user.displayName || "",
       role: user.role
     },
+    center: user.center ? {
+      id: user.center.id,
+      name: user.center.name || "",
+      manager: user.center.manager || "",
+      phone: user.center.phone || "",
+      email: user.center.email || "",
+      address: user.center.address || "",
+      isActive: user.center.isActive
+    } : null,
     branch: user.branch ? {
       id: user.branch.id,
       name: user.branch.name || "",
@@ -44,7 +67,7 @@ profileRouter.get("/me", requireAuth, async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      include: { branch: true }
+      include: { branch: true, center: true }
     });
 
     return res.status(200).json({
@@ -70,9 +93,21 @@ profileRouter.put("/me", requireAuth, async (req, res, next) => {
 
     const payload = parsed.data;
     const updates = [];
+    const effectiveUserEmail = typeof payload.userEmail === "string" ? payload.userEmail : payload.eposta;
+    const effectiveUserPhone = typeof payload.userPhone === "string" ? payload.userPhone : payload.telefon;
+    const effectiveBranchName = typeof payload.branchName === "string" ? payload.branchName : payload.subeAdi;
+    const effectiveBranchManager = typeof payload.branchManager === "string" ? payload.branchManager : payload.yetkili;
+    const effectiveBranchPhone = typeof payload.branchPhone === "string" ? payload.branchPhone : payload.telefon;
+    const effectiveBranchEmail = typeof payload.branchEmail === "string" ? payload.branchEmail : payload.eposta;
+    const effectiveBranchAddress = typeof payload.branchAddress === "string" ? payload.branchAddress : payload.adres;
+    const effectiveCenterName = typeof payload.centerName === "string" ? payload.centerName : null;
+    const effectiveCenterManager = typeof payload.centerManager === "string" ? payload.centerManager : null;
+    const effectiveCenterPhone = typeof payload.centerPhone === "string" ? payload.centerPhone : null;
+    const effectiveCenterEmail = typeof payload.centerEmail === "string" ? payload.centerEmail : null;
+    const effectiveCenterAddress = typeof payload.centerAddress === "string" ? payload.centerAddress : null;
 
-    if (payload.eposta && payload.eposta !== req.user.email) {
-      const emailOwner = await prisma.user.findUnique({ where: { email: payload.eposta } });
+    if (effectiveUserEmail && effectiveUserEmail !== req.user.email) {
+      const emailOwner = await prisma.user.findUnique({ where: { email: effectiveUserEmail } });
       if (emailOwner && emailOwner.id !== req.user.id) {
         return res.status(409).json({
           ok: false,
@@ -82,8 +117,24 @@ profileRouter.put("/me", requireAuth, async (req, res, next) => {
       }
     }
 
+    if (typeof effectiveUserPhone === "string" && effectiveUserPhone.trim()) {
+      const normalizedPhone = normalizePhone(effectiveUserPhone);
+      const phoneOwner = await prisma.user.findFirst({
+        where: { phone: normalizedPhone },
+        select: { id: true }
+      });
+      if (phoneOwner && phoneOwner.id !== req.user.id) {
+        return res.status(409).json({
+          ok: false,
+          error: "PHONE_IN_USE",
+          message: "Bu telefon numarasi baska bir kullanici tarafindan kullaniliyor."
+        });
+      }
+    }
+
     const userData = {};
-    if (typeof payload.eposta === "string") userData.email = payload.eposta.trim();
+    if (typeof effectiveUserEmail === "string") userData.email = effectiveUserEmail.trim();
+    if (typeof effectiveUserPhone === "string") userData.phone = effectiveUserPhone.trim() ? normalizePhone(effectiveUserPhone) : null;
     if (typeof payload.displayName === "string") userData.displayName = payload.displayName.trim();
     if (Object.keys(userData).length) {
       updates.push(
@@ -97,16 +148,34 @@ profileRouter.put("/me", requireAuth, async (req, res, next) => {
     const canUpdateBranch = req.user.role === "sube" && req.user.branchId;
     if (canUpdateBranch) {
       const branchData = {};
-      if (typeof payload.subeAdi === "string") branchData.name = payload.subeAdi.trim();
-      if (typeof payload.yetkili === "string") branchData.manager = payload.yetkili.trim();
-      if (typeof payload.telefon === "string") branchData.phone = payload.telefon.trim();
-      if (typeof payload.eposta === "string") branchData.email = payload.eposta.trim();
-      if (typeof payload.adres === "string") branchData.address = payload.adres.trim();
+      if (typeof effectiveBranchName === "string") branchData.name = effectiveBranchName.trim();
+      if (typeof effectiveBranchManager === "string") branchData.manager = effectiveBranchManager.trim();
+      if (typeof effectiveBranchPhone === "string") branchData.phone = effectiveBranchPhone.trim();
+      if (typeof effectiveBranchEmail === "string") branchData.email = effectiveBranchEmail.trim();
+      if (typeof effectiveBranchAddress === "string") branchData.address = effectiveBranchAddress.trim();
       if (Object.keys(branchData).length) {
         updates.push(
           prisma.branch.update({
             where: { id: req.user.branchId },
             data: branchData
+          })
+        );
+      }
+    }
+
+    const canUpdateCenter = req.user.role === "merkez" && req.user.centerId;
+    if (canUpdateCenter) {
+      const centerData = {};
+      if (typeof effectiveCenterName === "string") centerData.name = effectiveCenterName.trim();
+      if (typeof effectiveCenterManager === "string") centerData.manager = effectiveCenterManager.trim();
+      if (typeof effectiveCenterPhone === "string") centerData.phone = effectiveCenterPhone.trim();
+      if (typeof effectiveCenterEmail === "string") centerData.email = effectiveCenterEmail.trim();
+      if (typeof effectiveCenterAddress === "string") centerData.address = effectiveCenterAddress.trim();
+      if (Object.keys(centerData).length) {
+        updates.push(
+          prisma.center.update({
+            where: { id: req.user.centerId },
+            data: centerData
           })
         );
       }
@@ -118,7 +187,7 @@ profileRouter.put("/me", requireAuth, async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      include: { branch: true }
+      include: { branch: true, center: true }
     });
 
     return res.status(200).json({

@@ -28,7 +28,7 @@
         linear-gradient(135deg, var(--bg-1), var(--bg-2));
       padding: 1.2rem;
     }
-    .wrap { width: min(950px, 100%); margin: 0 auto; }
+    .wrap { width: min(1040px, 100%); margin: 0 auto; }
     .panel {
       background: var(--card);
       border: 1px solid var(--border);
@@ -38,10 +38,10 @@
       box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
     }
     .top {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 1rem;
-      flex-wrap: wrap;
+      align-items: start;
       margin-bottom: 1rem;
     }
     .eyebrow {
@@ -65,8 +65,14 @@
       display: flex;
       gap: .6rem;
       flex-wrap: wrap;
+      justify-content: flex-end;
+      margin-left: auto;
+      align-items: flex-start;
     }
     .nav a {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
       text-decoration: none;
       color: var(--ink);
       border: 1px solid var(--border);
@@ -74,25 +80,22 @@
       padding: .5rem .75rem;
       background: rgba(255, 255, 255, .72);
       font-weight: 600;
+      height: fit-content;
     }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .9rem;
-    }
-    @media (max-width: 840px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-    .card {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      background: rgba(255, 255, 255, .65);
-      padding: .9rem;
+    @media (max-width: 980px) {
+      .top {
+        grid-template-columns: 1fr;
+      }
+      .nav {
+        justify-content: flex-start;
+        margin-left: 0;
+      }
     }
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
       gap: .7rem;
+      margin-bottom: .9rem;
     }
     .stat {
       border: 1px solid var(--border);
@@ -101,9 +104,23 @@
       background: rgba(255, 255, 255, .8);
     }
     .stat strong { display: block; font-size: 1.2rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .9rem;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .65);
+      padding: .9rem;
+    }
     form { display: grid; gap: .7rem; }
     label { font-size: .9rem; font-weight: 600; }
-    input {
+    input, textarea {
       width: 100%;
       border: 1px solid var(--border);
       background: rgba(255, 255, 255, .85);
@@ -145,6 +162,11 @@
       padding: .75rem .85rem;
       font-weight: 600;
     }
+    .hint {
+      margin-top: -.15rem;
+      font-size: .83rem;
+      opacity: .78;
+    }
   </style>
 </head>
 <body>
@@ -159,42 +181,44 @@
           <a href="merkez.html">Merkez Paneli</a>
           <a href="merkez-urun-fiyat.html">Urunler</a>
           <a href="merkez-subeler.html">Subeler</a>
-          <a href="../login.html">Cikis</a>
         </nav>
       </div>
 
+      <section class="stats">
+        <article class="stat">
+          <span>Toplam Siparis</span>
+          <strong id="statOrderCount">0</strong>
+        </article>
+        <article class="stat">
+          <span>Toplam Tepsi</span>
+          <strong id="statTray">0</strong>
+        </article>
+        <article class="stat">
+          <span>Toplam Tutar</span>
+          <strong id="statAmount">0 TL</strong>
+        </article>
+      </section>
+
       <section class="grid">
         <article class="card">
-          <h3>Merkez Ozet</h3>
-          <div class="stats">
-            <div class="stat">
-              <span>Toplam Siparis</span>
-              <strong id="statOrderCount">0</strong>
-            </div>
-            <div class="stat">
-              <span>Toplam Tepsi</span>
-              <strong id="statTray">0</strong>
-            </div>
-            <div class="stat">
-              <span>Toplam Tutar</span>
-              <strong id="statAmount">0 TL</strong>
-            </div>
-          </div>
-        </article>
-
-        <article class="card">
-          <h3>Profil Bilgileri</h3>
-          <form id="profileForm">
-            <label>Merkez Gosterim Adi
+          <h3>Kullanici Bilgileri</h3>
+          <form id="userForm">
+            <label>Kullanici Gosterim Adi
               <input type="text" id="displayName" required>
             </label>
-            <label>E-posta
-              <input type="email" id="eposta" required>
+            <label>Giris E-postasi
+              <input type="email" id="userEmail" required>
             </label>
-            <button class="btn" type="submit">Bilgileri Guncelle</button>
-            <div class="msg" id="profileMsg">Profil bilgileri guncellendi.</div>
+            <label>Giris Telefonu
+              <input type="tel" id="userPhone" placeholder="05xx xxx xx xx">
+            </label>
+            <p class="hint">Kullanici e-posta veya telefon ile giris yapabilir.</p>
+            <button class="btn" type="submit">Kullanici Bilgilerini Guncelle</button>
+            <div class="msg" id="userMsg">Kullanici bilgileri guncellendi.</div>
           </form>
+
           <hr style="border:none;border-top:1px solid rgba(19,34,31,.15);margin:1rem 0;">
+
           <h3>Hesap Sifresi</h3>
           <form id="passwordForm">
             <label>Mevcut Sifre
@@ -219,6 +243,29 @@
             <div class="msg" id="passwordMsg">Sifre guncellendi.</div>
           </form>
         </article>
+
+        <article class="card">
+          <h3>Merkez Bilgileri</h3>
+          <form id="centerForm">
+            <label>Merkez Adi
+              <input type="text" id="centerName" required>
+            </label>
+            <label>Merkez Yetkilisi
+              <input type="text" id="centerManager" required>
+            </label>
+            <label>Merkez Telefonu
+              <input type="tel" id="centerPhone" placeholder="05xx xxx xx xx">
+            </label>
+            <label>Merkez E-postasi
+              <input type="email" id="centerEmail">
+            </label>
+            <label>Merkez Adresi
+              <textarea id="centerAddress" rows="3"></textarea>
+            </label>
+            <button class="btn" type="submit">Merkez Bilgilerini Guncelle</button>
+            <div class="msg" id="centerMsg">Merkez bilgileri guncellendi.</div>
+          </form>
+        </article>
       </section>
     </main>
   </div>
@@ -226,12 +273,23 @@
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
   <script>
-    const profileForm = document.getElementById("profileForm");
+    const userForm = document.getElementById("userForm");
+    const centerForm = document.getElementById("centerForm");
     const passwordForm = document.getElementById("passwordForm");
-    const profileMsg = document.getElementById("profileMsg");
+    const userMsg = document.getElementById("userMsg");
+    const centerMsg = document.getElementById("centerMsg");
     const passwordMsg = document.getElementById("passwordMsg");
+
     const displayName = document.getElementById("displayName");
-    const eposta = document.getElementById("eposta");
+    const userEmail = document.getElementById("userEmail");
+    const userPhone = document.getElementById("userPhone");
+
+    const centerName = document.getElementById("centerName");
+    const centerManager = document.getElementById("centerManager");
+    const centerPhone = document.getElementById("centerPhone");
+    const centerEmail = document.getElementById("centerEmail");
+    const centerAddress = document.getElementById("centerAddress");
+
     const currentPassword = document.getElementById("currentPassword");
     const newPassword = document.getElementById("newPassword");
     const newPasswordConfirm = document.getElementById("newPasswordConfirm");
@@ -282,8 +340,18 @@
     }
 
     function applyProfileData(data) {
-      displayName.value = (data && data.user && data.user.displayName) ? data.user.displayName : "";
-      eposta.value = (data && data.user && data.user.email) ? data.user.email : "";
+      const user = data && data.user ? data.user : {};
+      const center = data && data.center ? data.center : {};
+
+      displayName.value = user.displayName || "";
+      userEmail.value = user.email || "";
+      userPhone.value = user.phone || "";
+
+      centerName.value = center.name || "";
+      centerManager.value = center.manager || "";
+      centerPhone.value = center.phone || "";
+      centerEmail.value = center.email || "";
+      centerAddress.value = center.address || "";
     }
 
     async function loadProfile() {
@@ -304,26 +372,54 @@
       document.getElementById("statAmount").textContent = formatTL(amount);
     }
 
-    profileForm.addEventListener("submit", async function (event) {
+    userForm.addEventListener("submit", async function (event) {
       event.preventDefault();
       try {
         const updated = await apiRequest("/profile/me", {
           method: "PUT",
           body: JSON.stringify({
             displayName: String(displayName.value || "").trim(),
-            eposta: String(eposta.value || "").trim()
+            userEmail: String(userEmail.value || "").trim(),
+            userPhone: String(userPhone.value || "").trim()
           })
         });
         applyProfileData(updated);
         const session = getAuthSession();
         if (session) {
           session.email = updated.user && updated.user.email ? updated.user.email : session.email;
+          session.phone = updated.user && updated.user.phone ? updated.user.phone : session.phone;
           session.displayName = updated.user && updated.user.displayName ? updated.user.displayName : session.displayName;
+          session.centerName = updated.center && updated.center.name ? updated.center.name : session.centerName;
           saveAuthSession(session);
         }
-        showMessage(profileMsg, "Profil bilgileri veritabaninda guncellendi.");
+        showMessage(userMsg, "Kullanici bilgileri veritabaninda guncellendi.");
       } catch (err) {
-        showMessage(profileMsg, err.message || "Profil guncellenemedi.");
+        showMessage(userMsg, err.message || "Kullanici bilgileri guncellenemedi.");
+      }
+    });
+
+    centerForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      try {
+        const updated = await apiRequest("/profile/me", {
+          method: "PUT",
+          body: JSON.stringify({
+            centerName: String(centerName.value || "").trim(),
+            centerManager: String(centerManager.value || "").trim(),
+            centerPhone: String(centerPhone.value || "").trim(),
+            centerEmail: String(centerEmail.value || "").trim(),
+            centerAddress: String(centerAddress.value || "").trim()
+          })
+        });
+        applyProfileData(updated);
+        const session = getAuthSession();
+        if (session) {
+          session.centerName = updated.center && updated.center.name ? updated.center.name : session.centerName;
+          saveAuthSession(session);
+        }
+        showMessage(centerMsg, "Merkez bilgileri veritabaninda guncellendi.");
+      } catch (err) {
+        showMessage(centerMsg, err.message || "Merkez bilgileri guncellenemedi.");
       }
     });
 
@@ -375,7 +471,7 @@
     });
 
     Promise.all([loadProfile(), loadStats()]).catch(function (_err) {
-      showMessage(profileMsg, "Profil verileri alinamadi.");
+      showMessage(userMsg, "Profil verileri alinamadi.");
     });
   </script>
 </body>

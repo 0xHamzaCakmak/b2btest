@@ -1,0 +1,21 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+ALTER TABLE [dbo].[users]
+ADD [phone] NVARCHAR(50);
+
+CREATE INDEX [idx_users_phone] ON [dbo].[users]([phone]);
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

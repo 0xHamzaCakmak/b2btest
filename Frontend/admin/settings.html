@@ -8,6 +8,79 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(160px, 1fr)); gap: .55rem; }
+    @media (max-width: 680px) { .form-grid { grid-template-columns: 1fr; } }
+    label { font-size: .88rem; font-weight: 700; display: block; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.85);
+      border-radius: 10px;
+      padding: .54rem .62rem;
+      font: inherit;
+      margin-top: .22rem;
+      outline: none;
+    }
+    textarea { min-height: 76px; resize: vertical; }
+    .row-end { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .75rem; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .62rem;
+      background: rgba(255, 255, 255, .82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .msg {
+      display: none;
+      margin-top: .65rem;
+      border: 1px solid rgba(19,34,31,.2);
+      background: rgba(216,240,227,.75);
+      border-radius: 10px;
+      padding: .55rem .62rem;
+      font-weight: 700;
+    }
+    .help {
+      margin-top: .35rem;
+      font-size: .8rem;
+      opacity: .8;
+    }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(255,255,255,.72);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 640px;
+      font-size: .92rem;
+    }
+    th, td {
+      text-align: left;
+      padding: .48rem .55rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    thead th {
+      background: rgba(19,34,31,.04);
+      font-weight: 700;
+    }
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+    .muted {
+      opacity: .75;
+      font-size: .84rem;
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -19,27 +92,303 @@
         </div>
         <nav class="nav">
           <a href="index.html">Dashboard</a>
-          <a href="users.html">Kullanicilar</a>
-          <a href="branches.html">Subeler</a>
-          <a href="products.html">Urunler</a>
-          <a href="orders.html">Siparisler</a>
-          <a href="logs.html">Loglar</a>
-          <a href="settings.html">Ayarlar</a>
-          <a href="../login.html">Cikis</a>
+          <details class="nav-dd">
+            <summary>Yonetim</summary>
+            <div class="nav-dd-menu">
+              <a href="users.html">Kullanicilar</a>
+              <a href="branches.html">Subeler</a>
+              <a href="centers.html">Merkezler</a>
+              <a href="products.html">Urunler</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Operasyon</summary>
+            <div class="nav-dd-menu">
+              <a href="orders.html">Siparisler</a>
+              <a href="logs.html">Loglar</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Sistem</summary>
+            <div class="nav-dd-menu">
+              <a href="settings.html">Ayarlar</a>
+            </div>
+          </details>
         </nav>
       </div>
 
-      <article class="card">
-        <h3>Planlanan Islemler</h3>
-        <ul>
-          <li>Feature flag ve ortam ayarlari</li>
-          <li>Guvenlik politikasi (token suresi, sifre kurallari)</li>
-          <li>Bakim modu ve bildirim ayarlari</li>
-        </ul>
+      <section class="grid">
+        <article class="card">
+          <h3>Genel Ayarlar</h3>
+          <div class="form-grid">
+            <label>Varsayilan Teslim Saati
+              <input type="time" id="defaultDeliveryTime">
+            </label>
+            <label>Siparis Kapanis Saati
+              <input type="time" id="orderCutoffTime">
+            </label>
+            <label>Para Birimi
+              <input type="text" id="currency" maxlength="8" placeholder="TRY">
+            </label>
+            <label>Zaman Dilimi
+              <input type="text" id="timezone" maxlength="64" placeholder="Europe/Istanbul">
+            </label>
+            <label>Gun Sonu Siparis Ozeti E-posta
+              <select id="orderSummaryEmailEnabled">
+                <option value="false">Pasif</option>
+                <option value="true">Aktif</option>
+              </select>
+            </label>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3>Guvenlik Ayarlari</h3>
+          <div class="form-grid">
+            <label>Access Token (dakika)
+              <input type="number" id="accessTokenMinutes" min="5" max="1440">
+            </label>
+            <label>Refresh Token (gun)
+              <input type="number" id="refreshTokenDays" min="1" max="90">
+            </label>
+            <label>Minimum Sifre Uzunlugu
+              <input type="number" id="minPasswordLength" min="6" max="32">
+            </label>
+            <label>Zorunlu Guclu Sifre
+              <select id="strongPasswordRequired">
+                <option value="false">Pasif</option>
+                <option value="true">Aktif</option>
+              </select>
+            </label>
+          </div>
+          <div class="help">Not: Token sureleri su an referans ayar olarak kaydedilir. Runtime env degerleri ayri yonetilebilir.</div>
+        </article>
+      </section>
+
+      <article class="card" style="margin-top:.85rem;">
+        <h3>Bakim Modu</h3>
+        <div class="form-grid">
+          <label>Bakim Modu Durumu
+            <select id="maintenanceModeEnabled">
+              <option value="false">Pasif</option>
+              <option value="true">Aktif</option>
+            </select>
+          </label>
+          <label style="grid-column: 1 / -1;">Bakim Mesaji
+            <textarea id="maintenanceMessage" placeholder="Bakim calismasi nedeniyle sistem gecici olarak kapatilabilir."></textarea>
+          </label>
+        </div>
+        <div class="row-end">
+          <button class="btn" id="reloadBtn" type="button">Yenile</button>
+          <button class="btn primary" id="saveBtn" type="button">Ayarlari Kaydet</button>
+        </div>
+        <div class="msg" id="settingsMsg"></div>
+      </article>
+
+      <article class="card" style="margin-top:.85rem;">
+        <h3>Ayar Degisiklik Gecmisi</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tarih</th>
+                <th>Degistiren</th>
+                <th>Degisen Alanlar</th>
+              </tr>
+            </thead>
+            <tbody id="historyRows">
+              <tr><td colspan="3">Kayit bulunamadi.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </article>
     </main>
   </div>
+
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const settingsMsg = document.getElementById("settingsMsg");
+    const historyRows = document.getElementById("historyRows");
+
+    const fields = {
+      defaultDeliveryTime: document.getElementById("defaultDeliveryTime"),
+      orderCutoffTime: document.getElementById("orderCutoffTime"),
+      currency: document.getElementById("currency"),
+      timezone: document.getElementById("timezone"),
+      accessTokenMinutes: document.getElementById("accessTokenMinutes"),
+      refreshTokenDays: document.getElementById("refreshTokenDays"),
+      minPasswordLength: document.getElementById("minPasswordLength"),
+      strongPasswordRequired: document.getElementById("strongPasswordRequired"),
+      maintenanceModeEnabled: document.getElementById("maintenanceModeEnabled"),
+      maintenanceMessage: document.getElementById("maintenanceMessage"),
+      orderSummaryEmailEnabled: document.getElementById("orderSummaryEmailEnabled")
+    };
+
+    const fieldLabels = {
+      defaultDeliveryTime: "Varsayilan Teslim Saati",
+      orderCutoffTime: "Siparis Kapanis Saati",
+      currency: "Para Birimi",
+      timezone: "Zaman Dilimi",
+      accessTokenMinutes: "Access Token (dakika)",
+      refreshTokenDays: "Refresh Token (gun)",
+      minPasswordLength: "Minimum Sifre Uzunlugu",
+      strongPasswordRequired: "Zorunlu Guclu Sifre",
+      maintenanceModeEnabled: "Bakim Modu Durumu",
+      maintenanceMessage: "Bakim Mesaji",
+      orderSummaryEmailEnabled: "Gun Sonu Siparis Ozeti E-posta"
+    };
+
+    function showMsg(text) {
+      settingsMsg.style.display = "block";
+      settingsMsg.textContent = text;
+      setTimeout(function () { settingsMsg.style.display = "none"; }, 2600);
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "-";
+      const dt = new Date(value);
+      if (Number.isNaN(dt.getTime())) return String(value);
+      return dt.toLocaleString("tr-TR");
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function toFieldLabel(key) {
+      return fieldLabels[key] || key;
+    }
+
+    function getSession() {
+      try { return JSON.parse(localStorage.getItem(sessionKey) || "null"); }
+      catch (_err) { return null; }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload;
+    }
+
+    function applySettings(data) {
+      const d = data || {};
+      fields.defaultDeliveryTime.value = d.defaultDeliveryTime || "07:00";
+      fields.orderCutoffTime.value = d.orderCutoffTime || "23:30";
+      fields.currency.value = d.currency || "TRY";
+      fields.timezone.value = d.timezone || "Europe/Istanbul";
+      fields.accessTokenMinutes.value = String(d.accessTokenMinutes || 15);
+      fields.refreshTokenDays.value = String(d.refreshTokenDays || 7);
+      fields.minPasswordLength.value = String(d.minPasswordLength || 6);
+      fields.strongPasswordRequired.value = d.strongPasswordRequired ? "true" : "false";
+      fields.maintenanceModeEnabled.value = d.maintenanceModeEnabled ? "true" : "false";
+      fields.maintenanceMessage.value = d.maintenanceMessage || "";
+      fields.orderSummaryEmailEnabled.value = d.orderSummaryEmailEnabled ? "true" : "false";
+    }
+
+    function readPayload() {
+      return {
+        defaultDeliveryTime: String(fields.defaultDeliveryTime.value || "").trim(),
+        orderCutoffTime: String(fields.orderCutoffTime.value || "").trim(),
+        currency: String(fields.currency.value || "").trim().toUpperCase(),
+        timezone: String(fields.timezone.value || "").trim(),
+        accessTokenMinutes: Number(fields.accessTokenMinutes.value || 15),
+        refreshTokenDays: Number(fields.refreshTokenDays.value || 7),
+        minPasswordLength: Number(fields.minPasswordLength.value || 6),
+        strongPasswordRequired: fields.strongPasswordRequired.value === "true",
+        maintenanceModeEnabled: fields.maintenanceModeEnabled.value === "true",
+        maintenanceMessage: String(fields.maintenanceMessage.value || "").trim(),
+        orderSummaryEmailEnabled: fields.orderSummaryEmailEnabled.value === "true"
+      };
+    }
+
+    function renderHistory(rows) {
+      const items = Array.isArray(rows) ? rows : [];
+      if (!items.length) {
+        historyRows.innerHTML = "<tr><td colspan='3'>Kayit bulunamadi.</td></tr>";
+        return;
+      }
+      historyRows.innerHTML = items.map(function (row) {
+        const actor = row.actor
+          ? ((row.actor.displayName ? row.actor.displayName + " - " : "") + (row.actor.email || "-"))
+          : "-";
+        const fields = Array.isArray(row.changedFields) ? row.changedFields : [];
+        const fieldsText = fields.length
+          ? fields.map(function (f) {
+            return escapeHtml(toFieldLabel(f.key)) + ": " + escapeHtml(f.before) + " -> " + escapeHtml(f.after);
+          }).join("<br>")
+          : "<span class='muted'>Degisen alan bulunamadi.</span>";
+        return [
+          "<tr>",
+          "<td>", formatDateTime(row.changedAt), "</td>",
+          "<td>", escapeHtml(actor), "</td>",
+          "<td>", fieldsText, "</td>",
+          "</tr>"
+        ].join("");
+      }).join("");
+    }
+
+    async function loadSettings() {
+      const payload = await apiRequest("/admin/settings", { method: "GET" });
+      applySettings(payload.data);
+    }
+
+    async function loadHistory() {
+      const payload = await apiRequest("/admin/settings/history?limit=30", { method: "GET" });
+      renderHistory(payload.data);
+    }
+
+    async function saveSettings() {
+      const payload = readPayload();
+      const responsePayload = await apiRequest("/admin/settings", {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      applySettings(responsePayload.data);
+      if (responsePayload.data && responsePayload.data.__noChanges === true) {
+        showMsg("Degisiklik bulunamadi. Kayit yapilmadi.");
+      } else {
+        showMsg("Sistem ayarlari kaydedildi.");
+      }
+    }
+
+    document.getElementById("reloadBtn").addEventListener("click", function () {
+      Promise.all([loadSettings(), loadHistory()]).then(function () {
+        showMsg("Ayarlar yeniden yuklendi.");
+      }).catch(function (err) {
+        showMsg(err.message || "Ayarlar yuklenemedi.");
+      });
+    });
+
+    document.getElementById("saveBtn").addEventListener("click", function () {
+      saveSettings().then(function () {
+        return loadHistory();
+      }).catch(function (err) {
+        showMsg(err.message || "Ayarlar kaydedilemedi.");
+      });
+    });
+
+    Promise.all([loadSettings(), loadHistory()]).catch(function (err) {
+      showMsg(err.message || "Ayarlar yuklenemedi.");
+    });
+  </script>
 </body>
 </html>

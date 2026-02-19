@@ -128,40 +128,45 @@ Asagidaki tablolar `Backend/prisma/schema.prisma` uzerinden code-first olarak ur
 
 1. `users`
    - Amac: Sisteme giris yapacak kullanicilar ve rolleri.
-   - Temel alanlar: `email`, `password_hash`, `role`, `branch_id`, `is_active`, `created_at`, `updated_at`
-   - Iliski: `branch_id` ile `branches`, onaylayan kullanici olarak `orders`, islem sahibi olarak `audit_logs`.
+   - Temel alanlar: `email`, `password_hash`, `role`, `branch_id`, `center_id`, `is_active`, `created_at`, `updated_at`
+   - Iliski: `branch_id` ile `branches`, `center_id` ile `centers`, onaylayan kullanici olarak `orders`, islem sahibi olarak `audit_logs`.
 
 2. `branches`
    - Amac: Sube ana kayitlari.
-   - Temel alanlar: `name`, `manager`, `phone`, `email`, `address`, `is_active`, `created_at`, `updated_at`
-   - Iliski: `users`, `orders`, `branch_price_adjustments`.
+   - Temel alanlar: `name`, `manager`, `phone`, `email`, `address`, `center_id`, `is_active`, `created_at`, `updated_at`
+   - Iliski: `users`, `orders`, `branch_price_adjustments`, `centers`.
 
-3. `products`
+3. `centers`
+   - Amac: Merkez ana kayitlari (uretici/merkez yapisi).
+   - Temel alanlar: `name`, `manager`, `phone`, `email`, `address`, `is_active`, `created_at`, `updated_at`
+   - Iliski: `users` (rolu `merkez` olan kullanicilar).
+
+4. `products`
    - Amac: Siparise konu urunlerin merkezden yonetimi.
    - Temel alanlar: `code` (unique), `name`, `base_price`, `is_active`, `created_at`, `updated_at`
    - Iliski: `order_items`.
 
-4. `branch_price_adjustments`
+5. `branch_price_adjustments`
    - Amac: Sube bazli fiyat farki (%).
    - Temel alanlar: `branch_id` (unique), `percent`, `created_at`, `updated_at`
    - Iliski: `branches` (1-1).
 
-5. `orders`
+6. `orders`
    - Amac: Sube siparis baslik kaydi.
    - Temel alanlar: `order_no` (unique), `branch_id`, `status`, `delivery_date`, `delivery_time`, `note`, `total_tray`, `total_amount`, `approved_by`, `approved_at`, `created_at`, `updated_at`
    - Iliski: `branches`, `users` (onaylayan), `order_items`.
 
-6. `order_items`
+7. `order_items`
    - Amac: Siparis satir detaylari.
    - Temel alanlar: `order_id`, `product_id`, `qty_tray`, `unit_price`
    - Iliski: `orders`, `products`.
 
-7. `audit_logs`
+8. `audit_logs`
    - Amac: Kritik islemlerin izlenebilirlik kaydi.
    - Temel alanlar: `actor_user_id`, `action`, `entity`, `entity_id`, `before_json`, `after_json`, `meta`, `created_at`
    - Iliski: `users`.
 
-8. `_prisma_migrations`
+9. `_prisma_migrations`
    - Amac: Prisma migration gecmisinin teknik takibi.
    - Not: Uygulama tarafinda dogrudan kullanilmaz.
 
@@ -378,53 +383,518 @@ Test sonucu:
 
 ## 4.13 Sonraki Adimlar (Planli Sira)
 
-1. Adim 10 - Merkez Siparis Yonetimi (ileri durum akislari)
-   - `GET /api/orders` (filtreli)
-   - Durum gecisleri: `pending -> approved/rejected/preparing/shipped`
-2. Adim 11 - Siparis Satir/Fiyat Hesaplama Guvencesi
-   - Siparis olusturma aninda DB'deki aktif urun + fiyat snapshot
-   - Branch fiyat ayari yuzdesinin siparis toplamina uygulanmasi
-3. Adim 12 - Branch/Center Yonetim Ekranlari
-   - Subeler ve merkez bilgileri icin CRUD endpointleri
-   - Rol bazli gorunum ve yetki denetimi
-4. Adim 13 - Admin Paneli Tamamlama
-   - Kullanici/rol yonetimi
-   - Audit log goruntuleme ve filtreleme
-5. Adim 14 - Guvenlik ve Operasyon
+1. Adim 15 - Admin Logs Entegrasyonu
+   - `Frontend/admin/logs.html` -> audit log endpointleri
+   - Tarih, actor, entity filtreleri
+2. Adim 16 - Admin Dashboard Ozetleri
+   - `Frontend/admin/index.html` metrik kartlarini API'den besleme
+   - Kullanici/sube/urun/siparis sayaclari
+3. Adim 17 - Guvenlik ve Operasyon
    - Refresh token rotasyonu ve logout
    - Rate limit, request logging, merkezi hata kodlari
-6. Adim 15 - Canli Oncesi Stabilizasyon
+4. Adim 18 - Canli Oncesi Stabilizasyon
    - Otomatik testler (integration + smoke)
    - Staging UAT, deploy checklist, rollback plani
 
-## 5. API Kontrati
+## 4.19 Adim 15 Durumu (Admin Orders API + orders.html Entegrasyonu Tamamlandi)
+
+Tamamlananlar:
+
+1. Admin siparis frontend sayfasi gercek API ile baglandi:
+   - `Frontend/admin/orders.html`
+   - Tarih araligi filtreli siparis listeleme (`GET /api/orders?from=YYYY-MM-DD&to=YYYY-MM-DD`)
+   - Tekli onay butonu (bulk endpoint uzerinden)
+   - Secili siparisleri toplu onay (`PUT /api/orders/approve-bulk`)
+   - Tum onay bekleyenleri onaylama
+2. Ekranda operasyon metrikleri eklendi:
+   - Siparis sayisi
+   - Onay bekleyen sayisi
+   - Onaylanan sayisi
+   - Toplam tutar
+3. Admin ve merkez ortak endpoint davranisi korunur:
+   - Admin tum siparisleri, merkez yalniz kendi merkezine bagli siparisleri gorur.
+
+Test sonucu:
+
+1. Admin siparis ekraninda tarih secimiyle listeleme calisir.
+2. Tekli/toplu onay sonrasi liste ve metrikler anlik guncellenir.
+
+## 4.20 Adim 16 Durumu (Admin Logs API + logs.html Entegrasyonu Tamamlandi)
+
+Tamamlananlar:
+
+1. Admin logs endpointi eklendi:
+   - `GET /api/admin/logs` (admin)
+2. Logs endpoint filtreleri:
+   - `from`, `to` (tarih araligi)
+   - `action`, `entity`
+   - `actorEmail`
+   - `q` (serbest metin), `limit`
+3. Admin logs frontend sayfasi gercek API ile baglandi:
+   - `Frontend/admin/logs.html`
+   - Tarih/aksiyon/entity/actor filtreleri
+   - Listeleme tablosu (tarih, actor, aksiyon, entity, entity id, meta)
+
+Test sonucu:
+
+1. Admin login ile logs endpointi filtrelerle sorunsuz yanit verir.
+2. UI filtreleri API query parametrelerine dogru sekilde yansir.
+
+## 4.21 Sonraki Adimlar (Planli Sira)
+
+1. Adim 17 - Admin Dashboard Ozetleri
+   - `Frontend/admin/index.html` metrik kartlarini API'den besleme
+   - Kullanici/sube/urun/siparis sayaclari
+2. Adim 18 - Merkez-Sube Hiyerarsisi
+   - Subeleri merkeze baglama (`branches.center_id`)
+   - Merkez bazli sube filtreleme ve siparis raporlama
+3. Adim 19 - Guvenlik ve Operasyon
+   - Refresh token rotasyonu ve logout
+   - Rate limit, request logging, merkezi hata kodlari
+4. Adim 20 - Canli Oncesi Stabilizasyon
+   - Otomatik testler (integration + smoke)
+   - Staging UAT, deploy checklist, rollback plani
+
+## 4.22 Adim 17 Durumu (Dunden Kalan Urun/Kg Akisi Eklendi)
+
+Tamamlananlar:
+
+1. Veritabani:
+   - Yeni tablo: `order_carryovers`
+   - Alanlar: `order_id`, `product_id`, `qty_kg`, `created_at`
+   - Prisma modeli: `OrderCarryover`
+2. Orders API:
+   - `POST /api/orders` payload'ina `carryovers[]` eklendi
+   - `GET /api/orders` ve `GET /api/orders/my` response'una `carryovers[]` eklendi
+   - Yeni endpoint: `GET /api/orders/my/carryover-candidates`
+     - Bir onceki gun siparis edilen urunleri aday liste olarak doner
+3. Sube UI:
+   - `Frontend/sube/siparis.html`
+   - Siparisi gondermeden once modal acilir
+   - Dunun urunleri listelenir, her biri icin kalan `kg` girilir (varsayilan `0`)
+   - Onaydan sonra siparis + carryover birlikte kaydedilir
+4. Merkez UI:
+   - `Frontend/merkez/merkez.html`
+   - Siparis detayinda `Elde Kalan (Dunden)` bolumu gosterilir
+
+Test sonucu:
+
+1. Sube siparis akisinda modal acilir ve kg girilen kayitlar DB'ye yazilir.
+2. Merkez paneli ayni sipariste kalan kg bilgisini detayda gorur.
+
+## 4.23 Adim 18 Durumu (Uretim Teslimat Onay Mekanizmasi Eklendi)
+
+Tamamlananlar:
+
+1. Veritabani:
+   - `orders` tablosuna teslimat alanlari eklendi:
+     - `delivery_status` (`TESLIM_BEKLIYOR` / `TESLIM_EDILDI`)
+     - `delivered_by`
+     - `delivered_at`
+   - Migration: `add_order_delivery_confirmation`
+2. Orders API:
+   - `PUT /api/orders/:id/deliver` endpointi eklendi (`merkez`, `admin`)
+   - Kural: Siparis sadece `ONAYLANDI` olduktan sonra teslim edildi olarak isaretlenebilir
+   - `GET /api/orders` ve `GET /api/orders/my` response'una teslimat alanlari eklendi
+3. Merkez UI:
+   - `Frontend/merkez/merkez.html`
+   - Siparis detayinda yeni teslimat durumu satiri
+   - `Teslim Edildi Isaretle` butonu eklendi
+4. Sube UI:
+   - `Frontend/sube/siparislerim.html`
+   - Siparis kartinda `Teslim Bekliyor` / `Teslim Edildi` gorunumu
+   - Teslim edildi ise teslim zamani ve onaylayan bilgi gorunur
+
+Test sonucu:
+
+1. Merkez onayli siparisi teslim edildi olarak isaretleyebilir.
+2. Sube ayni sipariste teslim durumunu anlik gorur.
+
+## 4.24 Adim 19 Durumu (Urun Gorsel Altyapisi Eklendi)
+
+Tamamlananlar:
+
+1. Veritabani:
+   - `products` tablosuna yeni alanlar eklendi:
+     - `image_url`
+     - `image_key`
+   - Migration: `add_product_images`
+2. Dosya depolama:
+   - Gorseller backend tarafinda dosya olarak tutulur:
+     - Klasor: `Backend/uploads/products/`
+   - DB'de binary tutulmaz, sadece URL/key tutulur.
+3. Products API:
+   - Yeni endpoint: `POST /api/products/upload-image`
+   - `POST /api/products` ve `PUT /api/products/:id` image alanlarini destekler
+   - Urun silinirken bagli gorsel dosyasi da silinir
+   - Urun gorseli degistirilirse eski dosya otomatik silinir
+4. Frontend merkez urun ekrani:
+   - `Frontend/merkez/merkez-urun-fiyat.html`
+   - Yeni urun eklerken gorsel secimi
+   - Mevcut urunde gorsel onizleme
+   - Duzenleme modunda gorsel degistirme / mevcut resmi kaldirma
+
+Not:
+
+- Bu yapi canlida kolayca S3/Cloudinary benzeri storage'a adapter ile tasinabilir.
+
+## 4.25 Guncel Kaldigimiz Nokta (17.02.2026)
+
+Bugun tamamlananlar:
+
+1. Merkez siparis ekraninda satir bazli onay modeli aktif edildi:
+   - Siparis kalemleri tablo olarak gosteriliyor.
+   - Her urun satiri ayri ayri onaylanabiliyor / onay disi birakilabiliyor.
+2. Durumlar netlestirildi:
+   - `Onaylandi`
+   - `Kismen Onaylandi`
+   - `Onaylanmadi`
+3. Sube siparislerim ekraninda:
+   - Onaylanmayan satirlar kirmizi ve kalin gosteriliyor.
+   - Kalemler tablo duzeninde listeleniyor.
+4. Merkez siparis ust aksiyon alani sadeleştirildi:
+   - Filtre ve onay islemleri ayri bloklara bolundu.
+   - `Tum siparisleri sec` master checkbox mantigi eklendi.
+   - `Tumunu Teslim Edildi Isaretle` butonu liste basina tasindi.
+   - Teslim butonu dinamik renk:
+     - Sari: teslim bekleyen var
+     - Yesil: hepsi teslim edildi
+
+Token/Oturum notu:
+
+1. Access token suresi: `15m`
+2. Refresh token suresi: `7d`
+3. Su an frontend tarafinda otomatik refresh akisi yok; bu nedenle sure dolunca `token expired` gorulebilir.
+
+Yarin ilk adim:
+
+1. `POST /api/auth/refresh` endpointi eklemek
+2. Frontend'de 401 durumunda refresh + istegi otomatik tekrar calistirma
+3. Refresh de basarisizsa login'e yonlendirme
+
+## 4.26 Adim 20 Durumu (Refresh Token Akisi Tamamlandi)
+
+Tamamlananlar:
+
+1. Backend refresh endpoint eklendi:
+   - `POST /api/auth/refresh`
+   - Payload: `refreshToken`
+   - Gecerli refresh token ile yeni `accessToken` + yeni `refreshToken` doner.
+2. JWT altyapisi genisletildi:
+   - `verifyRefreshToken` yardimcisi eklendi.
+3. Frontend global otomatik yenileme eklendi:
+   - `Frontend/assets/role-guard.js` icine fetch interceptor eklendi.
+   - API isteklerinde `401` donerse otomatik refresh denenir.
+   - Refresh basariliysa ayni istek yeni access token ile otomatik tekrar gonderilir.
+   - Refresh basarisizsa session temizlenir ve `login.html`'e yonlendirilir.
+
+Not:
+
+- Bu yapi sayesinde kullanici 15 dakika access token suresi doldugunda manuel cikis/yeniden giris yapmadan devam edebilir.
+- Login ve refresh endpointleri interceptor tarafinda bypass edilir (sonsuz dongu engeli).
+
+## 4.27 Adim 21 Durumu (Telefon ile Login Destegi Eklendi)
+
+Tamamlananlar:
+
+1. Veritabani:
+   - `users.phone` kolonu eklendi.
+   - Index: `idx_users_phone`
+2. Backend auth:
+   - `POST /api/auth/login` artik `emailOrPhone + password` kabul eder.
+   - Gecis: e-posta veya telefon ile login.
+   - Login/refresh response'larina `user.phone` eklendi.
+3. Backend admin users:
+   - Kullanici olusturma/guncellemede `phone` destegi eklendi.
+   - Telefon normalize edilir ve cakisiyorsa `PHONE_IN_USE` doner.
+4. Frontend login:
+   - Giris alani `E-posta / Telefon` olarak guncellendi.
+   - Login payload: `{ emailOrPhone, password }`
+5. Seed:
+   - Demo kullanicilara telefon numaralari eklendi.
+
+Uygulama notu:
+
+1. Migration uygulayin:
+   - `npx prisma migrate deploy` (veya gelistirmede `npx prisma migrate dev`)
+2. Seed guncelleyin:
+   - `npm run seed`
+
+## 4.28 Adim 22 Durumu (Admin Profil Ekrani Eklendi)
+
+Tamamlananlar:
+
+1. Admin icin ayri profil sayfasi eklendi:
+   - `Frontend/admin/profile.html`
+2. Profil dropdown `Profili Gor` yonlendirmesi guncellendi:
+   - `Frontend/assets/role-guard.js`
+   - Admin artik `settings.html` yerine `profile.html` sayfasina gider.
+3. Profil API guncellendi:
+   - `GET /api/profile/me` user nesnesine `phone` eklendi
+   - `PUT /api/profile/me` ile `telefon` alaninda user phone guncellenebilir
+   - Telefon cakisiyorsa `PHONE_IN_USE` doner
+
+Not:
+
+- `Sistem Ayarlari` sayfasi yine ayri bir teknik/konfigurasyon alani olarak korunur.
+
+## 4.29 Adim 23 Durumu (Sistem Ayarlari Paneli Calisir Hale Getirildi)
+
+Tamamlananlar:
+
+1. Veritabani:
+   - Yeni tablo: `system_settings`
+   - Migration: `20260218133000_add_system_settings`
+2. Backend API:
+   - `GET /api/admin/settings` (admin)
+   - `PUT /api/admin/settings` (admin)
+   - Ayarlar DB'de key/value olarak saklanir.
+3. Frontend:
+   - `Frontend/admin/settings.html` placeholder yerine gercek form ekranina donustu.
+   - Genel ayarlar, guvenlik ayarlari ve bakim modu alanlari API ile yuklenir/kaydedilir.
+4. Profil menusu:
+   - Admin dropdown > `Profili Gor` zaten `admin/profile.html` ekranina yonlenir.
+
+Not:
+
+- Token sureleri ayar panelinde kaydedilir; runtime env degerleriyle birlikte operasyonel referans olarak kullanilir.
+
+## 4.30 Adim 24 Durumu (Bakim Modu Runtime + Ayar Gecmisi Tamamlandi)
+
+Tamamlananlar:
+
+1. Runtime bakim modu middleware eklendi:
+   - Dosya: `src/common/middlewares/maintenance-mode.js`
+   - `system_settings` tablosundaki:
+     - `maintenance_mode_enabled`
+     - `maintenance_message`
+     degerleri okunur.
+   - Bakim modu aktifken admin disi API cagrilari `503 MAINTENANCE_MODE` alir.
+2. Ayar degisiklik gecmisi endpointi eklendi:
+   - `GET /api/admin/settings/history?limit=30`
+   - Kaynak: `audit_logs` (`PUT_ADMIN_SETTINGS*` islemleri)
+   - Donus:
+     - degisiklik zamani
+     - degistiren kullanici
+     - degisen alanlar (key/value ozet)
+3. Frontend sistem ayarlari sayfasi guncellendi:
+   - `Frontend/admin/settings.html`
+   - Yeni bolum: `Ayar Degisiklik Gecmisi`
+   - Kaydet/yenile sonrasi gecmis listesi otomatik tazelenir.
+
+Not:
+
+- Bakim modu aktifken login/refresh ve admin settings rotalari bakim engelinden muaftir; boylece admin sisteme girip bakim modunu yonetebilir.
+
+## 4.14 Adim 10 Durumu (Admin Users API + users.html Entegrasyonu Tamamlandi)
+
+Tamamlananlar:
+
+1. Admin users endpointleri eklendi:
+   - `GET /api/admin/users`
+   - `POST /api/admin/users`
+   - `PUT /api/admin/users/:id`
+   - `PUT /api/admin/users/:id/status`
+   - `PUT /api/admin/users/:id/reset-password`
+   - `GET /api/admin/users/meta/branches`
+2. Admin users frontend sayfasi gercek API ile baglandi:
+   - `Frontend/admin/users.html`
+   - Kullanici listeleme, olusturma, secili kullanici guncelleme
+   - Aktif/pasif degistirme
+   - Sifre resetleme (ozel sifre veya varsayilan `12345678`)
+3. Yetki:
+   - Tum admin users endpointleri `admin` rolune kisitlandi.
+
+Test sonucu:
+
+1. Admin login ile users API akisi (create -> update -> status -> reset -> list) basarili.
+2. Testte olusturulan gecici kullanici kaydi temizlendi.
+
+## 4.15 Adim 11 Durumu (Admin Branches API + branches.html Entegrasyonu Tamamlandi)
+
+Tamamlananlar:
+
+1. Branches modulu admin endpointleri genisletildi:
+   - `POST /api/branches` (admin)
+   - `PUT /api/branches/:id` (admin)
+   - Var olanlar: `GET /api/branches`, `PUT /api/branches/:id/status`, `PUT /api/branches/:id/price-adjustment`
+2. Admin sube frontend sayfasi gercek API ile baglandi:
+   - `Frontend/admin/branches.html`
+   - Sube listeleme, yeni sube olusturma
+   - Secili sube bilgisi guncelleme
+   - Aktif/pasif degistirme
+   - Sube bazli fiyat farki guncelleme
+3. Kullanicidan once sube acma akisi netlestirildi:
+   - `sube` rolu kullanici olustururken mevcut bir `branchId` secilir.
+
+Test sonucu:
+
+1. Admin login ile branches API akisi (create -> update -> status -> price adjustment) basarili.
+2. Testte olusturulan gecici sube kaydi temizlendi.
+
+## 4.16 Adim 12 Durumu (Admin Products API + products.html Entegrasyonu Tamamlandi)
+
+Tamamlananlar:
+
+1. Admin urun frontend sayfasi gercek API ile baglandi:
+   - `Frontend/admin/products.html`
+   - Urun listeleme (`GET /api/products`)
+   - Yeni urun olusturma (`POST /api/products`)
+   - Secili urun bilgi guncelleme (`PUT /api/products/:id`)
+   - Secili urun aktif/pasif guncelleme (`PUT /api/products/:id/status`)
+   - Toplu aktif/pasif (`PUT /api/products/status-bulk`)
+   - Urun silme (`DELETE /api/products/:id`)
+2. Admin urun ekraninda su kisimlar eklendi:
+   - Yeni urun formu
+   - Secili urun duzenleme formu
+   - Urun tablosu ve satir secme akisi
+3. Is akisinda yetki modeli korunur:
+   - Products endpointleri sadece `merkez` ve `admin` rollerine aciktir.
+
+Test sonucu:
+
+1. Admin login ile urun create -> update -> status -> bulk status -> delete zinciri backend uzerinden calisir.
+2. Sipariste kullanilan urun silinmeye calisildiginda API `409 PRODUCT_IN_USE` doner.
+
+## 4.17 Adim 13 Durumu (Centers Altyapisi + Admin Centers + Merkez Kullanici Eslestirmesi Tamamlandi)
+
+Tamamlananlar:
+
+1. Veritabani ve migration:
+   - `centers` tablosu eklendi
+   - `users.center_id` kolonu eklendi
+   - Index/FK eklendi: `idx_users_center_id`, `users_center_id_fkey`
+2. Prisma ve seed:
+   - `schema.prisma` -> `model Center` + `User.centerId`
+   - `prisma/seed.js` -> varsayilan merkez (`Borekci Merkez 01`) eklendi
+   - `merkez@borekci.com` kullanicisi center kaydina baglandi
+3. Backend API:
+   - `GET /api/centers` (admin)
+   - `POST /api/centers` (admin)
+   - `PUT /api/centers/:id` (admin)
+   - `PUT /api/centers/:id/status` (admin)
+   - `GET /api/admin/users/meta/centers` (admin)
+4. Auth/session genisletmesi:
+   - `POST /api/auth/login` ve `GET /api/me` response'una `centerId`, `centerName` eklendi
+5. Admin UI:
+   - Yeni sayfa: `Frontend/admin/centers.html`
+   - Admin nav icine `Merkezler` eklendi
+   - `Frontend/admin/users.html`:
+     - Rol `merkez` iken merkez secimi zorunlu
+     - Rol `sube` iken sube secimi zorunlu (mevcut davranis korunur)
+
+Test sonucu:
+
+1. Admin merkez CRUD akisi (create -> update -> status -> list) backend uzerinden calisir.
+2. Admin users ekraninda `merkez` rolu kullanici olustururken center secmeden kayit engellenir.
+
+## 4.18 Adim 14 Durumu (Sube-Merkez Eslestirmesi + Merkez Bazli Siparis Filtreleme Tamamlandi)
+
+Tamamlananlar:
+
+1. Veritabani ve migration:
+   - `branches.center_id` kolonu eklendi
+   - Index/FK eklendi: `idx_branches_center_id`, `branches_center_id_fkey`
+2. Backend Branches API:
+   - `POST /api/branches` icin `centerId` zorunlu hale getirildi
+   - `GET /api/branches` merkez rolunde sadece kendi merkezine bagli subeleri dondurur
+   - `PUT /api/branches/:id/status` ve `PUT /api/branches/:id/price-adjustment` merkez rolunde sadece kendi subeleri icin yetkilidir
+3. Backend Orders API:
+   - `GET /api/orders` merkez rolunde sadece kendi merkezine bagli subelerin siparislerini dondurur
+   - `PUT /api/orders/:id/approve` ve `PUT /api/orders/approve-bulk` merkez rolunde center bazli yetki kontrolu ile calisir
+4. Admin UI:
+   - `Frontend/admin/branches.html` icine merkez secimi eklendi
+   - Sube listesinde `Merkez` kolonu eklendi
+5. Seed genisletmesi:
+   - 2 merkez (`Borekci Merkez 01`, `Borekci Merkez 02`)
+   - 10 sube (her merkeze 5 sube)
+   - 2 merkez kullanicisi (`merkez@borekci.com`, `merkez2@borekci.com`)
+   - 10 sube kullanicisi (`sube01..10@borekci.com`)
+
+Test sonucu:
+
+1. Seed sonrasi dagilim: `centers=2`, `branches=10`, `users=13`.
+2. Merkez 01 ve Merkez 02 icin sube dagilimi 5-5 olarak dogrulandi.
+
+## 5. Guvenlik ve LocalStorage Kaldirma Checklisti
+
+Bu bolum, mevcut noktadan canliya guvenli gecis ve localStorage bagimliligini kaldirma plani icin ana referanstir.
+
+### 5.1 Guvenlik Hardening Checklisti
+
+1. Token storage
+   - Access token'i memory'de tut.
+   - Refresh token'i `HttpOnly + Secure + SameSite` cookie'ye tasi.
+   - Frontend'de token localStorage kullanimini kaldir.
+2. Refresh token yonetimi
+   - DB'de refresh session tablosu (`jti`, `userId`, `expiresAt`, `revokedAt`, `device/ip`) olustur.
+   - `/api/auth/refresh` sadece aktif session + jti ile calissin.
+   - Her refresh'te rotate et: eski refresh token revoke, yenisi create.
+   - `/api/auth/logout` endpointi ile refresh session revoke et.
+3. CORS sikilastirma
+   - `app.use(cors())` yerine whitelist kullan.
+   - Ortama gore domain listesi (`DEV`, `STAGE`, `PROD`) ayir.
+   - Gerekliyse credentials ayarini explicit yonet.
+4. Rate limit ve brute-force korumasi
+   - `POST /api/auth/login` icin IP + identifier bazli rate limit ekle.
+   - Kisa sureli lockout/slowdown mekaniği ekle.
+   - Basarisiz login denemelerini audit log'a yaz.
+5. CSP ve guvenlik header'lari
+   - Helmet CSP politikasini tanimla.
+   - Inline scriptleri asamali olarak azalt.
+   - `X-Content-Type-Options`, `Referrer-Policy`, `Frame-Options` ve benzeri header'lari dogrula.
+6. Input ve upload guvenligi
+   - Upload MIME/type/size whitelist uygula.
+   - Dosya adi sanitize et.
+   - Zararlı uzanti ve icerik kontrolu yap.
+7. Auth/role testleri
+   - Yetkisiz erisim testleri.
+   - Cross-role endpoint testleri.
+   - Expired/revoked token testleri.
+8. Izleme ve operasyon
+   - Kritik aksiyon alarmi.
+   - Merkezi error monitoring.
+   - Audit log dashboard filtreleri.
+
+### 5.2 LocalStorage'i Komple Kaldirma Checklisti (Kirma Riski Olmadan)
+
+1. Faz 0 - Yedek
+   - Mevcut stabil noktayi tag'le.
+   - DB backup al.
+   - `.env` ve deploy config yedegini al.
+2. Faz 1 - Envanter
+   - Frontend'deki tum `localStorage` kullanimlarini dosya bazinda listele.
+   - `TEST_MODE` ve legacy fallback noktalarini isaretle.
+3. Faz 2 - Session mimarisi
+   - Cookie tabanli auth akisina gec.
+   - `authSession` localStorage yazimini kaldir.
+   - Session bilgisini `GET /api/me` ile hydrate et.
+4. Faz 3 - API istemci katmani
+   - Tek bir merkezi `apiClient` olustur.
+   - Tum sayfalarda dogrudan `fetch` yerine bu katmani kullan.
+   - 401 -> refresh -> retry akisini cookie tabanli calistir.
+5. Faz 4 - Is verisi localStorage temizligi
+   - `branchOrders`, `productPrices`, `productCatalog` vb. fallbackleri kaldir.
+   - Tum ekranlari yalniz backend API ile besle.
+6. Faz 5 - Kod temizlik
+   - Kullanilmayan `TEST_MODE` kollari ve localStorage helperlarini temizle.
+   - Dokumantasyonu guncelle.
+7. Faz 6 - Dogrulama
+   - Login/logout/refresh e2e test.
+   - Sube/merkez/admin ana akislari.
+   - Token expiry ve yeni tab/hard refresh senaryolari.
+8. Faz 7 - Guvenli yayin
+   - Stage smoke test.
+   - Kontrollu canary yayin.
+   - Rollback plani hazir.
+
+### 5.3 Uygulama Sirasinda Genel Kural
+
+1. Once guvenlik temeli (token + cors + rate limit).
+2. Sonra localStorage kaldirma (faz faz).
+3. Her faz sonunda test + geri donus noktasi.
+
+## 6. API Kontrati (Referans)
 
 - Taslak kontrat dosyasi: `Backend/api-contract/openapi.yaml`
 - Frontend ve backend bu dosyaya gore paralel gelistirilir.
-
-## 6. Canliya Hazirlik Kontrol Listesi
-
-1. `.env` ve secret yonetimi tamamlandi.
-2. Migration/seed pipeline'i otomatik.
-3. Role-based yetki testleri gecti.
-4. Staging ortaminda UAT tamamlandi.
-5. Loglama + hata izleme aktif.
-6. Backup/restore proseduru test edildi.
-
-## 7. Uygulama Sirasi (Pratik Sprint Plani)
-
-1. Sprint 1
-   - Auth + user/role altyapisi
-   - DB migration + seed
-2. Sprint 2
-   - Branch + product modulleri
-   - Merkez ekranlarinin API entegrasyonu
-3. Sprint 3
-   - Orders modulu + onay akislari
-   - Sube ekranlarinin API entegrasyonu
-4. Sprint 4
-   - Admin modulu + audit logs
-   - Staging ve canliya hazirlik
-
-//Admin paneline geçiş yapacağız. burada kaldık. şube ve merkez tarafı sorunsuz çalışıyor database üzerinde.
-. Yedek alındı

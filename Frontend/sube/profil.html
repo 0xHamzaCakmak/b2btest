@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
@@ -45,7 +45,7 @@
       from { transform: translateY(-10px) rotate(0deg); }
       to { transform: translateY(12px) rotate(18deg); }
     }
-    .wrap { width: min(950px, 100%); margin: 0 auto; }
+    .wrap { width: min(1040px, 100%); margin: 0 auto; }
     .panel {
       background: var(--card);
       border: 1px solid var(--border);
@@ -87,8 +87,14 @@
       display: flex;
       gap: .6rem;
       flex-wrap: wrap;
+      justify-content: flex-end;
+      margin-left: auto;
+      align-items: flex-start;
     }
     .nav a {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
       text-decoration: none;
       color: var(--ink);
       border: 1px solid var(--border);
@@ -96,25 +102,13 @@
       padding: .5rem .75rem;
       background: rgba(255, 255, 255, .72);
       font-weight: 600;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .9rem;
-    }
-    @media (max-width: 840px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-    .card {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      background: rgba(255, 255, 255, .65);
-      padding: .9rem;
+      height: fit-content;
     }
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
       gap: .7rem;
+      margin-bottom: .9rem;
     }
     .stat {
       border: 1px solid var(--border);
@@ -123,6 +117,20 @@
       background: rgba(255, 255, 255, .8);
     }
     .stat strong { display: block; font-size: 1.2rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .9rem;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .65);
+      padding: .9rem;
+    }
     form { display: grid; gap: .7rem; }
     label { font-size: .9rem; font-weight: 600; }
     input, textarea {
@@ -167,6 +175,11 @@
       padding: .75rem .85rem;
       font-weight: 600;
     }
+    .hint {
+      margin-top: -.15rem;
+      font-size: .83rem;
+      opacity: .78;
+    }
   </style>
 </head>
 <body>
@@ -182,52 +195,44 @@
         <nav class="nav">
           <a href="siparis.html">Siparis Ver</a>
           <a href="siparislerim.html">Siparislerim</a>
-          <a href="../merkez/merkez.html">Merkez Paneli</a>
-          <a href="../login.html">Cikis</a>
         </nav>
       </div>
 
+      <section class="stats">
+        <article class="stat">
+          <span>Toplam Siparis</span>
+          <strong id="statOrderCount">0</strong>
+        </article>
+        <article class="stat">
+          <span>Toplam Tepsi</span>
+          <strong id="statTray">0</strong>
+        </article>
+        <article class="stat">
+          <span>Toplam Tutar</span>
+          <strong id="statAmount">0 TL</strong>
+        </article>
+      </section>
+
       <section class="grid">
         <article class="card">
-          <h3>Sube Ozet</h3>
-          <div class="stats">
-            <div class="stat">
-              <span>Toplam Siparis</span>
-              <strong id="statOrderCount">0</strong>
-            </div>
-            <div class="stat">
-              <span>Toplam Tepsi</span>
-              <strong id="statTray">0</strong>
-            </div>
-            <div class="stat">
-              <span>Toplam Tutar</span>
-              <strong id="statAmount">0 TL</strong>
-            </div>
-          </div>
-        </article>
-
-        <article class="card">
-          <h3>Profil Bilgileri</h3>
-          <form id="profileForm">
-            <label>Sube Adi
-              <input type="text" id="subeAdi" required>
+          <h3>Kullanici Bilgileri</h3>
+          <form id="userForm">
+            <label>Kullanici Gosterim Adi
+              <input type="text" id="userDisplayName" required>
             </label>
-            <label>Yetkili Ad Soyad
-              <input type="text" id="yetkili" required>
+            <label>Giris E-postasi
+              <input type="email" id="userEmail" required>
             </label>
-            <label>Telefon
-              <input type="tel" id="telefon" placeholder="05xx xxx xx xx" required>
+            <label>Giris Telefonu
+              <input type="tel" id="userPhone" placeholder="05xx xxx xx xx">
             </label>
-            <label>E-posta
-              <input type="email" id="eposta" required>
-            </label>
-            <label>Sube Adresi
-              <textarea id="adres" rows="3"></textarea>
-            </label>
-            <button class="btn" type="submit">Bilgileri Guncelle</button>
-            <div class="msg" id="profileMsg">Profil bilgileri guncellendi.</div>
+            <p class="hint">Kullanici e-posta veya telefon ile giris yapabilir.</p>
+            <button class="btn" type="submit">Kullanici Bilgilerini Guncelle</button>
+            <div class="msg" id="userMsg">Kullanici bilgileri guncellendi.</div>
           </form>
+
           <hr style="border:none;border-top:1px solid rgba(19,34,31,.15);margin:1rem 0;">
+
           <h3>Hesap Sifresi</h3>
           <form id="passwordForm">
             <label>Mevcut Sifre
@@ -252,6 +257,29 @@
             <div class="msg" id="passwordMsg">Sifre guncellendi.</div>
           </form>
         </article>
+
+        <article class="card">
+          <h3>Sube Bilgileri</h3>
+          <form id="branchForm">
+            <label>Sube Adi
+              <input type="text" id="subeAdi" required>
+            </label>
+            <label>Yetkili Ad Soyad
+              <input type="text" id="yetkili" required>
+            </label>
+            <label>Sube Telefonu
+              <input type="tel" id="subeTelefon" placeholder="05xx xxx xx xx" required>
+            </label>
+            <label>Sube E-postasi
+              <input type="email" id="subeEposta" required>
+            </label>
+            <label>Sube Adresi
+              <textarea id="adres" rows="3"></textarea>
+            </label>
+            <button class="btn" type="submit">Sube Bilgilerini Guncelle</button>
+            <div class="msg" id="branchMsg">Sube bilgileri guncellendi.</div>
+          </form>
+        </article>
       </section>
     </main>
   </div>
@@ -259,17 +287,27 @@
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
   <script>
-    const profileForm = document.getElementById("profileForm");
+    const userForm = document.getElementById("userForm");
+    const branchForm = document.getElementById("branchForm");
     const passwordForm = document.getElementById("passwordForm");
-    const profileMsg = document.getElementById("profileMsg");
+    const userMsg = document.getElementById("userMsg");
+    const branchMsg = document.getElementById("branchMsg");
     const passwordMsg = document.getElementById("passwordMsg");
-    const fields = {
+
+    const userFields = {
+      displayName: document.getElementById("userDisplayName"),
+      email: document.getElementById("userEmail"),
+      phone: document.getElementById("userPhone")
+    };
+
+    const branchFields = {
       subeAdi: document.getElementById("subeAdi"),
       yetkili: document.getElementById("yetkili"),
-      telefon: document.getElementById("telefon"),
-      eposta: document.getElementById("eposta"),
+      telefon: document.getElementById("subeTelefon"),
+      eposta: document.getElementById("subeEposta"),
       adres: document.getElementById("adres")
     };
+
     const currentPassword = document.getElementById("currentPassword");
     const newPassword = document.getElementById("newPassword");
     const newPasswordConfirm = document.getElementById("newPasswordConfirm");
@@ -279,11 +317,18 @@
     const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
 
     const defaults = {
-      subeAdi: "Borekci Sube 01",
-      yetkili: "Ahmet Yilmaz",
-      telefon: "0555 123 45 67",
-      eposta: "sube01@ornek.com",
-      adres: "Ornek Mah. Borek Cad. No:12"
+      user: {
+        displayName: "Borekci Sube Yetkilisi",
+        email: "sube01@ornek.com",
+        phone: "0555 123 45 67"
+      },
+      branch: {
+        subeAdi: "Borekci Sube 01",
+        yetkili: "Ahmet Yilmaz",
+        telefon: "0555 123 45 67",
+        eposta: "sube01@ornek.com",
+        adres: "Ornek Mah. Borek Cad. No:12"
+      }
     };
 
     function formatTL(value) {
@@ -326,17 +371,22 @@
       el.textContent = text;
       setTimeout(function () {
         el.style.display = "none";
-      }, 2300);
+      }, 2400);
     }
 
     function applyProfileData(data) {
-      const branch = data && data.branch ? data.branch : null;
       const user = data && data.user ? data.user : null;
-      fields.subeAdi.value = branch && branch.name ? branch.name : defaults.subeAdi;
-      fields.yetkili.value = branch && branch.manager ? branch.manager : defaults.yetkili;
-      fields.telefon.value = branch && branch.phone ? branch.phone : defaults.telefon;
-      fields.eposta.value = (user && user.email) || (branch && branch.email) || defaults.eposta;
-      fields.adres.value = branch && branch.address ? branch.address : defaults.adres;
+      const branch = data && data.branch ? data.branch : null;
+
+      userFields.displayName.value = user && user.displayName ? user.displayName : defaults.user.displayName;
+      userFields.email.value = user && user.email ? user.email : defaults.user.email;
+      userFields.phone.value = user && user.phone ? user.phone : defaults.user.phone;
+
+      branchFields.subeAdi.value = branch && branch.name ? branch.name : defaults.branch.subeAdi;
+      branchFields.yetkili.value = branch && branch.manager ? branch.manager : defaults.branch.yetkili;
+      branchFields.telefon.value = branch && branch.phone ? branch.phone : defaults.branch.telefon;
+      branchFields.eposta.value = branch && branch.email ? branch.email : defaults.branch.eposta;
+      branchFields.adres.value = branch && branch.address ? branch.address : defaults.branch.adres;
     }
 
     async function loadProfile() {
@@ -345,10 +395,22 @@
         applyProfileData(data);
         return;
       }
+
       const raw = localStorage.getItem("branchProfile");
       const profile = raw ? JSON.parse(raw) : defaults;
-      Object.keys(fields).forEach(function (key) {
-        fields[key].value = profile[key] || "";
+      applyProfileData({
+        user: {
+          displayName: profile.user && profile.user.displayName ? profile.user.displayName : defaults.user.displayName,
+          email: profile.user && profile.user.email ? profile.user.email : defaults.user.email,
+          phone: profile.user && profile.user.phone ? profile.user.phone : defaults.user.phone
+        },
+        branch: {
+          name: profile.branch && profile.branch.subeAdi ? profile.branch.subeAdi : defaults.branch.subeAdi,
+          manager: profile.branch && profile.branch.yetkili ? profile.branch.yetkili : defaults.branch.yetkili,
+          phone: profile.branch && profile.branch.telefon ? profile.branch.telefon : defaults.branch.telefon,
+          email: profile.branch && profile.branch.eposta ? profile.branch.eposta : defaults.branch.eposta,
+          address: profile.branch && profile.branch.adres ? profile.branch.adres : defaults.branch.adres
+        }
       });
     }
 
@@ -371,34 +433,90 @@
       document.getElementById("statAmount").textContent = formatTL(amount);
     }
 
-    profileForm.addEventListener("submit", async function (event) {
+    userForm.addEventListener("submit", async function (event) {
       event.preventDefault();
-      const data = {};
-      Object.keys(fields).forEach(function (key) {
-        data[key] = fields[key].value.trim();
-      });
+
       if (!testMode) {
         try {
           const updated = await apiRequest("/profile/me", {
             method: "PUT",
-            body: JSON.stringify(data)
+            body: JSON.stringify({
+              displayName: String(userFields.displayName.value || "").trim(),
+              userEmail: String(userFields.email.value || "").trim(),
+              userPhone: String(userFields.phone.value || "").trim()
+            })
           });
           applyProfileData(updated);
           const session = getAuthSession();
           if (session) {
             session.email = updated.user && updated.user.email ? updated.user.email : session.email;
+            session.phone = updated.user && updated.user.phone ? updated.user.phone : session.phone;
             session.displayName = updated.user && updated.user.displayName ? updated.user.displayName : session.displayName;
             session.branchName = updated.branch && updated.branch.name ? updated.branch.name : session.branchName;
             saveAuthSession(session);
           }
-          showMessage(profileMsg, "Profil bilgileri veritabaninda guncellendi.");
+          showMessage(userMsg, "Kullanici bilgileri veritabaninda guncellendi.");
         } catch (err) {
-          showMessage(profileMsg, err.message || "Profil guncellenemedi.");
+          showMessage(userMsg, err.message || "Kullanici bilgileri guncellenemedi.");
         }
         return;
       }
-      localStorage.setItem("branchProfile", JSON.stringify(data));
-      showMessage(profileMsg, "Profil bilgileri guncellendi.");
+
+      const raw = localStorage.getItem("branchProfile");
+      const current = raw ? JSON.parse(raw) : {};
+      const next = Object.assign({}, current, {
+        user: {
+          displayName: String(userFields.displayName.value || "").trim(),
+          email: String(userFields.email.value || "").trim(),
+          phone: String(userFields.phone.value || "").trim()
+        }
+      });
+      localStorage.setItem("branchProfile", JSON.stringify(next));
+      showMessage(userMsg, "Kullanici bilgileri guncellendi.");
+    });
+
+    branchForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const payload = {
+        branchName: String(branchFields.subeAdi.value || "").trim(),
+        branchManager: String(branchFields.yetkili.value || "").trim(),
+        branchPhone: String(branchFields.telefon.value || "").trim(),
+        branchEmail: String(branchFields.eposta.value || "").trim(),
+        branchAddress: String(branchFields.adres.value || "").trim()
+      };
+
+      if (!testMode) {
+        try {
+          const updated = await apiRequest("/profile/me", {
+            method: "PUT",
+            body: JSON.stringify(payload)
+          });
+          applyProfileData(updated);
+          const session = getAuthSession();
+          if (session) {
+            session.branchName = updated.branch && updated.branch.name ? updated.branch.name : session.branchName;
+            saveAuthSession(session);
+          }
+          showMessage(branchMsg, "Sube bilgileri veritabaninda guncellendi.");
+        } catch (err) {
+          showMessage(branchMsg, err.message || "Sube bilgileri guncellenemedi.");
+        }
+        return;
+      }
+
+      const raw = localStorage.getItem("branchProfile");
+      const current = raw ? JSON.parse(raw) : {};
+      const next = Object.assign({}, current, {
+        branch: {
+          subeAdi: payload.branchName,
+          yetkili: payload.branchManager,
+          telefon: payload.branchPhone,
+          eposta: payload.branchEmail,
+          adres: payload.branchAddress
+        }
+      });
+      localStorage.setItem("branchProfile", JSON.stringify(next));
+      showMessage(branchMsg, "Sube bilgileri guncellendi.");
     });
 
     passwordForm.addEventListener("submit", async function (event) {
@@ -453,10 +571,8 @@
     });
 
     Promise.all([loadProfile(), loadStats()]).catch(function (_err) {
-      showMessage(profileMsg, "Profil verileri alinamadi.");
+      showMessage(userMsg, "Profil verileri alinamadi.");
     });
   </script>
 </body>
 </html>
-
-

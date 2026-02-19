@@ -8,6 +8,72 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .layout {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: .8rem;
+    }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(170px, 1fr));
+      gap: .55rem;
+    }
+    @media (max-width: 740px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    label { font-size: .88rem; font-weight: 600; display: block; }
+    input, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .85);
+      border-radius: 10px;
+      padding: .52rem .62rem;
+      font: inherit;
+      margin-top: .25rem;
+      outline: none;
+    }
+    .actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .7rem; }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .62rem;
+      background: rgba(255, 255, 255, .82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .btn.warn { border-color: rgba(171,47,47,.35); color: #7c1d1d; background: #fff1f1; }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.75); }
+    table { border-collapse: collapse; width: 100%; min-width: 760px; }
+    th, td { border-bottom: 1px solid rgba(19,34,31,.12); padding: .45rem .52rem; text-align: left; font-size: .88rem; }
+    th { background: rgba(255,255,255,.92); position: sticky; top: 0; z-index: 1; }
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .15rem .45rem;
+      font-size: .77rem;
+      font-weight: 700;
+      background: rgba(216,240,227,.9);
+    }
+    .badge.passive { background: rgba(255,226,226,.92); border-color: rgba(171,47,47,.35); color: #7c1d1d; }
+    .mini { font-size: .8rem; opacity: .82; }
+    .msg {
+      display: none;
+      margin-top: .6rem;
+      border: 1px solid rgba(19,34,31,.2);
+      background: rgba(216,240,227,.75);
+      border-radius: 10px;
+      padding: .55rem .62rem;
+      font-weight: 700;
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -17,29 +83,342 @@
           <span class="eyebrow">Admin</span>
           <h1>Urun ve Fiyat Yonetimi</h1>
         </div>
-        <nav class="nav">
+                <nav class="nav">
           <a href="index.html">Dashboard</a>
-          <a href="users.html">Kullanicilar</a>
-          <a href="branches.html">Subeler</a>
-          <a href="products.html">Urunler</a>
-          <a href="orders.html">Siparisler</a>
-          <a href="logs.html">Loglar</a>
-          <a href="settings.html">Ayarlar</a>
-          <a href="../login.html">Cikis</a>
+          <details class="nav-dd">
+            <summary>Yonetim</summary>
+            <div class="nav-dd-menu">
+              <a href="users.html">Kullanicilar</a>
+              <a href="branches.html">Subeler</a>
+              <a href="centers.html">Merkezler</a>
+              <a href="products.html">Urunler</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Operasyon</summary>
+            <div class="nav-dd-menu">
+              <a href="orders.html">Siparisler</a>
+              <a href="logs.html">Loglar</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Sistem</summary>
+            <div class="nav-dd-menu">
+              <a href="settings.html">Ayarlar</a>
+            </div>
+          </details>
         </nav>
       </div>
 
-      <article class="card">
-        <h3>Planlanan Islemler</h3>
-        <ul>
-          <li>Global urun listesi, kod ve baz fiyat yonetimi</li>
-          <li>Urun aktif/pasif durum gecisleri</li>
-          <li>Toplu fiyat guncelleme ve audit kaydi</li>
-        </ul>
+      <section class="layout">
+        <article class="card">
+          <h3>Yeni Urun Ekle</h3>
+          <form id="createProductForm" class="form-grid">
+            <label>Urun Adi
+              <input type="text" id="createName" maxlength="64" required>
+            </label>
+            <label>Kod (opsiyonel)
+              <input type="text" id="createCode" maxlength="64" placeholder="or: su_boregi">
+            </label>
+            <label>Baz Fiyat (TL)
+              <input type="number" id="createBasePrice" min="0.01" step="0.01" required>
+            </label>
+            <label>Durum
+              <select id="createActive">
+                <option value="true">Aktif</option>
+                <option value="false">Pasif</option>
+              </select>
+            </label>
+          </form>
+          <div class="actions">
+            <button class="btn primary" id="createBtn" type="button">Urun Olustur</button>
+            <button class="btn" id="reloadBtn" type="button">Listeyi Yenile</button>
+            <button class="btn" id="bulkActiveBtn" type="button">Tumunu Aktif Yap</button>
+            <button class="btn warn" id="bulkPassiveBtn" type="button">Tumunu Pasif Yap</button>
+          </div>
+          <div id="createMsg" class="msg"></div>
+        </article>
+
+        <article class="card">
+          <h3>Secili Urun Duzenle</h3>
+          <div class="mini" id="selectedInfo">Henuz secim yok.</div>
+          <form id="editProductForm" class="form-grid">
+            <label>Urun Adi
+              <input type="text" id="editName" maxlength="64" required>
+            </label>
+            <label>Kod
+              <input type="text" id="editCode" disabled>
+            </label>
+            <label>Baz Fiyat (TL)
+              <input type="number" id="editBasePrice" min="0.01" step="0.01" required>
+            </label>
+            <label>Durum
+              <select id="editActive">
+                <option value="true">Aktif</option>
+                <option value="false">Pasif</option>
+              </select>
+            </label>
+          </form>
+          <div class="actions">
+            <button class="btn primary" id="saveEditBtn" type="button">Bilgileri Kaydet</button>
+            <button class="btn" id="saveStatusBtn" type="button">Durumu Kaydet</button>
+            <button class="btn warn" id="deleteBtn" type="button">Urunu Sil</button>
+          </div>
+          <div id="editMsg" class="msg"></div>
+        </article>
+      </section>
+
+      <article class="card" style="margin-top:.8rem;">
+        <h3>Urun Listesi</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Kod</th>
+                <th>Ad</th>
+                <th>Baz Fiyat</th>
+                <th>Durum</th>
+                <th>Olusturma</th>
+                <th>Guncelleme</th>
+                <th>Islem</th>
+              </tr>
+            </thead>
+            <tbody id="productsBody"></tbody>
+          </table>
+        </div>
       </article>
     </main>
   </div>
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const productsBody = document.getElementById("productsBody");
+    const selectedInfo = document.getElementById("selectedInfo");
+    const createMsg = document.getElementById("createMsg");
+    const editMsg = document.getElementById("editMsg");
+    let products = [];
+    let selectedProductId = "";
+
+    function showMsg(el, text) {
+      el.style.display = "block";
+      el.textContent = text;
+      setTimeout(function () {
+        el.style.display = "none";
+      }, 2600);
+    }
+
+    function getSession() {
+      try {
+        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
+
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    function toDateText(value) {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "-";
+      return d.toLocaleString("tr-TR");
+    }
+
+    function toMoney(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "-";
+      return num.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+    }
+
+    function selectedProduct() {
+      return products.find(function (p) { return p.id === selectedProductId; }) || null;
+    }
+
+    function renderProducts() {
+      const html = products.map(function (p) {
+        const activeCls = p.isActive ? "" : "passive";
+        const activeText = p.isActive ? "Aktif" : "Pasif";
+        const selected = selectedProductId === p.id ? " style='background:rgba(19,34,31,.06)'" : "";
+        return "" +
+          "<tr" + selected + ">" +
+          "<td>" + (p.code || "-") + "</td>" +
+          "<td>" + (p.name || "-") + "</td>" +
+          "<td>" + toMoney(p.basePrice) + "</td>" +
+          "<td><span class='badge " + activeCls + "'>" + activeText + "</span></td>" +
+          "<td>" + toDateText(p.createdAt) + "</td>" +
+          "<td>" + toDateText(p.updatedAt) + "</td>" +
+          "<td><button class='btn' data-select-product='" + p.id + "'>Sec</button></td>" +
+          "</tr>";
+      }).join("");
+      productsBody.innerHTML = html || "<tr><td colspan='7'>Urun bulunamadi.</td></tr>";
+      productsBody.querySelectorAll("[data-select-product]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          selectedProductId = btn.getAttribute("data-select-product") || "";
+          applySelectedToForm();
+          renderProducts();
+        });
+      });
+    }
+
+    function applySelectedToForm() {
+      const item = selectedProduct();
+      if (!item) {
+        selectedInfo.textContent = "Henuz secim yok.";
+        document.getElementById("editName").value = "";
+        document.getElementById("editCode").value = "";
+        document.getElementById("editBasePrice").value = "";
+        document.getElementById("editActive").value = "true";
+        return;
+      }
+      selectedInfo.textContent = "Secili: " + (item.name || "-") + " (" + (item.code || "-") + ")";
+      document.getElementById("editName").value = item.name || "";
+      document.getElementById("editCode").value = item.code || "";
+      document.getElementById("editBasePrice").value = String(item.basePrice || "");
+      document.getElementById("editActive").value = item.isActive ? "true" : "false";
+    }
+
+    async function loadProducts() {
+      const data = await apiRequest("/products", { method: "GET" });
+      products = Array.isArray(data) ? data.slice() : [];
+      if (!selectedProduct() && products.length) selectedProductId = products[0].id;
+      applySelectedToForm();
+      renderProducts();
+    }
+
+    async function createProduct() {
+      const name = document.getElementById("createName").value.trim();
+      const code = document.getElementById("createCode").value.trim();
+      const basePrice = Number(document.getElementById("createBasePrice").value);
+      const isActive = document.getElementById("createActive").value === "true";
+      if (!name || !Number.isFinite(basePrice) || basePrice <= 0) {
+        throw new Error("Urun adi ve gecerli fiyat girin.");
+      }
+
+      const payload = { name: name, basePrice: basePrice };
+      if (code) payload.code = code;
+
+      const created = await apiRequest("/products", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+
+      if (!isActive) {
+        await apiRequest("/products/" + created.id + "/status", {
+          method: "PUT",
+          body: JSON.stringify({ isActive: false })
+        });
+      }
+
+      await loadProducts();
+      selectedProductId = created.id;
+      applySelectedToForm();
+      renderProducts();
+      document.getElementById("createProductForm").reset();
+      document.getElementById("createActive").value = "true";
+      showMsg(createMsg, "Urun olusturuldu.");
+    }
+
+    async function saveProductEdit() {
+      const item = selectedProduct();
+      if (!item) throw new Error("Lutfen listeden urun secin.");
+      const name = document.getElementById("editName").value.trim();
+      const basePrice = Number(document.getElementById("editBasePrice").value);
+      if (!name || !Number.isFinite(basePrice) || basePrice <= 0) {
+        throw new Error("Urun adi ve gecerli fiyat girin.");
+      }
+      const updated = await apiRequest("/products/" + item.id, {
+        method: "PUT",
+        body: JSON.stringify({ name: name, basePrice: basePrice })
+      });
+      products = products.map(function (p) { return p.id === updated.id ? updated : p; });
+      renderProducts();
+      applySelectedToForm();
+      showMsg(editMsg, "Urun bilgileri guncellendi.");
+    }
+
+    async function saveProductStatus() {
+      const item = selectedProduct();
+      if (!item) throw new Error("Lutfen listeden urun secin.");
+      const isActive = document.getElementById("editActive").value === "true";
+      const updated = await apiRequest("/products/" + item.id + "/status", {
+        method: "PUT",
+        body: JSON.stringify({ isActive: isActive })
+      });
+      products = products.map(function (p) { return p.id === updated.id ? updated : p; });
+      renderProducts();
+      applySelectedToForm();
+      showMsg(editMsg, "Urun durumu guncellendi.");
+    }
+
+    async function deleteProduct() {
+      const item = selectedProduct();
+      if (!item) throw new Error("Lutfen listeden urun secin.");
+      const confirmed = window.confirm("Bu urun silinecek. Islem geri alinamaz. Devam edilsin mi?");
+      if (!confirmed) return;
+
+      await apiRequest("/products/" + item.id, { method: "DELETE" });
+      products = products.filter(function (p) { return p.id !== item.id; });
+      selectedProductId = products.length ? products[0].id : "";
+      applySelectedToForm();
+      renderProducts();
+      showMsg(editMsg, "Urun silindi.");
+    }
+
+    async function bulkSetStatus(isActive) {
+      await apiRequest("/products/status-bulk", {
+        method: "PUT",
+        body: JSON.stringify({ isActive: isActive })
+      });
+      await loadProducts();
+      showMsg(createMsg, isActive ? "Tum urunler aktif yapildi." : "Tum urunler pasif yapildi.");
+    }
+
+    document.getElementById("createBtn").addEventListener("click", function () {
+      createProduct().catch(function (err) { showMsg(createMsg, err.message || "Urun olusturulamadi."); });
+    });
+    document.getElementById("reloadBtn").addEventListener("click", function () {
+      loadProducts().catch(function (err) { showMsg(createMsg, err.message || "Liste yenilenemedi."); });
+    });
+    document.getElementById("bulkActiveBtn").addEventListener("click", function () {
+      bulkSetStatus(true).catch(function (err) { showMsg(createMsg, err.message || "Toplu islem basarisiz."); });
+    });
+    document.getElementById("bulkPassiveBtn").addEventListener("click", function () {
+      bulkSetStatus(false).catch(function (err) { showMsg(createMsg, err.message || "Toplu islem basarisiz."); });
+    });
+    document.getElementById("saveEditBtn").addEventListener("click", function () {
+      saveProductEdit().catch(function (err) { showMsg(editMsg, err.message || "Urun guncellenemedi."); });
+    });
+    document.getElementById("saveStatusBtn").addEventListener("click", function () {
+      saveProductStatus().catch(function (err) { showMsg(editMsg, err.message || "Durum guncellenemedi."); });
+    });
+    document.getElementById("deleteBtn").addEventListener("click", function () {
+      deleteProduct().catch(function (err) { showMsg(editMsg, err.message || "Urun silinemedi."); });
+    });
+
+    loadProducts().catch(function (err) {
+      showMsg(createMsg, err.message || "Urunler alinamadi.");
+    });
+  </script>
 </body>
 </html>
+
+
+

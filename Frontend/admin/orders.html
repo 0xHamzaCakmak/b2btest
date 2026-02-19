@@ -8,6 +8,79 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: .65rem;
+      margin-bottom: .8rem;
+    }
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,.72);
+      padding: .6rem .7rem;
+    }
+    .stat span { font-size: .83rem; opacity: .8; display: block; }
+    .stat strong { font-size: 1.15rem; }
+    .toolbar { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: .8rem; }
+    .toolbar input {
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.86);
+      border-radius: 10px;
+      padding: .45rem .6rem;
+      font: inherit;
+    }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .62rem;
+      background: rgba(255,255,255,.82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .list { display: grid; gap: .65rem; }
+    .order {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,.74);
+      padding: .75rem .85rem;
+    }
+    .line { display: flex; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+    .sub { font-size: .9rem; opacity: .88; }
+    .items { margin-top: .55rem; border-top: 1px dashed rgba(19,34,31,.2); padding-top: .45rem; font-size: .9rem; }
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .15rem .45rem;
+      font-size: .78rem;
+      font-weight: 700;
+      background: rgba(255,255,255,.9);
+    }
+    .badge.ok { background: rgba(216,240,227,.95); }
+    .head-row { display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.35rem; }
+    .head-left { display:flex; align-items:center; gap:.45rem; flex-wrap: wrap; }
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: .9rem;
+      font-weight: 600;
+      background: rgba(255,255,255,.6);
+    }
+    .msg {
+      display: none;
+      margin-bottom: .7rem;
+      border: 1px solid rgba(19,34,31,.2);
+      background: rgba(216,240,227,.75);
+      border-radius: 10px;
+      padding: .55rem .62rem;
+      font-weight: 700;
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -19,27 +92,273 @@
         </div>
         <nav class="nav">
           <a href="index.html">Dashboard</a>
-          <a href="users.html">Kullanicilar</a>
-          <a href="branches.html">Subeler</a>
-          <a href="products.html">Urunler</a>
-          <a href="orders.html">Siparisler</a>
-          <a href="logs.html">Loglar</a>
-          <a href="settings.html">Ayarlar</a>
-          <a href="../login.html">Cikis</a>
+          <details class="nav-dd">
+            <summary>Yonetim</summary>
+            <div class="nav-dd-menu">
+              <a href="users.html">Kullanicilar</a>
+              <a href="branches.html">Subeler</a>
+              <a href="centers.html">Merkezler</a>
+              <a href="products.html">Urunler</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Operasyon</summary>
+            <div class="nav-dd-menu">
+              <a href="orders.html">Siparisler</a>
+              <a href="logs.html">Loglar</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Sistem</summary>
+            <div class="nav-dd-menu">
+              <a href="settings.html">Ayarlar</a>
+            </div>
+          </details>
         </nav>
       </div>
 
-      <article class="card">
-        <h3>Planlanan Islemler</h3>
-        <ul>
-          <li>Duruma gore siparis filtreleme</li>
-          <li>Toplu onay ve reddetme operasyonu</li>
-          <li>Kural ihlali raporlari (pasif sube/urun)</li>
-        </ul>
-      </article>
+      <div id="pageMsg" class="msg"></div>
+
+      <section class="stats">
+        <article class="stat"><span>Siparis Sayisi</span><strong id="statCount">0</strong></article>
+        <article class="stat"><span>Onay Bekleyen</span><strong id="statPending">0</strong></article>
+        <article class="stat"><span>Onaylanan</span><strong id="statApproved">0</strong></article>
+        <article class="stat"><span>Toplam Tutar</span><strong id="statAmount">0 TL</strong></article>
+      </section>
+
+      <section class="toolbar">
+        <label>Baslangic Tarihi <input type="date" id="fromDate"></label>
+        <label>Bitis Tarihi <input type="date" id="toDate"></label>
+        <button class="btn" type="button" id="applyFilterBtn">Filtrele</button>
+        <button class="btn" type="button" id="todayBtn">Bugunu Goster</button>
+        <button class="btn" type="button" id="clearFilterBtn">Temizle</button>
+        <button class="btn" type="button" id="loadBtn">Yenile</button>
+        <button class="btn primary" type="button" id="approveSelectedBtn">Secilenleri Onayla</button>
+        <button class="btn" type="button" id="approveAllBtn">Tumunu Onayla</button>
+      </section>
+
+      <section class="list" id="ordersList"></section>
     </main>
   </div>
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const pageMsg = document.getElementById("pageMsg");
+    const ordersList = document.getElementById("ordersList");
+    const fromDate = document.getElementById("fromDate");
+    const toDate = document.getElementById("toDate");
+    const statCount = document.getElementById("statCount");
+    const statPending = document.getElementById("statPending");
+    const statApproved = document.getElementById("statApproved");
+    const statAmount = document.getElementById("statAmount");
+    let currentOrders = [];
+
+    function showMsg(text) {
+      pageMsg.style.display = "block";
+      pageMsg.textContent = text;
+      setTimeout(function () { pageMsg.style.display = "none"; }, 2400);
+    }
+
+    function getSession() {
+      try { return JSON.parse(localStorage.getItem(sessionKey) || "null"); }
+      catch (_err) { return null; }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    function formatTL(value) {
+      return new Intl.NumberFormat("tr-TR").format(Number(value || 0)) + " TL";
+    }
+
+    function toDateKey(d) {
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+
+    function todayKey() {
+      return toDateKey(new Date());
+    }
+
+    function statusText(status) {
+      return String(status || "").toLowerCase() === "onaylandi" ? "Onaylandi" : "Onay Bekliyor";
+    }
+
+    function fmtDate(text) {
+      const d = new Date(text);
+      if (Number.isNaN(d.getTime())) return "-";
+      return d.toLocaleString("tr-TR");
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function selectedRange() {
+      return {
+        from: fromDate.value || "",
+        to: toDate.value || ""
+      };
+    }
+
+    function buildOrderQuery() {
+      const range = selectedRange();
+      const parts = [];
+      if (range.from) parts.push("from=" + encodeURIComponent(range.from));
+      if (range.to) parts.push("to=" + encodeURIComponent(range.to));
+      return parts.length ? ("?" + parts.join("&")) : "";
+    }
+
+    async function loadOrders() {
+      const data = await apiRequest("/orders" + buildOrderQuery(), { method: "GET" });
+      currentOrders = Array.isArray(data) ? data.slice() : [];
+      render();
+    }
+
+    function render() {
+      let pending = 0;
+      let approved = 0;
+      let amount = 0;
+
+      currentOrders.forEach(function (o) {
+        const st = statusText(o.status);
+        if (st === "Onaylandi") approved += 1;
+        else pending += 1;
+        amount += Number(o.totalAmount || 0);
+      });
+
+      statCount.textContent = String(currentOrders.length);
+      statPending.textContent = String(pending);
+      statApproved.textContent = String(approved);
+      statAmount.textContent = formatTL(amount);
+
+      if (!currentOrders.length) {
+        ordersList.innerHTML = "<div class='empty'>Secilen tarihte siparis yok.</div>";
+        return;
+      }
+
+      const html = currentOrders
+        .slice()
+        .sort(function (a, b) { return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); })
+        .map(function (o) {
+          const st = statusText(o.status);
+          const isApproved = st === "Onaylandi";
+          const items = (o.items || []).map(function (it) {
+            return escapeHtml(it.name) + ": " + Number(it.qty || 0) + " tepsi";
+          }).join("<br>");
+          return "" +
+            "<article class='order'>" +
+            " <div class='head-row'>" +
+            "   <div class='head-left'>" +
+            "     <input class='order-check' type='checkbox' data-order-id='" + o.id + "'" + (isApproved ? " disabled" : "") + ">" +
+            "     <strong>" + escapeHtml(o.orderNo || "-") + "</strong>" +
+            "     <span class='badge " + (isApproved ? "ok" : "") + "'>" + st + "</span>" +
+            "   </div>" +
+            "   <button class='btn " + (isApproved ? "" : "primary") + " approve-one' data-order-id='" + o.id + "'" + (isApproved ? " disabled" : "") + ">" + (isApproved ? "Onaylandi" : "Onayla") + "</button>" +
+            " </div>" +
+            " <div class='line sub'><span>Sube: " + escapeHtml(o.branchName || "-") + "</span><span>Olusturma: " + escapeHtml(fmtDate(o.createdAt)) + "</span></div>" +
+            " <div class='line sub'><span>Teslimat: " + escapeHtml((o.deliveryDate || "-") + " " + (o.deliveryTime || "")) + "</span><span>Toplam: <strong>" + escapeHtml(formatTL(o.totalAmount)) + "</strong></span></div>" +
+            " <div class='items'>" + items + "</div>" +
+            "</article>";
+        }).join("");
+      ordersList.innerHTML = html;
+
+      document.querySelectorAll(".approve-one").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const id = btn.getAttribute("data-order-id");
+          if (!id) return;
+          approveIds([id]);
+        });
+      });
+    }
+
+    async function approveIds(ids) {
+      if (!ids.length) return;
+      await apiRequest("/orders/approve-bulk", {
+        method: "PUT",
+        body: JSON.stringify({ ids: ids })
+      });
+      showMsg("Siparisler onaylandi.");
+      await loadOrders();
+    }
+
+    async function approveSelected() {
+      const ids = Array.from(document.querySelectorAll(".order-check:checked"))
+        .map(function (el) { return el.getAttribute("data-order-id") || ""; })
+        .filter(Boolean);
+      if (!ids.length) {
+        showMsg("Onaylanacak siparis secin.");
+        return;
+      }
+      await approveIds(ids);
+    }
+
+    async function approveAll() {
+      const ids = currentOrders
+        .filter(function (o) { return statusText(o.status) !== "Onaylandi"; })
+        .map(function (o) { return o.id; })
+        .filter(Boolean);
+      if (!ids.length) {
+        showMsg("Onay bekleyen siparis yok.");
+        return;
+      }
+      await approveIds(ids);
+    }
+
+    fromDate.value = todayKey();
+    toDate.value = todayKey();
+
+    document.getElementById("applyFilterBtn").addEventListener("click", function () {
+      loadOrders().catch(function (err) { showMsg(err.message || "Siparisler alinamadi."); });
+    });
+    document.getElementById("todayBtn").addEventListener("click", function () {
+      fromDate.value = todayKey();
+      toDate.value = todayKey();
+      loadOrders().catch(function (err) { showMsg(err.message || "Siparisler alinamadi."); });
+    });
+    document.getElementById("clearFilterBtn").addEventListener("click", function () {
+      fromDate.value = "";
+      toDate.value = "";
+      loadOrders().catch(function (err) { showMsg(err.message || "Siparisler alinamadi."); });
+    });
+    document.getElementById("loadBtn").addEventListener("click", function () {
+      loadOrders().catch(function (err) { showMsg(err.message || "Siparisler alinamadi."); });
+    });
+    document.getElementById("approveSelectedBtn").addEventListener("click", function () {
+      approveSelected().catch(function (err) { showMsg(err.message || "Toplu onay basarisiz."); });
+    });
+    document.getElementById("approveAllBtn").addEventListener("click", function () {
+      approveAll().catch(function (err) { showMsg(err.message || "Tumunu onaylama basarisiz."); });
+    });
+    fromDate.addEventListener("change", function () {
+      loadOrders().catch(function (err) { showMsg(err.message || "Siparisler alinamadi."); });
+    });
+    toDate.addEventListener("change", function () {
+      loadOrders().catch(function (err) { showMsg(err.message || "Siparisler alinamadi."); });
+    });
+
+    loadOrders().catch(function (err) {
+      showMsg(err.message || "Siparisler alinamadi.");
+    });
+  </script>
 </body>
 </html>

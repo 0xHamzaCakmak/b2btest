@@ -55,10 +55,10 @@
       box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
     }
     .top {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 1rem;
-      flex-wrap: wrap;
+      align-items: start;
       margin-bottom: 1rem;
     }
     .eyebrow {
@@ -83,6 +83,8 @@
       gap: .6rem;
       flex-wrap: wrap;
       align-content: flex-start;
+      justify-content: flex-end;
+      margin-left: auto;
     }
     .nav a {
       text-decoration: none;
@@ -93,6 +95,15 @@
       background: rgba(255, 255, 255, .72);
       font-weight: 600;
       height: fit-content;
+    }
+    @media (max-width: 980px) {
+      .top {
+        grid-template-columns: 1fr;
+      }
+      .nav {
+        justify-content: flex-start;
+        margin-left: 0;
+      }
     }
     form {
       display: grid;
@@ -156,7 +167,7 @@
     }
     .inline-form {
       display: grid;
-      grid-template-columns: 1.2fr .8fr auto;
+      grid-template-columns: 1.1fr .7fr 1fr auto;
       gap: .6rem;
       align-items: end;
     }
@@ -240,6 +251,30 @@
       border: 1px solid rgba(171, 47, 47, .3);
       color: #7c1d1d;
     }
+    .thumb {
+      width: 100%;
+      height: 110px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .72);
+      object-fit: cover;
+      display: block;
+      margin-bottom: .55rem;
+    }
+    .thumb.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .82rem;
+      font-weight: 700;
+      color: rgba(19, 34, 31, .62);
+      border-style: dashed;
+    }
+    .remove-image-wrap {
+      margin-top: .45rem;
+      font-size: .82rem;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -256,7 +291,6 @@
           <a href="merkez.html">Merkez Paneli</a>
           <a href="merkez-urun-fiyat.html">Urunler</a>
           <a href="merkez-subeler.html">Subeler</a>
-          <a href="../login.html">Cikis</a>
         </nav>
       </div>
 
@@ -268,6 +302,9 @@
             </label>
             <label>Baslangic Fiyati (TL)
               <input type="number" id="newProductPrice" min="1" step="1" value="500">
+            </label>
+            <label>Urun Gorseli
+              <input type="file" id="newProductImage" accept="image/*">
             </label>
             <button class="btn ghost" type="button" id="addProductBtn">Urun Ekle</button>
           </div>
@@ -299,6 +336,7 @@
     const allPassiveBtn = document.getElementById("allPassiveBtn");
     const newProductName = document.getElementById("newProductName");
     const newProductPrice = document.getElementById("newProductPrice");
+    const newProductImage = document.getElementById("newProductImage");
     const cfg = window.APP_CONFIG || {};
     const testMode = !!cfg.TEST_MODE;
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
@@ -413,6 +451,36 @@
       return payload.data;
     }
 
+    function fileToBase64(file) {
+      return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function () {
+          const result = String(reader.result || "");
+          const base64 = result.includes(",") ? result.split(",")[1] : result;
+          resolve(base64 || "");
+        };
+        reader.onerror = function () {
+          reject(new Error("Dosya okunamadi."));
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function uploadImageFile(file) {
+      if (!file) return null;
+      const dataBase64 = await fileToBase64(file);
+      if (!dataBase64) throw new Error("Gorsel verisi bos.");
+      const uploaded = await apiRequest("/products/upload-image", {
+        method: "POST",
+        body: JSON.stringify({
+          fileName: file.name || "urun.jpg",
+          mimeType: file.type || "image/jpeg",
+          dataBase64: dataBase64
+        })
+      });
+      return uploaded;
+    }
+
     async function fetchProductsFromApi() {
       const data = await apiRequest("/products", { method: "GET" });
       apiProducts = Array.isArray(data) ? data.slice() : [];
@@ -428,10 +496,16 @@
             const value = Number(product.basePrice || 1);
             const isActive = product.isActive !== false;
             const isEditing = editingProductId === id;
+            const imageUrl = product.imageUrl ? escapeHtml(product.imageUrl) : "";
             return '' +
               '<article class="item">' +
+              (imageUrl
+                ? ('<img class="thumb" src="' + imageUrl + '" alt="' + name + '">')
+                : '<div class="thumb empty">Gorsel Yok</div>') +
               '<label>Urun Adi<input type="text" maxlength="64" data-product-name-id="' + id + '" value="' + name + '" required' + (isEditing ? "" : " disabled") + '></label>' +
               '<label>Fiyat (TL)<input type="number" min="1" step="1" data-product-id="' + id + '" value="' + value + '" required' + (isEditing ? "" : " disabled") + '></label>' +
+              '<label>Gorsel<input type="file" accept="image/*" data-product-image-id="' + id + '"' + (isEditing ? "" : " disabled") + '></label>' +
+              (isEditing && imageUrl ? '<label class="remove-image-wrap"><input type="checkbox" data-remove-image-id="' + id + '"> Mevcut resmi kaldir</label>' : '') +
               '<div class="status-row">' +
               '<span class="status-badge ' + (isActive ? "" : "passive") + '" data-status-badge="' + id + '">' + (isActive ? "Aktif" : "Pasif") + '</span>' +
               '<label class="toggle-wrap"><input type="checkbox" data-active-toggle-id="' + id + '"' + (isActive ? " checked" : "") + '> Aktif</label>' +
@@ -482,7 +556,12 @@
       const name = String(nameInput.value || "").trim();
       const basePrice = Math.max(1, Number(priceInput.value || 1));
       if (!name || Number.isNaN(basePrice)) return null;
-      return { name: name, basePrice: basePrice };
+      const removeImageInput = productGrid.querySelector('input[data-remove-image-id="' + id + '"]');
+      return {
+        name: name,
+        basePrice: basePrice,
+        removeImage: !!(removeImageInput && removeImageInput.checked)
+      };
     }
 
     async function updateSingleApiProduct(id) {
@@ -494,6 +573,15 @@
       const payload = {};
       if (String(old.name || "") !== draft.name) payload.name = draft.name;
       if (Number(old.basePrice) !== Number(draft.basePrice)) payload.basePrice = draft.basePrice;
+      const imageInput = productGrid.querySelector('input[data-product-image-id="' + id + '"]');
+      const selectedFile = imageInput && imageInput.files && imageInput.files[0] ? imageInput.files[0] : null;
+      if (selectedFile) {
+        const uploaded = await uploadImageFile(selectedFile);
+        payload.imageUrl = uploaded.imageUrl;
+        payload.imageKey = uploaded.imageKey;
+      } else if (draft.removeImage && old.imageKey) {
+        payload.removeImage = true;
+      }
       if (!Object.keys(payload).length) {
         return false;
       }
@@ -542,14 +630,25 @@
 
       if (!testMode) {
         try {
+          let imagePayload = null;
+          const selectedFile = newProductImage && newProductImage.files && newProductImage.files[0] ? newProductImage.files[0] : null;
+          if (selectedFile) {
+            imagePayload = await uploadImageFile(selectedFile);
+          }
           await apiRequest("/products", {
             method: "POST",
-            body: JSON.stringify({ name: name, basePrice: startPrice })
+            body: JSON.stringify({
+              name: name,
+              basePrice: startPrice,
+              imageUrl: imagePayload ? imagePayload.imageUrl : undefined,
+              imageKey: imagePayload ? imagePayload.imageKey : undefined
+            })
           });
           await fetchProductsFromApi();
           renderPriceInputs();
           newProductName.value = "";
           newProductPrice.value = "500";
+          if (newProductImage) newProductImage.value = "";
           showMessage("Yeni urun veritabanina eklendi.");
         } catch (err) {
           showMessage(err.message || "Urun eklenemedi.");
@@ -756,6 +855,7 @@
   </script>
 </body>
 </html>
+
 
 
 

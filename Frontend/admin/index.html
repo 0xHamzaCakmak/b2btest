@@ -8,6 +8,71 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .subtitle { margin: .35rem 0 0; opacity: .86; }
+    .msg {
+      display: none;
+      margin-bottom: .7rem;
+      border: 1px solid rgba(19,34,31,.2);
+      background: rgba(216,240,227,.75);
+      border-radius: 10px;
+      padding: .55rem .62rem;
+      font-weight: 700;
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: .7rem;
+      margin-bottom: .9rem;
+    }
+    .kpi {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,.74);
+      padding: .72rem .8rem;
+    }
+    .kpi span { display: block; font-size: .83rem; opacity: .82; }
+    .kpi strong { display: block; font-size: 1.2rem; margin-top: .1rem; }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .8rem;
+    }
+    @media (max-width: 940px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .quick-links {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(180px, 1fr));
+      gap: .55rem;
+      margin-top: .5rem;
+    }
+    @media (max-width: 740px) {
+      .quick-links { grid-template-columns: 1fr; }
+    }
+    .quick-links a {
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.8);
+      border-radius: 10px;
+      padding: .52rem .62rem;
+      font-weight: 600;
+    }
+    .quick-links a:hover { background: rgba(19,34,31,.06); }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.75); }
+    table { border-collapse: collapse; width: 100%; min-width: 680px; }
+    th, td { border-bottom: 1px solid rgba(19,34,31,.12); padding: .45rem .52rem; text-align: left; font-size: .86rem; vertical-align: top; }
+    th { background: rgba(255,255,255,.92); position: sticky; top: 0; z-index: 1; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; }
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: .8rem;
+      font-weight: 600;
+      background: rgba(255,255,255,.6);
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -16,41 +81,259 @@
         <div>
           <span class="eyebrow">Admin</span>
           <h1>Yonetim Paneli</h1>
-          <p>Bu alan, backend API entegrasyonu icin hazir iskelet yonetim arayuzudur.</p>
+          <p class="subtitle">Canli durum ozeti, hizli yonlendirme ve son hareketler.</p>
         </div>
         <nav class="nav">
           <a href="index.html">Dashboard</a>
-          <a href="users.html">Kullanicilar</a>
-          <a href="branches.html">Subeler</a>
-          <a href="products.html">Urunler</a>
-          <a href="orders.html">Siparisler</a>
-          <a href="logs.html">Loglar</a>
-          <a href="settings.html">Ayarlar</a>
-          <a href="../login.html">Cikis</a>
+          <details class="nav-dd">
+            <summary>Yonetim</summary>
+            <div class="nav-dd-menu">
+              <a href="users.html">Kullanicilar</a>
+              <a href="branches.html">Subeler</a>
+              <a href="centers.html">Merkezler</a>
+              <a href="products.html">Urunler</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Operasyon</summary>
+            <div class="nav-dd-menu">
+              <a href="orders.html">Siparisler</a>
+              <a href="logs.html">Loglar</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Sistem</summary>
+            <div class="nav-dd-menu">
+              <a href="settings.html">Ayarlar</a>
+            </div>
+          </details>
         </nav>
       </div>
 
-      <section class="grid">
+      <div id="pageMsg" class="msg"></div>
+
+      <section class="kpis">
+        <article class="kpi"><span>Bugun Siparis</span><strong id="kpiTodayOrders">0</strong></article>
+        <article class="kpi"><span>Bugun Ciro</span><strong id="kpiTodayRevenue">0 TL</strong></article>
+        <article class="kpi"><span>Toplam Siparis</span><strong id="kpiTotalOrders">0</strong></article>
+        <article class="kpi"><span>Onay Bekleyen Siparis</span><strong id="kpiPending">0</strong></article>
+        <article class="kpi"><span>Aktif Sube</span><strong id="kpiActiveBranches">0</strong></article>
+        <article class="kpi"><span>Pasif Sube</span><strong id="kpiPassiveBranches">0</strong></article>
+        <article class="kpi"><span>Aktif Urun</span><strong id="kpiActiveProducts">0</strong></article>
+        <article class="kpi"><span>Pasif Urun</span><strong id="kpiPassiveProducts">0</strong></article>
+        <article class="kpi"><span>Merkez Sayisi</span><strong id="kpiCenters">0</strong></article>
+        <article class="kpi"><span>Toplam Kullanici</span><strong id="kpiUsers">0</strong></article>
+      </section>
+
+      <section class="layout">
         <article class="card">
-          <h3>Kullanici ve Rol</h3>
-          <p>Rol bazli erisim, kullanici aktif/pasif, sifre reset akislari.</p>
+          <h3>Hizli Aksiyonlar</h3>
+          <div class="quick-links">
+            <a href="orders.html">Onay bekleyen siparisleri ac</a>
+            <a href="branches.html">Sube durumlarini yonet</a>
+            <a href="products.html">Urun ve fiyatlari guncelle</a>
+            <a href="users.html">Kullanici ve rolleri yonet</a>
+            <a href="centers.html">Merkez kayitlarini yonet</a>
+            <a href="logs.html">Audit loglarini incele</a>
+          </div>
         </article>
+
         <article class="card">
-          <h3>Sube Operasyonlari</h3>
-          <p>Sube durum, fiyat farki, profil yonetimi.</p>
-        </article>
-        <article class="card">
-          <h3>Urun ve Fiyat</h3>
-          <p>Global fiyat, urun aktif/pasif ve yeni urun ekleme.</p>
-        </article>
-        <article class="card">
-          <h3>Siparis Denetimi</h3>
-          <p>Onay, toplu islem, durum gecmisleri, kural ihlalleri.</p>
+          <h3>Durum Notlari</h3>
+          <div id="statusNotes" class="empty">Veri bekleniyor...</div>
         </article>
       </section>
+
+      <article class="card" style="margin-top:.8rem;">
+        <h3>Son Islemler</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tarih</th>
+                <th>Actor</th>
+                <th>Aksiyon</th>
+                <th>Aciklama</th>
+              </tr>
+            </thead>
+            <tbody id="recentLogsBody"></tbody>
+          </table>
+        </div>
+      </article>
     </main>
   </div>
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const pageMsg = document.getElementById("pageMsg");
+    const recentLogsBody = document.getElementById("recentLogsBody");
+    const statusNotes = document.getElementById("statusNotes");
+
+    function showMsg(text) {
+      pageMsg.style.display = "block";
+      pageMsg.textContent = text;
+      setTimeout(function () { pageMsg.style.display = "none"; }, 2400);
+    }
+
+    function getSession() {
+      try { return JSON.parse(localStorage.getItem(sessionKey) || "null"); }
+      catch (_err) { return null; }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    function todayKey() {
+      const d = new Date();
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+
+    function formatTL(value) {
+      return new Intl.NumberFormat("tr-TR").format(Number(value || 0)) + " TL";
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function fmtDate(value) {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "-";
+      return d.toLocaleString("tr-TR");
+    }
+
+    function parseMeta(metaText) {
+      if (!metaText) return null;
+      try { return JSON.parse(metaText); } catch (_err) { return null; }
+    }
+
+    function humanLogText(log) {
+      const action = String(log && log.action ? log.action : "").toUpperCase();
+      const actor = log && log.actor && log.actor.email ? log.actor.email : "-";
+      const meta = parseMeta(log && log.meta ? log.meta : "");
+      const loginEmail = meta && meta.loginEmail ? String(meta.loginEmail) : "";
+      const body = meta && meta.body && typeof meta.body === "object" ? meta.body : null;
+      const name = body && body.name ? String(body.name) : "";
+
+      if (action === "POST_AUTH_LOGIN") return "Giris: " + (loginEmail || actor);
+      if (action.includes("PRICE_ADJUSTMENT")) return "Sube fiyat farki guncellendi.";
+      if (action.includes("RESET_PASSWORD")) return "Kullanici sifresi sifirlandi.";
+      if (action.startsWith("POST_")) return (name ? (name + " eklendi.") : "Yeni kayit eklendi.");
+      if (action.startsWith("PUT_") || action.startsWith("PATCH_")) return (name ? (name + " guncellendi.") : "Kayit guncellendi.");
+      if (action.startsWith("DELETE_")) return "Kayit silindi.";
+      return "Islem kaydi olusturuldu.";
+    }
+
+    function setKpi(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(value);
+    }
+
+    function renderNotes(data) {
+      const notes = [];
+      if (data.pendingCount > 0) notes.push("Onay bekleyen " + data.pendingCount + " siparis var.");
+      if (data.passiveBranchCount > 0) notes.push("Pasif sube sayisi: " + data.passiveBranchCount + ".");
+      if (data.passiveProductCount > 0) notes.push("Pasif urun sayisi: " + data.passiveProductCount + ".");
+      if (!notes.length) notes.push("Kritik birikmis islem gorunmuyor.");
+      statusNotes.innerHTML = notes.map(function (n) { return "<div>" + escapeHtml(n) + "</div>"; }).join("");
+    }
+
+    function renderRecentLogs(logs) {
+      const rows = (logs || []).map(function (log) {
+        const actor = log.actor ? (log.actor.email + (log.actor.role ? " (" + log.actor.role + ")" : "")) : "-";
+        return "" +
+          "<tr>" +
+          "<td>" + escapeHtml(fmtDate(log.createdAt)) + "</td>" +
+          "<td>" + escapeHtml(actor) + "</td>" +
+          "<td class='mono'>" + escapeHtml(log.action || "-") + "</td>" +
+          "<td>" + escapeHtml(humanLogText(log)) + "</td>" +
+          "</tr>";
+      }).join("");
+      recentLogsBody.innerHTML = rows || "<tr><td colspan='4'>Kayit bulunamadi.</td></tr>";
+    }
+
+    async function loadDashboard() {
+      const today = todayKey();
+      const [
+        todayOrders,
+        allOrders,
+        branches,
+        products,
+        centers,
+        users,
+        logs
+      ] = await Promise.all([
+        apiRequest("/orders?from=" + today + "&to=" + today, { method: "GET" }),
+        apiRequest("/orders", { method: "GET" }),
+        apiRequest("/branches", { method: "GET" }),
+        apiRequest("/products", { method: "GET" }),
+        apiRequest("/centers", { method: "GET" }),
+        apiRequest("/admin/users", { method: "GET" }),
+        apiRequest("/admin/logs?limit=6", { method: "GET" })
+      ]);
+
+      const todayList = Array.isArray(todayOrders) ? todayOrders : [];
+      const allOrderList = Array.isArray(allOrders) ? allOrders : [];
+      const branchList = Array.isArray(branches) ? branches : [];
+      const productList = Array.isArray(products) ? products : [];
+      const centerList = Array.isArray(centers) ? centers : [];
+      const userList = Array.isArray(users) ? users : [];
+      const logList = Array.isArray(logs) ? logs : [];
+
+      const todayRevenue = todayList.reduce(function (sum, o) { return sum + Number(o.totalAmount || 0); }, 0);
+      const pendingCount = allOrderList.filter(function (o) {
+        return String(o.status || "").toLowerCase() !== "onaylandi";
+      }).length;
+      const activeBranchCount = branchList.filter(function (b) { return !!b.isActive; }).length;
+      const passiveBranchCount = branchList.filter(function (b) { return !b.isActive; }).length;
+      const activeProductCount = productList.filter(function (p) { return !!p.isActive; }).length;
+      const passiveProductCount = productList.filter(function (p) { return !p.isActive; }).length;
+
+      setKpi("kpiTodayOrders", todayList.length);
+      setKpi("kpiTodayRevenue", formatTL(todayRevenue));
+      setKpi("kpiTotalOrders", allOrderList.length);
+      setKpi("kpiPending", pendingCount);
+      setKpi("kpiActiveBranches", activeBranchCount);
+      setKpi("kpiPassiveBranches", passiveBranchCount);
+      setKpi("kpiActiveProducts", activeProductCount);
+      setKpi("kpiPassiveProducts", passiveProductCount);
+      setKpi("kpiCenters", centerList.length);
+      setKpi("kpiUsers", userList.length);
+
+      renderNotes({
+        pendingCount: pendingCount,
+        passiveBranchCount: passiveBranchCount,
+        passiveProductCount: passiveProductCount
+      });
+      renderRecentLogs(logList);
+    }
+
+    loadDashboard().catch(function (err) {
+      showMsg(err.message || "Dashboard verileri alinamadi.");
+    });
+  </script>
 </body>
 </html>
+
+
+

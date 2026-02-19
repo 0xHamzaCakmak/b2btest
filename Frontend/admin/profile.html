@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Profil</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .65rem; }
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: .65rem .75rem;
+      background: rgba(255,255,255,.82);
+    }
+    .stat strong { display: block; font-size: 1.2rem; margin-top: .1rem; }
+    form { display: grid; gap: .65rem; }
+    label { font-size: .88rem; font-weight: 700; display: block; }
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.85);
+      border-radius: 10px;
+      padding: .56rem .62rem;
+      font: inherit;
+      margin-top: .22rem;
+      outline: none;
+    }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .62rem;
+      background: rgba(255,255,255,.82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      width: fit-content;
+    }
+    .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .btn.secondary {
+      background: rgba(255,255,255,.82);
+      border: 1px solid var(--border);
+      color: var(--ink);
+    }
+    .row-inline { display: grid; grid-template-columns: 1fr auto; gap: .45rem; align-items: end; }
+    .msg {
+      display: none;
+      margin-top: .45rem;
+      border: 1px solid rgba(19,34,31,.2);
+      background: rgba(216,240,227,.75);
+      border-radius: 10px;
+      padding: .55rem .62rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <span class="eyebrow">Admin</span>
+          <h1>Admin Profili</h1>
+        </div>
+        <nav class="nav">
+          <a href="index.html">Dashboard</a>
+          <details class="nav-dd">
+            <summary>Yonetim</summary>
+            <div class="nav-dd-menu">
+              <a href="users.html">Kullanicilar</a>
+              <a href="branches.html">Subeler</a>
+              <a href="centers.html">Merkezler</a>
+              <a href="products.html">Urunler</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Operasyon</summary>
+            <div class="nav-dd-menu">
+              <a href="orders.html">Siparisler</a>
+              <a href="logs.html">Loglar</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Sistem</summary>
+            <div class="nav-dd-menu">
+              <a href="settings.html">Ayarlar</a>
+            </div>
+          </details>
+        </nav>
+      </div>
+
+      <article class="card" style="margin-bottom:.8rem;">
+        <h3>Sistem Ozeti</h3>
+        <div class="stats">
+          <div class="stat"><span>Kullanici</span><strong id="statUsers">0</strong></div>
+          <div class="stat"><span>Merkez</span><strong id="statCenters">0</strong></div>
+          <div class="stat"><span>Sube</span><strong id="statBranches">0</strong></div>
+          <div class="stat"><span>Urun</span><strong id="statProducts">0</strong></div>
+        </div>
+      </article>
+
+      <section class="grid">
+        <article class="card">
+          <h3>Hesap Bilgileri</h3>
+          <form id="profileForm">
+            <label>E-posta
+              <input type="email" id="email" required>
+            </label>
+            <label>Telefon
+              <input type="text" id="phone" placeholder="0555... veya 90555...">
+            </label>
+            <label>Gosterim Adi
+              <input type="text" id="displayName" required>
+            </label>
+            <button class="btn primary" type="submit">Bilgileri Kaydet</button>
+            <div class="msg" id="profileMsg"></div>
+          </form>
+        </article>
+
+        <article class="card">
+          <h3>Sifre Guvenligi</h3>
+          <form id="passwordForm">
+            <label>Mevcut Sifre
+              <div class="row-inline">
+                <input type="password" id="currentPassword" minlength="6" required>
+                <button class="btn secondary" type="button" data-toggle-password="currentPassword">Goster</button>
+              </div>
+            </label>
+            <label>Yeni Sifre
+              <div class="row-inline">
+                <input type="password" id="newPassword" minlength="6" required>
+                <button class="btn secondary" type="button" data-toggle-password="newPassword">Goster</button>
+              </div>
+            </label>
+            <label>Yeni Sifre (Tekrar)
+              <div class="row-inline">
+                <input type="password" id="confirmPassword" minlength="6" required>
+                <button class="btn secondary" type="button" data-toggle-password="confirmPassword">Goster</button>
+              </div>
+            </label>
+            <button class="btn primary" type="submit">Sifreyi Guncelle</button>
+            <div class="msg" id="passwordMsg"></div>
+          </form>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const profileForm = document.getElementById("profileForm");
+    const passwordForm = document.getElementById("passwordForm");
+    const emailInput = document.getElementById("email");
+    const phoneInput = document.getElementById("phone");
+    const displayNameInput = document.getElementById("displayName");
+    const currentPasswordInput = document.getElementById("currentPassword");
+    const newPasswordInput = document.getElementById("newPassword");
+    const confirmPasswordInput = document.getElementById("confirmPassword");
+    const profileMsg = document.getElementById("profileMsg");
+    const passwordMsg = document.getElementById("passwordMsg");
+
+    function getSession() {
+      try { return JSON.parse(localStorage.getItem(sessionKey) || "null"); }
+      catch (_err) { return null; }
+    }
+
+    function saveSession(session) {
+      localStorage.setItem(sessionKey, JSON.stringify(session));
+    }
+
+    function showMsg(el, text) {
+      el.style.display = "block";
+      el.textContent = text;
+      setTimeout(function () { el.style.display = "none"; }, 2400);
+    }
+
+    async function apiRequest(path, options) {
+      const session = getSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    async function loadProfile() {
+      const data = await apiRequest("/profile/me", { method: "GET" });
+      const user = data && data.user ? data.user : {};
+      emailInput.value = user.email || "";
+      phoneInput.value = user.phone || "";
+      displayNameInput.value = user.displayName || "";
+    }
+
+    async function loadStats() {
+      const results = await Promise.all([
+        apiRequest("/admin/users", { method: "GET" }),
+        apiRequest("/admin/users/meta/centers", { method: "GET" }),
+        apiRequest("/admin/users/meta/branches", { method: "GET" }),
+        apiRequest("/products", { method: "GET" })
+      ]);
+      document.getElementById("statUsers").textContent = String((results[0] || []).length);
+      document.getElementById("statCenters").textContent = String((results[1] || []).length);
+      document.getElementById("statBranches").textContent = String((results[2] || []).length);
+      document.getElementById("statProducts").textContent = String((results[3] || []).length);
+    }
+
+    profileForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      try {
+        const data = await apiRequest("/profile/me", {
+          method: "PUT",
+          body: JSON.stringify({
+            eposta: String(emailInput.value || "").trim(),
+            telefon: String(phoneInput.value || "").trim(),
+            displayName: String(displayNameInput.value || "").trim()
+          })
+        });
+        const user = data && data.user ? data.user : {};
+        emailInput.value = user.email || "";
+        phoneInput.value = user.phone || "";
+        displayNameInput.value = user.displayName || "";
+
+        const session = getSession();
+        if (session) {
+          session.email = user.email || session.email || null;
+          session.phone = user.phone || session.phone || null;
+          session.displayName = user.displayName || session.displayName || null;
+          saveSession(session);
+        }
+        showMsg(profileMsg, "Profil bilgileri kaydedildi.");
+      } catch (err) {
+        showMsg(profileMsg, err.message || "Profil kaydedilemedi.");
+      }
+    });
+
+    passwordForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const current = String(currentPasswordInput.value || "");
+      const next = String(newPasswordInput.value || "");
+      const confirm = String(confirmPasswordInput.value || "");
+      if (!current || !next || !confirm) {
+        showMsg(passwordMsg, "Tum sifre alanlari zorunludur.");
+        return;
+      }
+      if (next !== confirm) {
+        showMsg(passwordMsg, "Yeni sifre alanlari ayni olmali.");
+        return;
+      }
+      if (next.length < 6) {
+        showMsg(passwordMsg, "Yeni sifre en az 6 karakter olmali.");
+        return;
+      }
+      try {
+        await apiRequest("/profile/password", {
+          method: "PUT",
+          body: JSON.stringify({ currentPassword: current, newPassword: next })
+        });
+        currentPasswordInput.value = "";
+        newPasswordInput.value = "";
+        confirmPasswordInput.value = "";
+        showMsg(passwordMsg, "Sifre guncellendi.");
+      } catch (err) {
+        showMsg(passwordMsg, err.message || "Sifre guncellenemedi.");
+      }
+    });
+
+    document.querySelectorAll("[data-toggle-password]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const id = btn.getAttribute("data-toggle-password");
+        const input = document.getElementById(id);
+        if (!input) return;
+        const nextType = input.type === "password" ? "text" : "password";
+        input.type = nextType;
+        btn.textContent = nextType === "password" ? "Goster" : "Gizle";
+      });
+    });
+
+    Promise.all([loadProfile(), loadStats()]).catch(function (err) {
+      showMsg(profileMsg, err.message || "Profil verileri alinamadi.");
+    });
+  </script>
+</body>
+</html>

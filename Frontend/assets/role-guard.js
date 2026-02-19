@@ -36,6 +36,136 @@
     localStorage.removeItem(sessionKey);
   }
 
+  function apiBaseUrl() {
+    return String(cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+  }
+
+  function toAbsoluteUrl(input) {
+    try {
+      if (typeof input === "string") {
+        return new URL(input, window.location.origin).href;
+      }
+      if (input && typeof input.url === "string") {
+        return new URL(input.url, window.location.origin).href;
+      }
+    } catch (_e) {}
+    return "";
+  }
+
+  function isApiRequest(input) {
+    var absolute = toAbsoluteUrl(input);
+    if (!absolute) return false;
+    return absolute.indexOf(apiBaseUrl()) === 0;
+  }
+
+  function isAuthBypassPath(input) {
+    var absolute = toAbsoluteUrl(input);
+    if (!absolute) return false;
+    return absolute.indexOf("/api/auth/login") > -1 || absolute.indexOf("/api/auth/refresh") > -1;
+  }
+
+  function normalizeHeaders(headers) {
+    var out = {};
+    if (!headers) return out;
+    if (typeof Headers !== "undefined" && headers instanceof Headers) {
+      headers.forEach(function (value, key) {
+        out[key] = value;
+      });
+      return out;
+    }
+    if (Array.isArray(headers)) {
+      headers.forEach(function (entry) {
+        if (!Array.isArray(entry) || entry.length < 2) return;
+        out[String(entry[0])] = entry[1];
+      });
+      return out;
+    }
+    if (typeof headers === "object") {
+      Object.keys(headers).forEach(function (key) {
+        out[key] = headers[key];
+      });
+    }
+    return out;
+  }
+
+  var refreshPromise = null;
+  async function refreshAccessToken() {
+    var session = getSession();
+    if (!session || !session.refreshToken) return false;
+
+    var response = await window.__AUTH_RAW_FETCH(apiBaseUrl() + "/auth/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: session.refreshToken })
+    });
+    var payload = await response.json().catch(function () { return null; });
+    if (!response.ok || !payload || payload.ok !== true || !payload.data) {
+      return false;
+    }
+
+    var nextSession = Object.assign({}, session, {
+      accessToken: payload.data.accessToken || "",
+      refreshToken: payload.data.refreshToken || session.refreshToken,
+      refreshedAt: new Date().toISOString()
+    });
+    if (payload.data.user && typeof payload.data.user === "object") {
+      nextSession.userId = payload.data.user.id || nextSession.userId || null;
+      nextSession.email = payload.data.user.email || nextSession.email || null;
+      nextSession.phone = payload.data.user.phone || nextSession.phone || null;
+      nextSession.displayName = payload.data.user.displayName || nextSession.displayName || null;
+      nextSession.role = payload.data.user.role || nextSession.role || null;
+      nextSession.branchId = payload.data.user.branchId || null;
+      nextSession.branchName = payload.data.user.branchName || null;
+      nextSession.centerId = payload.data.user.centerId || null;
+      nextSession.centerName = payload.data.user.centerName || null;
+      nextSession.isActive = payload.data.user.isActive !== false;
+    }
+    setSession(nextSession);
+    return true;
+  }
+
+  async function refreshOnce() {
+    if (refreshPromise) return refreshPromise;
+    refreshPromise = refreshAccessToken()
+      .catch(function () { return false; })
+      .finally(function () { refreshPromise = null; });
+    return refreshPromise;
+  }
+
+  function installAuthFetchInterceptor() {
+    if (typeof window.fetch !== "function") return;
+    if (window.__AUTH_FETCH_INSTALLED) return;
+
+    var rawFetch = window.fetch.bind(window);
+    window.__AUTH_RAW_FETCH = rawFetch;
+
+    window.fetch = async function (input, init) {
+      var response = await rawFetch(input, init);
+
+      if (cfg.TEST_MODE) return response;
+      if (response.status !== 401) return response;
+      if (!isApiRequest(input) || isAuthBypassPath(input)) return response;
+
+      var refreshed = await refreshOnce();
+      if (!refreshed) {
+        clearSession();
+        window.location.replace(toRootPage("login.html"));
+        return response;
+      }
+
+      var session = getSession();
+      var nextHeaders = normalizeHeaders(init && init.headers);
+      if (session && session.accessToken) {
+        nextHeaders.Authorization = "Bearer " + session.accessToken;
+      }
+
+      var retryInit = Object.assign({}, init || {}, { headers: nextHeaders });
+      return rawFetch(input, retryInit);
+    };
+
+    window.__AUTH_FETCH_INSTALLED = true;
+  }
+
   function currentRole() {
     var session = getSession();
     if (session && session.role) return session.role;
@@ -103,12 +233,50 @@
     });
   }
 
+  function bindNavDropdowns() {
+    var nav = document.querySelector(".nav");
+    if (!nav) return;
+
+    var detailNodes = nav.querySelectorAll("details");
+    if (!detailNodes.length) return;
+
+    function closeAll(exceptNode) {
+      detailNodes.forEach(function (node) {
+        if (exceptNode && node === exceptNode) return;
+        node.open = false;
+      });
+    }
+
+    detailNodes.forEach(function (node) {
+      node.addEventListener("toggle", function () {
+        if (!node.open) return;
+        closeAll(node);
+      });
+    });
+
+    nav.querySelectorAll("details a[href]").forEach(function (link) {
+      link.addEventListener("click", function () {
+        closeAll();
+      });
+    });
+
+    document.addEventListener("click", function (event) {
+      if (nav.contains(event.target)) return;
+      closeAll();
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") closeAll();
+    });
+  }
+
   function ensureProfileMenuStyles() {
     if (document.getElementById("profile-menu-styles")) return;
     var style = document.createElement("style");
     style.id = "profile-menu-styles";
     style.textContent = [
       ".profile-menu{position:relative;}",
+      ".nav .profile-menu{margin-left:auto;}",
       ".profile-menu summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;",
       "text-decoration:none;color:var(--ink);border:1px solid var(--border);border-radius:11px;padding:.5rem .75rem;",
       "background:rgba(255,255,255,.72);font-weight:600;}",
@@ -137,7 +305,7 @@
   function profileLinkByRole(role) {
     if (role === "sube") return toRootPage("sube/profil.html");
     if (role === "merkez") return toRootPage("merkez/profil.html");
-    if (role === "admin") return toRootPage("admin/settings.html");
+    if (role === "admin") return toRootPage("admin/profile.html");
     return toRootPage("login.html");
   }
 
@@ -147,9 +315,10 @@
     if (nav.querySelector("[data-profile-menu='1']")) return;
 
     var session = getSession() || {};
-    var displayName = session.displayName || session.branchName || session.email || ("Rol: " + (role || "-"));
+    var displayName = session.displayName || session.branchName || session.centerName || session.email || ("Rol: " + (role || "-"));
     var subline = (role || "-").toUpperCase();
     if (session.branchName) subline += " | " + session.branchName;
+    if (session.centerName) subline += " | " + session.centerName;
 
     ensureProfileMenuStyles();
 
@@ -178,15 +347,14 @@
 
   function injectAdminLink(role) {
     if (!cfg.TEST_MODE && role !== "admin") return;
+    var path = window.location.pathname.replace(/\\/g, "/");
+    if (path.indexOf("/admin/") > -1) return;
     var nav = document.querySelector(".nav");
     if (!nav) return;
     var existing = nav.querySelector("a[href='admin/index.html'], a[href='../admin/index.html'], a[href='index.html'][data-admin-link='1']");
     if (existing) return;
     var a = document.createElement("a");
-    var path = window.location.pathname.replace(/\\/g, "/");
-    if (path.indexOf("/admin/") > -1) {
-      a.href = "index.html";
-    } else if (path.indexOf("/sube/") > -1 || path.indexOf("/merkez/") > -1) {
+    if (path.indexOf("/sube/") > -1 || path.indexOf("/merkez/") > -1) {
       a.href = "../admin/index.html";
     } else {
       a.href = "admin/index.html";
@@ -220,11 +388,13 @@
   };
 
   applyGuard();
+  installAuthFetchInterceptor();
   document.addEventListener("DOMContentLoaded", function () {
     var role = currentRole();
     toggleNavByRole(role);
     injectAdminLink(role);
     injectProfileMenu(role);
+    bindNavDropdowns();
     bindLogout();
   });
 })();

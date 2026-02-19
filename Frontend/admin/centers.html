@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Merkezler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: .8rem; }
+    @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: .55rem; }
+    @media (max-width: 740px) { .form-grid { grid-template-columns: 1fr; } }
+    label { font-size: .88rem; font-weight: 600; display: block; }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .85);
+      border-radius: 10px;
+      padding: .52rem .62rem;
+      font: inherit;
+      margin-top: .25rem;
+      outline: none;
+    }
+    textarea { min-height: 68px; resize: vertical; }
+    .actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .7rem; }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .62rem;
+      background: rgba(255, 255, 255, .82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.75); }
+    table { border-collapse: collapse; width: 100%; min-width: 760px; }
+    th, td { border-bottom: 1px solid rgba(19,34,31,.12); padding: .45rem .52rem; text-align: left; font-size: .88rem; }
+    th { background: rgba(255,255,255,.92); position: sticky; top: 0; z-index: 1; }
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .15rem .45rem;
+      font-size: .77rem;
+      font-weight: 700;
+      background: rgba(216,240,227,.9);
+    }
+    .badge.passive { background: rgba(255,226,226,.92); border-color: rgba(171,47,47,.35); color: #7c1d1d; }
+    .mini { font-size: .8rem; opacity: .82; }
+    .msg {
+      display: none;
+      margin-top: .6rem;
+      border: 1px solid rgba(19,34,31,.2);
+      background: rgba(216,240,227,.75);
+      border-radius: 10px;
+      padding: .55rem .62rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <span class="eyebrow">Admin</span>
+          <h1>Merkez Yonetimi</h1>
+        </div>
+        <nav class="nav">
+          <a href="index.html">Dashboard</a>
+          <details class="nav-dd">
+            <summary>Yonetim</summary>
+            <div class="nav-dd-menu">
+              <a href="users.html">Kullanicilar</a>
+              <a href="branches.html">Subeler</a>
+              <a href="centers.html">Merkezler</a>
+              <a href="products.html">Urunler</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Operasyon</summary>
+            <div class="nav-dd-menu">
+              <a href="orders.html">Siparisler</a>
+              <a href="logs.html">Loglar</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Sistem</summary>
+            <div class="nav-dd-menu">
+              <a href="settings.html">Ayarlar</a>
+            </div>
+          </details>
+        </nav>
+      </div>
+
+      <section class="layout">
+        <article class="card">
+          <h3>Yeni Merkez Ekle</h3>
+          <form id="createCenterForm" class="form-grid">
+            <label>Merkez Adi
+              <input type="text" id="createName" required>
+            </label>
+            <label>Yetkili
+              <input type="text" id="createManager">
+            </label>
+            <label>Telefon
+              <input type="text" id="createPhone">
+            </label>
+            <label>E-posta
+              <input type="email" id="createEmail">
+            </label>
+            <label style="grid-column:1/-1;">Adres
+              <textarea id="createAddress"></textarea>
+            </label>
+            <label>Durum
+              <select id="createActive">
+                <option value="true">Aktif</option>
+                <option value="false">Pasif</option>
+              </select>
+            </label>
+          </form>
+          <div class="actions">
+            <button class="btn primary" id="createBtn" type="button">Merkez Olustur</button>
+            <button class="btn" id="reloadBtn" type="button">Listeyi Yenile</button>
+          </div>
+          <div id="createMsg" class="msg"></div>
+        </article>
+
+        <article class="card">
+          <h3>Secili Merkez Duzenle</h3>
+          <div class="mini" id="selectedInfo">Henuz secim yok.</div>
+          <form id="editCenterForm" class="form-grid">
+            <label>Merkez Adi
+              <input type="text" id="editName" required>
+            </label>
+            <label>Yetkili
+              <input type="text" id="editManager">
+            </label>
+            <label>Telefon
+              <input type="text" id="editPhone">
+            </label>
+            <label>E-posta
+              <input type="email" id="editEmail">
+            </label>
+            <label style="grid-column:1/-1;">Adres
+              <textarea id="editAddress"></textarea>
+            </label>
+            <label>Durum
+              <select id="editActive">
+                <option value="true">Aktif</option>
+                <option value="false">Pasif</option>
+              </select>
+            </label>
+          </form>
+          <div class="actions">
+            <button class="btn primary" id="saveEditBtn" type="button">Bilgileri Kaydet</button>
+            <button class="btn" id="saveStatusBtn" type="button">Durumu Kaydet</button>
+          </div>
+          <div id="editMsg" class="msg"></div>
+        </article>
+      </section>
+
+      <article class="card" style="margin-top:.8rem;">
+        <h3>Merkez Listesi</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Merkez</th>
+                <th>Yetkili</th>
+                <th>Telefon</th>
+                <th>E-posta</th>
+                <th>Durum</th>
+                <th>Kullanici Sayisi</th>
+                <th>Islem</th>
+              </tr>
+            </thead>
+            <tbody id="centersBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </main>
+  </div>
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const centersBody = document.getElementById("centersBody");
+    const selectedInfo = document.getElementById("selectedInfo");
+    const createMsg = document.getElementById("createMsg");
+    const editMsg = document.getElementById("editMsg");
+    let centers = [];
+    let selectedCenterId = "";
+
+    function showMsg(el, text) {
+      el.style.display = "block";
+      el.textContent = text;
+      setTimeout(function () {
+        el.style.display = "none";
+      }, 2600);
+    }
+
+    function getSession() {
+      try {
+        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    function selectedCenter() {
+      return centers.find(function (c) { return c.id === selectedCenterId; }) || null;
+    }
+
+    function renderCenters() {
+      const html = centers.map(function (c) {
+        const activeCls = c.isActive ? "" : "passive";
+        const activeText = c.isActive ? "Aktif" : "Pasif";
+        const selected = selectedCenterId === c.id ? " style='background:rgba(19,34,31,.06)'" : "";
+        return '' +
+          '<tr' + selected + '>' +
+          '<td>' + c.name + '</td>' +
+          '<td>' + (c.manager || "-") + '</td>' +
+          '<td>' + (c.phone || "-") + '</td>' +
+          '<td>' + (c.email || "-") + '</td>' +
+          '<td><span class="badge ' + activeCls + '">' + activeText + '</span></td>' +
+          '<td>' + Number(c.userCount || 0) + '</td>' +
+          '<td><button class="btn" data-select-center="' + c.id + '">Sec</button></td>' +
+          '</tr>';
+      }).join("");
+      centersBody.innerHTML = html || '<tr><td colspan="7">Merkez bulunamadi.</td></tr>';
+      centersBody.querySelectorAll("[data-select-center]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          selectedCenterId = btn.getAttribute("data-select-center") || "";
+          applySelectedToForm();
+          renderCenters();
+        });
+      });
+    }
+
+    function applySelectedToForm() {
+      const c = selectedCenter();
+      if (!c) {
+        selectedInfo.textContent = "Henuz secim yok.";
+        document.getElementById("editName").value = "";
+        document.getElementById("editManager").value = "";
+        document.getElementById("editPhone").value = "";
+        document.getElementById("editEmail").value = "";
+        document.getElementById("editAddress").value = "";
+        document.getElementById("editActive").value = "true";
+        return;
+      }
+      selectedInfo.textContent = "Secili: " + c.name;
+      document.getElementById("editName").value = c.name || "";
+      document.getElementById("editManager").value = c.manager || "";
+      document.getElementById("editPhone").value = c.phone || "";
+      document.getElementById("editEmail").value = c.email || "";
+      document.getElementById("editAddress").value = c.address || "";
+      document.getElementById("editActive").value = c.isActive ? "true" : "false";
+    }
+
+    async function loadCenters() {
+      const data = await apiRequest("/centers", { method: "GET" });
+      centers = Array.isArray(data) ? data : [];
+      if (!selectedCenter() && centers.length) selectedCenterId = centers[0].id;
+      renderCenters();
+      applySelectedToForm();
+    }
+
+    async function createCenter() {
+      const payload = {
+        name: document.getElementById("createName").value.trim(),
+        manager: document.getElementById("createManager").value.trim(),
+        phone: document.getElementById("createPhone").value.trim(),
+        email: document.getElementById("createEmail").value.trim(),
+        address: document.getElementById("createAddress").value.trim(),
+        isActive: document.getElementById("createActive").value === "true"
+      };
+      const created = await apiRequest("/centers", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      centers.push(created);
+      selectedCenterId = created.id;
+      renderCenters();
+      applySelectedToForm();
+      showMsg(createMsg, "Merkez olusturuldu.");
+    }
+
+    async function saveCenterEdit() {
+      const c = selectedCenter();
+      if (!c) throw new Error("Lutfen listeden merkez secin.");
+      const payload = {
+        name: document.getElementById("editName").value.trim(),
+        manager: document.getElementById("editManager").value.trim(),
+        phone: document.getElementById("editPhone").value.trim(),
+        email: document.getElementById("editEmail").value.trim(),
+        address: document.getElementById("editAddress").value.trim()
+      };
+      const updated = await apiRequest("/centers/" + c.id, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      centers = centers.map(function (x) { return x.id === updated.id ? updated : x; });
+      renderCenters();
+      applySelectedToForm();
+      showMsg(editMsg, "Merkez bilgileri guncellendi.");
+    }
+
+    async function saveCenterStatus() {
+      const c = selectedCenter();
+      if (!c) throw new Error("Lutfen listeden merkez secin.");
+      const isActive = document.getElementById("editActive").value === "true";
+      const updated = await apiRequest("/centers/" + c.id + "/status", {
+        method: "PUT",
+        body: JSON.stringify({ isActive: isActive })
+      });
+      centers = centers.map(function (x) { return x.id === updated.id ? updated : x; });
+      renderCenters();
+      applySelectedToForm();
+      showMsg(editMsg, "Durum guncellendi.");
+    }
+
+    document.getElementById("createBtn").addEventListener("click", function () {
+      createCenter().catch(function (err) { showMsg(createMsg, err.message || "Merkez olusturulamadi."); });
+    });
+    document.getElementById("reloadBtn").addEventListener("click", function () {
+      loadCenters().catch(function (err) { showMsg(createMsg, err.message || "Liste yenilenemedi."); });
+    });
+    document.getElementById("saveEditBtn").addEventListener("click", function () {
+      saveCenterEdit().catch(function (err) { showMsg(editMsg, err.message || "Kaydedilemedi."); });
+    });
+    document.getElementById("saveStatusBtn").addEventListener("click", function () {
+      saveCenterStatus().catch(function (err) { showMsg(editMsg, err.message || "Durum guncellenemedi."); });
+    });
+
+    loadCenters().catch(function (err) {
+      showMsg(createMsg, err.message || "Merkez verileri alinamadi.");
+    });
+  </script>
+</body>
+</html>
+
+

@@ -8,6 +8,60 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: .8rem; }
+    @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: .55rem; }
+    @media (max-width: 740px) { .form-grid { grid-template-columns: 1fr; } }
+    label { font-size: .88rem; font-weight: 600; display: block; }
+    input, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .85);
+      border-radius: 10px;
+      padding: .52rem .62rem;
+      font: inherit;
+      margin-top: .25rem;
+      outline: none;
+    }
+    .actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .7rem; }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .62rem;
+      background: rgba(255, 255, 255, .82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .btn.warn { border-color: rgba(171,47,47,.35); color: #7c1d1d; background: #fff1f1; }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.75); }
+    table { border-collapse: collapse; width: 100%; min-width: 760px; }
+    th, td { border-bottom: 1px solid rgba(19,34,31,.12); padding: .45rem .52rem; text-align: left; font-size: .88rem; }
+    th { background: rgba(255,255,255,.92); position: sticky; top: 0; z-index: 1; }
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .15rem .45rem;
+      font-size: .77rem;
+      font-weight: 700;
+      background: rgba(216,240,227,.9);
+    }
+    .badge.passive { background: rgba(255,226,226,.92); border-color: rgba(171,47,47,.35); color: #7c1d1d; }
+    .mini { font-size: .8rem; opacity: .82; }
+    .msg {
+      display: none;
+      margin-top: .6rem;
+      border: 1px solid rgba(19,34,31,.2);
+      background: rgba(216,240,227,.75);
+      border-radius: 10px;
+      padding: .55rem .62rem;
+      font-weight: 700;
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -19,27 +73,405 @@
         </div>
         <nav class="nav">
           <a href="index.html">Dashboard</a>
-          <a href="users.html">Kullanicilar</a>
-          <a href="branches.html">Subeler</a>
-          <a href="products.html">Urunler</a>
-          <a href="orders.html">Siparisler</a>
-          <a href="logs.html">Loglar</a>
-          <a href="settings.html">Ayarlar</a>
-          <a href="../login.html">Cikis</a>
+          <details class="nav-dd">
+            <summary>Yonetim</summary>
+            <div class="nav-dd-menu">
+              <a href="users.html">Kullanicilar</a>
+              <a href="branches.html">Subeler</a>
+              <a href="centers.html">Merkezler</a>
+              <a href="products.html">Urunler</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Operasyon</summary>
+            <div class="nav-dd-menu">
+              <a href="orders.html">Siparisler</a>
+              <a href="logs.html">Loglar</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Sistem</summary>
+            <div class="nav-dd-menu">
+              <a href="settings.html">Ayarlar</a>
+            </div>
+          </details>
         </nav>
       </div>
 
-      <article class="card">
-        <h3>Planlanan Islemler</h3>
-        <ul>
-          <li>Kullanici listeleme/olusturma/guncelleme</li>
-          <li>Rol atama: sube, merkez, admin</li>
-          <li>Hesap aktif/pasif ve sifre reset sureci</li>
-        </ul>
+      <section class="layout">
+        <article class="card">
+          <h3>Yeni Kullanici Ekle</h3>
+          <form id="createUserForm" class="form-grid">
+            <label>E-posta
+              <input type="email" id="createEmail" required>
+            </label>
+            <label>Telefon
+              <input type="text" id="createPhone" placeholder="90555...">
+            </label>
+            <label>Gosterim Adi
+              <input type="text" id="createDisplayName" required>
+            </label>
+            <label>Rol
+              <select id="createRole" required>
+                <option value="sube">sube</option>
+                <option value="merkez">merkez</option>
+                <option value="admin">admin</option>
+              </select>
+            </label>
+            <label>Sube
+              <select id="createBranchId"></select>
+            </label>
+            <label>Merkez
+              <select id="createCenterId"></select>
+            </label>
+            <label>Ilk Sifre
+              <input type="text" id="createPassword" value="12345678" minlength="6" required>
+            </label>
+            <label>Durum
+              <select id="createActive">
+                <option value="true">Aktif</option>
+                <option value="false">Pasif</option>
+              </select>
+            </label>
+          </form>
+          <div class="actions">
+            <button class="btn primary" id="createBtn" type="button">Kullanici Olustur</button>
+            <button class="btn" id="reloadBtn" type="button">Listeyi Yenile</button>
+          </div>
+          <div id="createMsg" class="msg"></div>
+        </article>
+
+        <article class="card">
+          <h3>Secili Kullanici Duzenle</h3>
+          <div class="mini" id="selectedInfo">Henuz secim yok.</div>
+          <form id="editUserForm" class="form-grid">
+            <label>E-posta
+              <input type="email" id="editEmail" required>
+            </label>
+            <label>Telefon
+              <input type="text" id="editPhone" placeholder="90555...">
+            </label>
+            <label>Gosterim Adi
+              <input type="text" id="editDisplayName" required>
+            </label>
+            <label>Rol
+              <select id="editRole" required>
+                <option value="sube">sube</option>
+                <option value="merkez">merkez</option>
+                <option value="admin">admin</option>
+              </select>
+            </label>
+            <label>Sube
+              <select id="editBranchId"></select>
+            </label>
+            <label>Merkez
+              <select id="editCenterId"></select>
+            </label>
+            <label>Yeni Sifre (opsiyonel reset)
+              <input type="text" id="editResetPassword" placeholder="Bos birakirsan 12345678">
+            </label>
+            <label>Durum
+              <select id="editActive">
+                <option value="true">Aktif</option>
+                <option value="false">Pasif</option>
+              </select>
+            </label>
+          </form>
+          <div class="actions">
+            <button class="btn primary" id="saveEditBtn" type="button">Bilgileri Kaydet</button>
+            <button class="btn" id="saveStatusBtn" type="button">Durumu Kaydet</button>
+            <button class="btn warn" id="resetPasswordBtn" type="button">Sifre Resetle</button>
+          </div>
+          <div id="editMsg" class="msg"></div>
+        </article>
+      </section>
+
+      <article class="card" style="margin-top:.8rem;">
+        <h3>Kullanici Listesi</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>E-posta</th>
+                <th>Telefon</th>
+                <th>Ad</th>
+                <th>Rol</th>
+                <th>Bagli Kayit</th>
+                <th>Durum</th>
+                <th>Olusturma</th>
+                <th>Islem</th>
+              </tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
       </article>
     </main>
   </div>
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const createRole = document.getElementById("createRole");
+    const createBranchId = document.getElementById("createBranchId");
+    const createCenterId = document.getElementById("createCenterId");
+    const editRole = document.getElementById("editRole");
+    const editBranchId = document.getElementById("editBranchId");
+    const editCenterId = document.getElementById("editCenterId");
+    const usersBody = document.getElementById("usersBody");
+    const selectedInfo = document.getElementById("selectedInfo");
+    const createMsg = document.getElementById("createMsg");
+    const editMsg = document.getElementById("editMsg");
+    let users = [];
+    let branches = [];
+    let centers = [];
+    let selectedUserId = "";
+
+    function showMsg(el, text) {
+      el.style.display = "block";
+      el.textContent = text;
+      setTimeout(function () { el.style.display = "none"; }, 2600);
+    }
+
+    function getSession() {
+      try { return JSON.parse(localStorage.getItem(sessionKey) || "null"); }
+      catch (_err) { return null; }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
+
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    function toDateText(value) {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "-";
+      return d.toLocaleString("tr-TR");
+    }
+
+    function selectedUser() {
+      return users.find(function (u) { return u.id === selectedUserId; }) || null;
+    }
+
+    function fillBranchOptions(selectEl) {
+      const opts = ['<option value="">(sube degil)</option>'].concat(
+        branches.map(function (b) {
+          return '<option value="' + b.id + '">' + b.name + (b.isActive ? "" : " (pasif)") + "</option>";
+        })
+      );
+      selectEl.innerHTML = opts.join("");
+    }
+
+    function fillCenterOptions(selectEl) {
+      const opts = ['<option value="">(merkez degil)</option>'].concat(
+        centers.map(function (c) {
+          return '<option value="' + c.id + '">' + c.name + (c.isActive ? "" : " (pasif)") + "</option>";
+        })
+      );
+      selectEl.innerHTML = opts.join("");
+    }
+
+    function syncRelationState(roleSelectEl, branchSelectEl, centerSelectEl) {
+      const role = roleSelectEl.value;
+      const isSube = role === "sube";
+      const isMerkez = role === "merkez";
+      branchSelectEl.disabled = !isSube;
+      centerSelectEl.disabled = !isMerkez;
+      if (!isSube) branchSelectEl.value = "";
+      if (!isMerkez) centerSelectEl.value = "";
+    }
+
+    function renderUsers() {
+      const html = users.map(function (u) {
+        const activeCls = u.isActive ? "" : "passive";
+        const activeText = u.isActive ? "Aktif" : "Pasif";
+        const selected = selectedUserId === u.id ? " style='background:rgba(19,34,31,.06)'" : "";
+        const relationText = u.role === "sube"
+          ? (u.branchName || "-")
+          : (u.role === "merkez" ? (u.centerName || "-") : "-");
+        return "" +
+          "<tr" + selected + ">" +
+          "<td>" + u.email + "</td>" +
+          "<td>" + (u.phone || "-") + "</td>" +
+          "<td>" + (u.displayName || "-") + "</td>" +
+          "<td>" + u.role + "</td>" +
+          "<td>" + relationText + "</td>" +
+          "<td><span class='badge " + activeCls + "'>" + activeText + "</span></td>" +
+          "<td>" + toDateText(u.createdAt) + "</td>" +
+          "<td><button class='btn' data-select-user='" + u.id + "'>Sec</button></td>" +
+          "</tr>";
+      }).join("");
+      usersBody.innerHTML = html || "<tr><td colspan='8'>Kullanici bulunamadi.</td></tr>";
+      usersBody.querySelectorAll("[data-select-user]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          selectedUserId = btn.getAttribute("data-select-user") || "";
+          applySelectedToForm();
+          renderUsers();
+        });
+      });
+    }
+
+    function applySelectedToForm() {
+      const user = selectedUser();
+      if (!user) {
+        selectedInfo.textContent = "Henuz secim yok.";
+        document.getElementById("editEmail").value = "";
+        document.getElementById("editPhone").value = "";
+        document.getElementById("editDisplayName").value = "";
+        editRole.value = "sube";
+        editBranchId.value = "";
+        editCenterId.value = "";
+        document.getElementById("editActive").value = "true";
+        return;
+      }
+      selectedInfo.textContent = "Secili: " + user.email + " (" + user.role + ")";
+      document.getElementById("editEmail").value = user.email || "";
+      document.getElementById("editPhone").value = user.phone || "";
+      document.getElementById("editDisplayName").value = user.displayName || "";
+      editRole.value = user.role || "sube";
+      editBranchId.value = user.branchId || "";
+      editCenterId.value = user.centerId || "";
+      document.getElementById("editActive").value = user.isActive ? "true" : "false";
+      syncRelationState(editRole, editBranchId, editCenterId);
+    }
+
+    async function loadAll() {
+      const results = await Promise.all([
+        apiRequest("/admin/users/meta/branches", { method: "GET" }),
+        apiRequest("/admin/users/meta/centers", { method: "GET" }),
+        apiRequest("/admin/users", { method: "GET" })
+      ]);
+      branches = Array.isArray(results[0]) ? results[0] : [];
+      centers = Array.isArray(results[1]) ? results[1] : [];
+      users = Array.isArray(results[2]) ? results[2] : [];
+
+      fillBranchOptions(createBranchId);
+      fillBranchOptions(editBranchId);
+      fillCenterOptions(createCenterId);
+      fillCenterOptions(editCenterId);
+      syncRelationState(createRole, createBranchId, createCenterId);
+      syncRelationState(editRole, editBranchId, editCenterId);
+
+      if (!selectedUser() && users.length) selectedUserId = users[0].id;
+      applySelectedToForm();
+      renderUsers();
+    }
+
+    async function createUser() {
+      const payload = {
+        email: document.getElementById("createEmail").value.trim(),
+        phone: document.getElementById("createPhone").value.trim() || undefined,
+        displayName: document.getElementById("createDisplayName").value.trim(),
+        role: createRole.value,
+        password: document.getElementById("createPassword").value,
+        isActive: document.getElementById("createActive").value === "true"
+      };
+      if (payload.role === "sube") payload.branchId = createBranchId.value || null;
+      if (payload.role === "merkez") payload.centerId = createCenterId.value || null;
+
+      const created = await apiRequest("/admin/users", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      users.push(created);
+      selectedUserId = created.id;
+      renderUsers();
+      applySelectedToForm();
+      showMsg(createMsg, "Kullanici olusturuldu.");
+    }
+
+    async function saveUserEdit() {
+      const user = selectedUser();
+      if (!user) throw new Error("Lutfen listeden kullanici secin.");
+
+      const role = editRole.value;
+      const payload = {
+        email: document.getElementById("editEmail").value.trim(),
+        phone: document.getElementById("editPhone").value.trim() || null,
+        displayName: document.getElementById("editDisplayName").value.trim(),
+        role: role,
+        branchId: role === "sube" ? (editBranchId.value || null) : null,
+        centerId: role === "merkez" ? (editCenterId.value || null) : null
+      };
+
+      const updated = await apiRequest("/admin/users/" + user.id, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      users = users.map(function (u) { return u.id === updated.id ? updated : u; });
+      renderUsers();
+      applySelectedToForm();
+      showMsg(editMsg, "Kullanici bilgileri guncellendi.");
+    }
+
+    async function saveUserStatus() {
+      const user = selectedUser();
+      if (!user) throw new Error("Lutfen listeden kullanici secin.");
+      const isActive = document.getElementById("editActive").value === "true";
+      const updated = await apiRequest("/admin/users/" + user.id + "/status", {
+        method: "PUT",
+        body: JSON.stringify({ isActive: isActive })
+      });
+      users = users.map(function (u) { return u.id === updated.id ? updated : u; });
+      renderUsers();
+      applySelectedToForm();
+      showMsg(editMsg, "Durum guncellendi.");
+    }
+
+    async function resetUserPassword() {
+      const user = selectedUser();
+      if (!user) throw new Error("Lutfen listeden kullanici secin.");
+      const newPassword = document.getElementById("editResetPassword").value.trim();
+      const payload = newPassword ? { newPassword: newPassword } : {};
+      const result = await apiRequest("/admin/users/" + user.id + "/reset-password", {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      document.getElementById("editResetPassword").value = "";
+      showMsg(editMsg, "Sifre resetlendi. Yeni sifre: " + result.tempPassword);
+    }
+
+    createRole.addEventListener("change", function () {
+      syncRelationState(createRole, createBranchId, createCenterId);
+    });
+    editRole.addEventListener("change", function () {
+      syncRelationState(editRole, editBranchId, editCenterId);
+    });
+
+    document.getElementById("createBtn").addEventListener("click", function () {
+      createUser().catch(function (err) { showMsg(createMsg, err.message || "Kullanici olusturulamadi."); });
+    });
+    document.getElementById("reloadBtn").addEventListener("click", function () {
+      loadAll().catch(function (err) { showMsg(createMsg, err.message || "Liste yenilenemedi."); });
+    });
+    document.getElementById("saveEditBtn").addEventListener("click", function () {
+      saveUserEdit().catch(function (err) { showMsg(editMsg, err.message || "Kaydedilemedi."); });
+    });
+    document.getElementById("saveStatusBtn").addEventListener("click", function () {
+      saveUserStatus().catch(function (err) { showMsg(editMsg, err.message || "Durum guncellenemedi."); });
+    });
+    document.getElementById("resetPasswordBtn").addEventListener("click", function () {
+      resetUserPassword().catch(function (err) { showMsg(editMsg, err.message || "Sifre resetlenemedi."); });
+    });
+
+    loadAll().catch(function (err) {
+      showMsg(createMsg, err.message || "Admin users verileri alinamadi.");
+    });
+  </script>
 </body>
 </html>

@@ -1,0 +1,27 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+CREATE TABLE [dbo].[system_settings] (
+  [id] NVARCHAR(1000) NOT NULL,
+  [key] NVARCHAR(1000) NOT NULL,
+  [value] NVARCHAR(1000) NOT NULL,
+  [updated_by] NVARCHAR(1000),
+  [created_at] DATETIME2 NOT NULL CONSTRAINT [system_settings_created_at_df] DEFAULT CURRENT_TIMESTAMP,
+  [updated_at] DATETIME2 NOT NULL,
+  CONSTRAINT [system_settings_pkey] PRIMARY KEY CLUSTERED ([id]),
+  CONSTRAINT [system_settings_key_key] UNIQUE NONCLUSTERED ([key])
+);
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

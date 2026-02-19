@@ -177,8 +177,8 @@
 
     <form id="loginForm" action="sube/siparis.html" method="get">
       <label>
-        E-posta
-        <input type="email" id="emailInput" name="email" placeholder="ornek@mail.com" required>
+        E-posta / Telefon
+        <input type="text" id="emailInput" name="emailOrPhone" placeholder="ornek@mail.com veya 0555..." required>
       </label>
       <label>
         Sifre
@@ -234,11 +234,11 @@
       event.preventDefault();
       hideError();
 
-      const email = (emailInput.value || "").trim();
+      const emailOrPhone = (emailInput.value || "").trim();
       const password = String(passwordInput.value || "");
 
-      if (!email || !password) {
-        showError("E-posta ve sifre zorunludur.");
+      if (!emailOrPhone || !password) {
+        showError("E-posta/telefon ve sifre zorunludur.");
         return;
       }
 
@@ -247,7 +247,7 @@
           const response = await fetch(apiBaseUrl + "/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email, password: password })
+            body: JSON.stringify({ emailOrPhone: emailOrPhone, password: password })
           });
 
           const payload = await response.json().catch(function () { return null; });
@@ -269,11 +269,14 @@
 
           const session = {
             userId: user.id || null,
-            email: user.email || email,
+            email: user.email || null,
+            phone: user.phone || null,
             displayName: user.displayName || null,
             role: selectedRole,
             branchId: user.branchId || null,
             branchName: user.branchName || null,
+            centerId: user.centerId || null,
+            centerName: user.centerName || null,
             isActive: user.isActive !== false,
             accessToken: accessToken,
             refreshToken: refreshToken,
@@ -296,7 +299,8 @@
         : (cfg.DEFAULT_PROD_ROLE || "sube");
 
       const session = {
-        email: email,
+        email: emailOrPhone.includes("@") ? emailOrPhone : null,
+        phone: emailOrPhone.includes("@") ? null : emailOrPhone,
         role: selectedRole,
         loginAt: new Date().toISOString()
       };

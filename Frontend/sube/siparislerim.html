@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
@@ -149,6 +149,57 @@
       padding-top: .55rem;
       font-size: .92rem;
     }
+    .items-table-wrap {
+      margin-top: .55rem;
+      overflow: auto;
+      border: 1px solid rgba(19, 34, 31, .12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .86);
+    }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 620px;
+      font-size: .88rem;
+    }
+    .items-table th,
+    .items-table td {
+      border-bottom: 1px solid rgba(19, 34, 31, .1);
+      padding: .42rem .5rem;
+      text-align: left;
+      vertical-align: middle;
+    }
+    .items-table th {
+      background: rgba(255, 255, 255, .95);
+      font-weight: 700;
+    }
+    .item-row-rejected {
+      color: #b4232a;
+      font-weight: 700;
+      background: rgba(255, 238, 238, .82);
+    }
+    .item-status {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .12rem .45rem;
+      font-size: .74rem;
+      font-weight: 700;
+      display: inline-block;
+      white-space: nowrap;
+      background: rgba(255, 255, 255, .88);
+    }
+    .item-status.ok {
+      background: rgba(216, 240, 227, .95);
+    }
+    .item-status.partial {
+      background: rgba(255, 243, 221, .95);
+      border-color: rgba(196, 143, 56, .35);
+    }
+    .item-status.reject {
+      background: rgba(255, 231, 231, .95);
+      border-color: rgba(191, 72, 72, .35);
+      color: #8f1d23;
+    }
     .badge {
       border: 1px solid var(--border);
       border-radius: 999px;
@@ -159,6 +210,18 @@
     }
     .badge.ok {
       background: rgba(216, 240, 227, .95);
+    }
+    .badge.reject {
+      background: rgba(255, 231, 231, .95);
+      border-color: rgba(191, 72, 72, .35);
+    }
+    .badge.partial {
+      background: rgba(255, 243, 221, .95);
+      border-color: rgba(196, 143, 56, .35);
+    }
+    .badge.delivery {
+      background: rgba(221, 242, 232, .95);
+      border-color: rgba(74, 140, 92, .4);
     }
     .empty {
       border: 1px dashed var(--border);
@@ -183,7 +246,6 @@
           <a href="siparis.html">Siparis Ver</a>
           <a href="siparislerim.html">Siparislerim</a>
           <a href="../merkez/merkez.html">Merkez Paneli</a>
-          <a href="../login.html">Cikis</a>
         </nav>
       </div>
 
@@ -225,6 +287,13 @@
       return d.toLocaleString("tr-TR");
     }
 
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
     function getAuthSession() {
       try {
         return JSON.parse(localStorage.getItem(sessionKey) || "null");
@@ -259,13 +328,18 @@
         deliveryDate: order.deliveryDate,
         deliveryTime: order.deliveryTime,
         createdAt: order.createdAt,
+        deliveryStatus: order.deliveryStatus || "Teslim Bekliyor",
+        deliveredAt: order.deliveredAt || null,
+        deliveredByName: order.deliveredByName || null,
         totalTray: Number(order.totalTray || 0),
         totalAmount: Number(order.totalAmount || 0),
         items: (order.items || []).map(function (item) {
           return {
             name: item.name,
             qty: Number(item.qty || 0),
-            unitPrice: Number(item.unitPrice || 0)
+            unitPrice: Number(item.unitPrice || 0),
+            approvedQty: item.approvedQty === null || item.approvedQty === undefined ? null : Number(item.approvedQty),
+            itemStatus: item.itemStatus || ""
           };
         })
       };
@@ -327,20 +401,55 @@
 
       const html = orders
         .slice()
-        .reverse()
+        .sort(function (a, b) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        })
         .map(function (order) {
-          const statusText = order.status === "Onaylandi" ? "Onaylandi" : "Onay Bekliyor";
-          const statusClass = statusText === "Onaylandi" ? "badge ok" : "badge";
-          const items = order.items.map(function (item) {
-            return item.name + ": " + item.qty + " tepsi x " + formatTL(item.unitPrice);
-          }).join("<br>");
+          const statusText = order.status === "Onaylandi"
+            ? "Onaylandi"
+            : (order.status === "Kismen Onaylandi"
+              ? "Kismen Onaylandi"
+              : (order.status === "Onaylanmadi" ? "Onaylanmadi" : "Onay Bekliyor"));
+          const statusClass = statusText === "Onaylandi"
+            ? "badge ok"
+            : (statusText === "Onaylanmadi" ? "badge reject" : (statusText === "Kismen Onaylandi" ? "badge partial" : "badge"));
+          const deliveryText = String(order.deliveryStatus || "").toLowerCase() === "teslim edildi" ? "Teslim Edildi" : "Teslim Bekliyor";
+          const deliveryClass = deliveryText === "Teslim Edildi" ? "badge delivery" : "badge";
+          const itemRows = order.items.map(function (item) {
+            const itemStatus = item.itemStatus || (statusText === "Onay Bekliyor" ? "Onay Bekliyor" : (statusText === "Onaylanmadi" ? "Onaylanmadi" : "Onaylandi"));
+            const approvedQty = item.approvedQty === null || item.approvedQty === undefined ? "-" : item.approvedQty;
+            const rowClass = itemStatus === "Onaylanmadi" ? "item-row-rejected" : "";
+            const itemStatusClass = itemStatus === "Onaylandi"
+              ? "ok"
+              : (itemStatus === "Kismen Onaylandi" ? "partial" : (itemStatus === "Onaylanmadi" ? "reject" : ""));
+            return '' +
+              '<tr class="' + rowClass + '">' +
+              '<td>' + escapeHtml(item.name) + '</td>' +
+              '<td>' + item.qty + ' tepsi</td>' +
+              '<td>' + approvedQty + ' tepsi</td>' +
+              '<td>' + escapeHtml(formatTL(item.unitPrice)) + '</td>' +
+              '<td><span class="item-status ' + itemStatusClass + '">' + escapeHtml(itemStatus) + '</span></td>' +
+              '</tr>';
+          }).join("");
+          const items = '' +
+            '<div class="items-table-wrap">' +
+            '  <table class="items-table">' +
+            '    <thead><tr><th>Urun</th><th>Talep</th><th>Onay</th><th>Birim Fiyat</th><th>Durum</th></tr></thead>' +
+            '    <tbody>' + itemRows + '</tbody>' +
+            '  </table>' +
+            '</div>';
+          const deliveryMeta = deliveryText === "Teslim Edildi"
+            ? ('<div class="line"><span><strong>Teslim Bilgisi:</strong> ' + formatDate(order.deliveredAt) + '</span><span>Yetkili: ' + (order.deliveredByName || "-") + '</span></div>')
+            : "";
 
           return '' +
             '<article class="order">' +
             '  <div class="line"><strong>Siparis No: ' + order.orderNo + '</strong><span class="' + statusClass + '">' + statusText + '</span></div>' +
+            '  <div class="line"><span class="' + deliveryClass + '">' + deliveryText + '</span></div>' +
             '  <div class="line"><span>Teslimat: ' + (order.deliveryDate || "-") + ' ' + (order.deliveryTime || "") + '</span><span>Olusturma: ' + formatDate(order.createdAt) + '</span></div>' +
+            deliveryMeta +
             '  <div class="line"><span>Toplam Tepsi: ' + order.totalTray + '</span><strong>Toplam: ' + formatTL(order.totalAmount) + '</strong></div>' +
-            '  <div class="items">' + items + '</div>' +
+            '  <div class="items"><strong>Siparis Kalemleri</strong>' + items + '</div>' +
             '</article>';
         })
         .join("");

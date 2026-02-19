@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
@@ -117,6 +117,7 @@
       padding: .85rem;
       display: grid;
       gap: .5rem;
+      position: relative;
     }
     .item.passive {
       border-color: rgba(171, 47, 47, .35);
@@ -242,6 +243,98 @@
       font-weight: 700;
       opacity: .86;
     }
+    .item-thumb {
+      position: absolute;
+      top: .75rem;
+      right: .75rem;
+      width: 66px;
+      height: 56px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .78);
+      object-fit: cover;
+    }
+    .item-thumb.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .7rem;
+      font-weight: 700;
+      color: rgba(19, 34, 31, .58);
+      border-style: dashed;
+    }
+    .item.with-thumb strong,
+    .item.with-thumb .price {
+      padding-right: 78px;
+    }
+    .carryover-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      z-index: 45;
+      background: rgba(19, 34, 31, .28);
+      backdrop-filter: blur(2px);
+    }
+    .carryover-modal.show { display: flex; }
+    .carryover-card {
+      width: min(560px, 100%);
+      border-radius: 16px;
+      border: 1px solid rgba(19, 34, 31, .2);
+      background: rgba(255, 255, 255, .97);
+      box-shadow: 0 16px 36px rgba(19, 34, 31, .22);
+      padding: .95rem 1rem;
+    }
+    .carryover-card h3 {
+      margin: .1rem 0 .25rem;
+      font-size: 1.05rem;
+    }
+    .carryover-hint {
+      font-size: .9rem;
+      color: rgba(19, 34, 31, .82);
+      margin-bottom: .6rem;
+    }
+    .carryover-list {
+      display: grid;
+      gap: .55rem;
+      max-height: min(48vh, 380px);
+      overflow: auto;
+      padding-right: .2rem;
+    }
+    .carryover-row {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .84);
+      padding: .55rem .62rem;
+    }
+    .carryover-row strong {
+      display: block;
+      margin-bottom: .15rem;
+    }
+    .carryover-row .mini {
+      font-size: .82rem;
+      opacity: .8;
+      margin-bottom: .35rem;
+    }
+    .carryover-row input {
+      margin-top: 0;
+      max-width: 220px;
+    }
+    .carryover-empty {
+      border: 1px dashed var(--border);
+      border-radius: 11px;
+      padding: .72rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, .75);
+    }
+    .carryover-actions {
+      display: flex;
+      gap: .55rem;
+      flex-wrap: wrap;
+      margin-top: .7rem;
+    }
   </style>
 </head>
 <body>
@@ -260,7 +353,6 @@
           <a href="siparis.html">Siparis Ver</a>
           <a href="siparislerim.html">Siparislerim</a>
           <a href="../merkez/merkez.html">Merkez Paneli</a>
-          <a href="../login.html">Cikis</a>
         </nav>
       </div>
 
@@ -295,6 +387,17 @@
       <div id="noticeCount" class="notice-count"></div>
     </div>
   </div>
+  <div id="carryoverModal" class="carryover-modal">
+    <div class="carryover-card">
+      <h3>Dunden Kalan Urun Bilgisi</h3>
+      <div class="carryover-hint">Bir onceki gun siparis verdigin urunlerden elinde kalan varsa kg cinsinden gir. Hepsi varsayilan 0 gelir.</div>
+      <div id="carryoverList" class="carryover-list"></div>
+      <div class="carryover-actions">
+        <button id="carryoverSkipBtn" class="btn secondary" type="button">Kalan Yok, Devam Et</button>
+        <button id="carryoverConfirmBtn" class="btn primary" type="button">Tamam ve Siparisi Gonder</button>
+      </div>
+    </div>
+  </div>
 
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
@@ -310,6 +413,10 @@
     const noticeTitle = document.getElementById("noticeTitle");
     const noticeText = document.getElementById("noticeText");
     const noticeCount = document.getElementById("noticeCount");
+    const carryoverModal = document.getElementById("carryoverModal");
+    const carryoverList = document.getElementById("carryoverList");
+    const carryoverSkipBtn = document.getElementById("carryoverSkipBtn");
+    const carryoverConfirmBtn = document.getElementById("carryoverConfirmBtn");
     const cfg = window.APP_CONFIG || {};
     const testMode = !!cfg.TEST_MODE;
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
@@ -318,6 +425,8 @@
     const branchName = (session && session.branchName) ? session.branchName : "Borekci Sube 01";
     let numberInputs = [];
     let branchContext = null;
+    let pendingSubmit = null;
+    let carryoverCandidates = [];
     let noticeTimer = null;
     let noticeTick = null;
     const defaultProducts = [
@@ -345,6 +454,17 @@
 
     function formatTL(value) {
       return new Intl.NumberFormat("tr-TR").format(value) + " TL";
+    }
+
+    function toDateKey(dateValue) {
+      return dateValue.getFullYear() + "-" + String(dateValue.getMonth() + 1).padStart(2, "0") + "-" + String(dateValue.getDate()).padStart(2, "0");
+    }
+
+    function orderDateKey(isoText) {
+      if (!isoText) return "";
+      const d = new Date(isoText);
+      if (Number.isNaN(d.getTime())) return "";
+      return toDateKey(d);
     }
 
     function escapeHtml(text) {
@@ -390,6 +510,79 @@
         noticeCount.textContent = remainSec + " sn sonra kapanacak";
       }, 1000);
       noticeTimer = setTimeout(hideNotice, duration);
+    }
+
+    function closeCarryoverModal() {
+      carryoverModal.classList.remove("show");
+      carryoverList.innerHTML = "";
+      carryoverCandidates = [];
+      carryoverConfirmBtn.disabled = false;
+      carryoverSkipBtn.disabled = false;
+    }
+
+    function findYesterdayCarryoverCandidatesFromLocal() {
+      const rawOrders = localStorage.getItem("branchOrders");
+      const allOrders = rawOrders ? JSON.parse(rawOrders) : [];
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const key = toDateKey(yesterday);
+      const byName = {};
+      allOrders.forEach(function (order) {
+        if ((order.branchName || "") !== branchName) return;
+        if (orderDateKey(order.createdAt) !== key) return;
+        (order.items || []).forEach(function (item) {
+          const name = String(item.name || "").trim();
+          const productCode = String(item.productCode || item.name || "").trim().toLowerCase().replaceAll(" ", "_");
+          if (!name || !productCode) return;
+          if (!byName[productCode]) {
+            byName[productCode] = { productCode: productCode, name: name, yesterdayTray: 0, defaultKg: 0 };
+          }
+          byName[productCode].yesterdayTray += Number(item.qty || 0);
+        });
+      });
+      return Object.values(byName);
+    }
+
+    async function loadCarryoverCandidates() {
+      if (!testMode) {
+        const rows = await apiRequest("/orders/my/carryover-candidates", { method: "GET" });
+        return Array.isArray(rows) ? rows : [];
+      }
+      return findYesterdayCarryoverCandidatesFromLocal();
+    }
+
+    function renderCarryoverRows(rows) {
+      if (!rows.length) {
+        carryoverList.innerHTML = '<div class="carryover-empty">Dun siparis verilen urun bulunmuyor. Dilersen direkt devam edebilirsin.</div>';
+        return;
+      }
+      carryoverList.innerHTML = rows.map(function (row) {
+        return '' +
+          '<article class="carryover-row">' +
+          '  <strong>' + escapeHtml(row.name || "-") + '</strong>' +
+          '  <div class="mini">Dun siparis: ' + Number(row.yesterdayTray || 0) + ' tepsi</div>' +
+          '  <label>Kalan (kg)<input class="carryover-kg-input" type="number" min="0" step="0.1" value="' + Number(row.defaultKg || 0) + '" data-product-code="' + escapeHtml(row.productCode || "") + '" data-name="' + escapeHtml(row.name || "") + '"></label>' +
+          '</article>';
+      }).join("");
+    }
+
+    async function openCarryoverModal() {
+      carryoverCandidates = await loadCarryoverCandidates();
+      renderCarryoverRows(carryoverCandidates);
+      carryoverModal.classList.add("show");
+    }
+
+    function collectCarryoverValues() {
+      const inputs = Array.from(carryoverList.querySelectorAll(".carryover-kg-input"));
+      return inputs.map(function (input) {
+        return {
+          productCode: String(input.dataset.productCode || "").trim(),
+          name: String(input.dataset.name || "").trim(),
+          qtyKg: Number(input.value || 0)
+        };
+      }).filter(function (row) {
+        return !!row.productCode && row.qtyKg > 0;
+      });
     }
 
     function updateCartTotal() {
@@ -500,8 +693,12 @@
             const safeName = escapeHtml(product.name);
             const price = Number(product.adjustedPrice || 0);
             const isActive = product.isActive !== false;
+            const imageUrl = product.imageUrl ? escapeHtml(product.imageUrl) : "";
             return '' +
-              '<article class="item ' + (isActive ? "" : "passive") + '">' +
+              '<article class="item ' + (isActive ? "" : "passive") + ' ' + (imageUrl ? "with-thumb" : "") + '">' +
+              (imageUrl
+                ? ('<img class="item-thumb" src="' + imageUrl + '" alt="' + safeName + '">')
+                : '<div class="item-thumb empty">Resim Yok</div>') +
               '  <strong>' + safeName + '</strong>' +
               '  ' + (isActive ? "" : '<div class="passive-note">Pasif - Tedarik Saglanamiyor</div>') +
               '  <div class="price">Tepsi Fiyati: <span>' + price + '</span> TL</div>' +
@@ -532,6 +729,7 @@
           const safeName = escapeHtml(name);
           return '' +
             '<article class="item ' + (isActive ? "" : "passive") + '">' +
+            '<div class="item-thumb empty">Resim Yok</div>' +
             '  <strong>' + safeName + '</strong>' +
             '  ' + (isActive ? "" : '<div class="passive-note">Pasif - Tedarik Saglanamiyor</div>') +
             '  <div class="price">Tepsi Fiyati: <span>' + price + '</span> TL</div>' +
@@ -607,44 +805,76 @@
         }
       });
 
+      pendingSubmit = {
+        totals: totals,
+        items: items,
+        deliveryDate: teslimatTarihi.value,
+        deliveryTime: teslimatSaati.value,
+        note: merkezNotu.value.trim()
+      };
+      try {
+        await openCarryoverModal();
+      } catch (err) {
+        showNotice("error", (err && err.message) || "Kalan urun penceresi acilamadi.");
+        pendingSubmit = null;
+      }
+    });
+
+    async function finalizeSubmitWithCarryovers(carryovers) {
+      if (!pendingSubmit) return;
+      const payload = pendingSubmit;
+
       if (!testMode) {
         try {
           const created = await apiRequest("/orders", {
             method: "POST",
             body: JSON.stringify({
-              deliveryDate: teslimatTarihi.value,
-              deliveryTime: teslimatSaati.value,
-              note: merkezNotu.value.trim(),
-              items: items.map(function (item) {
+              deliveryDate: payload.deliveryDate,
+              deliveryTime: payload.deliveryTime,
+              note: payload.note,
+              items: payload.items.map(function (item) {
                 return { productCode: item.productCode, qtyTray: item.qtyTray };
+              }),
+              carryovers: carryovers.map(function (row) {
+                return { productCode: row.productCode, qtyKg: row.qtyKg };
               })
             })
           });
 
-          showNotice("success", "Siparis kaydedildi. Siparis No: " + created.orderNo + " | Toplam: " + formatTL(Number(created.totalAmount || totals.totalAmount)));
+          showNotice("success", "Siparis kaydedildi. Siparis No: " + created.orderNo + " | Toplam: " + formatTL(Number(created.totalAmount || payload.totals.totalAmount)));
           setTimeout(function () {
             window.location.href = "siparislerim.html";
           }, 3200);
+          pendingSubmit = null;
           return;
         } catch (err) {
           showNotice("error", (err && err.message) || "Siparis kaydedilemedi.");
+          pendingSubmit = null;
           return;
         }
       }
 
       const rawOrders = localStorage.getItem("branchOrders");
       const orders = rawOrders ? JSON.parse(rawOrders) : [];
+      const carryoverNameMap = carryovers.reduce(function (acc, row) {
+        acc[row.productCode] = row.name || row.productCode;
+        return acc;
+      }, {});
       const order = {
         orderNo: nextOrderNo(orders),
         branchName: branchName,
         status: "Onay Bekliyor",
-        deliveryDate: teslimatTarihi.value,
-        deliveryTime: teslimatSaati.value,
-        note: merkezNotu.value.trim(),
-        totalTray: totals.totalTray,
-        totalAmount: totals.totalAmount,
-        items: items.map(function (item) {
-          return { name: item.name, qty: item.qtyTray, unitPrice: item.unitPrice };
+        deliveryStatus: "Teslim Bekliyor",
+        deliveryDate: payload.deliveryDate,
+        deliveryTime: payload.deliveryTime,
+        note: payload.note,
+        totalTray: payload.totals.totalTray,
+        totalAmount: payload.totals.totalAmount,
+        items: payload.items.map(function (item) {
+          return { name: item.name, qty: item.qtyTray, unitPrice: item.unitPrice, productCode: item.productCode };
+        }),
+        carryovers: carryovers.map(function (row) {
+          return { productCode: row.productCode, name: carryoverNameMap[row.productCode] || row.productCode, qtyKg: row.qtyKg };
         }),
         createdAt: new Date().toISOString()
       };
@@ -655,6 +885,20 @@
       setTimeout(function () {
         window.location.href = "siparislerim.html";
       }, 3200);
+      pendingSubmit = null;
+    }
+
+    carryoverSkipBtn.addEventListener("click", function () {
+      closeCarryoverModal();
+      finalizeSubmitWithCarryovers([]);
+    });
+
+    carryoverConfirmBtn.addEventListener("click", function () {
+      carryoverConfirmBtn.disabled = true;
+      carryoverSkipBtn.disabled = true;
+      const rows = collectCarryoverValues();
+      closeCarryoverModal();
+      finalizeSubmitWithCarryovers(rows);
     });
   </script>
 </body>

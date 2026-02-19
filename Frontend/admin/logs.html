@@ -8,6 +8,44 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .toolbar { display:flex; gap:.5rem; flex-wrap:wrap; align-items:end; margin-bottom:.75rem; }
+    .toolbar label { font-size:.85rem; font-weight:600; display:block; }
+    .toolbar input {
+      margin-top:.25rem;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:.45rem .58rem;
+      background: rgba(255,255,255,.86);
+      font: inherit;
+      min-width: 150px;
+    }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .62rem;
+      background: rgba(255, 255, 255, .82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .table-wrap { overflow:auto; border:1px solid var(--border); border-radius:12px; background:rgba(255,255,255,.75); }
+    table { border-collapse:collapse; width:100%; min-width:980px; }
+    th, td { border-bottom:1px solid rgba(19,34,31,.12); padding:.45rem .52rem; text-align:left; font-size:.86rem; vertical-align:top; }
+    th { background:rgba(255,255,255,.92); position:sticky; top:0; z-index:1; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.8rem; }
+    .msg {
+      display:none;
+      margin-bottom:.65rem;
+      border:1px solid rgba(19,34,31,.2);
+      background: rgba(216,240,227,.75);
+      border-radius:10px;
+      padding:.55rem .62rem;
+      font-weight:700;
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -19,27 +57,266 @@
         </div>
         <nav class="nav">
           <a href="index.html">Dashboard</a>
-          <a href="users.html">Kullanicilar</a>
-          <a href="branches.html">Subeler</a>
-          <a href="products.html">Urunler</a>
-          <a href="orders.html">Siparisler</a>
-          <a href="logs.html">Loglar</a>
-          <a href="settings.html">Ayarlar</a>
-          <a href="../login.html">Cikis</a>
+          <details class="nav-dd">
+            <summary>Yonetim</summary>
+            <div class="nav-dd-menu">
+              <a href="users.html">Kullanicilar</a>
+              <a href="branches.html">Subeler</a>
+              <a href="centers.html">Merkezler</a>
+              <a href="products.html">Urunler</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Operasyon</summary>
+            <div class="nav-dd-menu">
+              <a href="orders.html">Siparisler</a>
+              <a href="logs.html">Loglar</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Sistem</summary>
+            <div class="nav-dd-menu">
+              <a href="settings.html">Ayarlar</a>
+            </div>
+          </details>
         </nav>
       </div>
 
+      <div id="pageMsg" class="msg"></div>
+
+      <section class="toolbar">
+        <label>Baslangic
+          <input type="date" id="fromDate">
+        </label>
+        <label>Bitis
+          <input type="date" id="toDate">
+        </label>
+        <label>Aksiyon
+          <input type="text" id="actionFilter" placeholder="ORDER_APPROVE">
+        </label>
+        <label>Entity
+          <input type="text" id="entityFilter" placeholder="orders/users">
+        </label>
+        <label>Actor E-posta
+          <input type="text" id="actorFilter" placeholder="admin@...">
+        </label>
+        <label>Arama
+          <input type="text" id="qFilter" placeholder="entity id / meta">
+        </label>
+        <button class="btn primary" type="button" id="applyBtn">Filtrele</button>
+        <button class="btn" type="button" id="clearBtn">Temizle</button>
+      </section>
+
       <article class="card">
-        <h3>Planlanan Islemler</h3>
-        <ul>
-          <li>Kritik islem kayitlari (kullanici, zaman, once/sonra)</li>
-          <li>Hata loglari ve korelasyon id ile takip</li>
-          <li>Raporlama ve disa aktarim</li>
-        </ul>
+        <h3>Log Listesi</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tarih</th>
+                <th>Actor</th>
+                <th>Aksiyon</th>
+                <th>Entity</th>
+                <th>Entity Id</th>
+                <th>Aciklama</th>
+                <th>Meta</th>
+              </tr>
+            </thead>
+            <tbody id="logsBody"></tbody>
+          </table>
+        </div>
       </article>
     </main>
   </div>
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const logsBody = document.getElementById("logsBody");
+    const pageMsg = document.getElementById("pageMsg");
+    const fromDate = document.getElementById("fromDate");
+    const toDate = document.getElementById("toDate");
+    const actionFilter = document.getElementById("actionFilter");
+    const entityFilter = document.getElementById("entityFilter");
+    const actorFilter = document.getElementById("actorFilter");
+    const qFilter = document.getElementById("qFilter");
+    const lookup = {
+      productsById: {},
+      branchesById: {},
+      centersById: {},
+      usersById: {}
+    };
+
+    function showMsg(text) {
+      pageMsg.style.display = "block";
+      pageMsg.textContent = text;
+      setTimeout(function () { pageMsg.style.display = "none"; }, 2400);
+    }
+
+    function getSession() {
+      try { return JSON.parse(localStorage.getItem(sessionKey) || "null"); }
+      catch (_err) { return null; }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function fmtDate(value) {
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "-";
+      return d.toLocaleString("tr-TR");
+    }
+
+    function parseMeta(metaText) {
+      if (!metaText) return null;
+      try { return JSON.parse(metaText); } catch (_err) { return null; }
+    }
+
+    function getEntityLabel(entity, entityId) {
+      if (!entityId) return "-";
+      const e = String(entity || "").toLowerCase();
+      if (e === "products") return lookup.productsById[entityId] || entityId;
+      if (e === "branches") return lookup.branchesById[entityId] || entityId;
+      if (e === "centers") return lookup.centersById[entityId] || entityId;
+      if (e === "users") return lookup.usersById[entityId] || entityId;
+      return entityId;
+    }
+
+    function toReadableAction(log) {
+      const action = String(log && log.action ? log.action : "").toUpperCase();
+      const entity = String(log && log.entity ? log.entity : "").toLowerCase();
+      const entityLabel = getEntityLabel(entity, log && log.entityId ? String(log.entityId) : "");
+      const actorEmail = log && log.actor && log.actor.email ? log.actor.email : "-";
+      const meta = parseMeta(log && log.meta ? log.meta : "");
+      const loginEmail = meta && meta.loginEmail ? String(meta.loginEmail) : "";
+      const body = meta && meta.body && typeof meta.body === "object" ? meta.body : null;
+      const bodyName = body && body.name ? String(body.name) : "";
+      const bodyPercent = body && typeof body.percent !== "undefined" ? String(body.percent) : "";
+      const bodyPrice = body && typeof body.basePrice !== "undefined" ? String(body.basePrice) : "";
+
+      if (action === "POST_AUTH_LOGIN") return "Giris yapildi: " + (loginEmail || actorEmail);
+      if (action.includes("PRICE_ADJUSTMENT")) {
+        return "Sube fiyat farki guncellendi: " + entityLabel + (bodyPercent ? " (%" + bodyPercent + ")" : "");
+      }
+      if (action.includes("_STATUS")) return "Durum guncellendi: " + entityLabel + " (islem: " + actorEmail + ")";
+      if (action.includes("RESET_PASSWORD")) return "Kullanici sifresi sifirlandi: " + entityLabel;
+
+      if (action.startsWith("POST_")) {
+        if (entity === "users") return "Yeni kullanici olusturuldu: " + (bodyName || entityLabel);
+        if (entity === "branches") return "Yeni sube olusturuldu: " + (bodyName || entityLabel);
+        if (entity === "centers") return "Yeni merkez olusturuldu: " + (bodyName || entityLabel);
+        if (entity === "products") return "Yeni urun olusturuldu: " + (bodyName || entityLabel) + (bodyPrice ? " (" + bodyPrice + " TL)" : "");
+        if (entity === "orders") return "Yeni siparis olusturuldu: " + (entityLabel || log.entityId || "-");
+        return "Yeni kayit olusturuldu.";
+      }
+      if (action.startsWith("PUT_") || action.startsWith("PATCH_")) {
+        if (entity === "users") return "Kullanici guncellendi: " + entityLabel;
+        if (entity === "branches") return "Sube guncellendi: " + entityLabel;
+        if (entity === "centers") return "Merkez guncellendi: " + entityLabel;
+        if (entity === "products") return "Urun guncellendi: " + entityLabel + (bodyPrice ? " (yeni fiyat: " + bodyPrice + " TL)" : "");
+        if (entity === "orders") return "Siparis guncellendi: " + (entityLabel || log.entityId || "-");
+        if (entity === "profile") return "Profil guncellendi: " + actorEmail;
+        return "Kayit guncellendi.";
+      }
+      if (action.startsWith("DELETE_")) {
+        if (entity === "users") return "Kullanici silindi: " + entityLabel;
+        if (entity === "branches") return "Sube silindi: " + entityLabel;
+        if (entity === "centers") return "Merkez silindi: " + entityLabel;
+        if (entity === "products") return "Urun silindi: " + entityLabel;
+        if (entity === "orders") return "Siparis silindi: " + (entityLabel || log.entityId || "-");
+        return "Kayit silindi.";
+      }
+
+      return "Islem kaydi olusturuldu.";
+    }
+
+    async function loadLookups() {
+      const rows = await Promise.all([
+        apiRequest("/products", { method: "GET" }).catch(function () { return []; }),
+        apiRequest("/branches", { method: "GET" }).catch(function () { return []; }),
+        apiRequest("/centers", { method: "GET" }).catch(function () { return []; }),
+        apiRequest("/admin/users", { method: "GET" }).catch(function () { return []; })
+      ]);
+
+      (rows[0] || []).forEach(function (p) { lookup.productsById[p.id] = p.name || p.code || p.id; });
+      (rows[1] || []).forEach(function (b) { lookup.branchesById[b.id] = b.name || b.id; });
+      (rows[2] || []).forEach(function (c) { lookup.centersById[c.id] = c.name || c.id; });
+      (rows[3] || []).forEach(function (u) { lookup.usersById[u.id] = (u.displayName || u.email || u.id); });
+    }
+
+    function buildQuery() {
+      const params = [];
+      if (fromDate.value) params.push("from=" + encodeURIComponent(fromDate.value));
+      if (toDate.value) params.push("to=" + encodeURIComponent(toDate.value));
+      if (actionFilter.value.trim()) params.push("action=" + encodeURIComponent(actionFilter.value.trim()));
+      if (entityFilter.value.trim()) params.push("entity=" + encodeURIComponent(entityFilter.value.trim()));
+      if (actorFilter.value.trim()) params.push("actorEmail=" + encodeURIComponent(actorFilter.value.trim()));
+      if (qFilter.value.trim()) params.push("q=" + encodeURIComponent(qFilter.value.trim()));
+      params.push("limit=200");
+      return "?" + params.join("&");
+    }
+
+    async function loadLogs() {
+      const data = await apiRequest("/admin/logs" + buildQuery(), { method: "GET" });
+      const logs = Array.isArray(data) ? data : [];
+      const html = logs.map(function (log) {
+        const actor = log.actor ? (log.actor.email + (log.actor.role ? " (" + log.actor.role + ")" : "")) : "-";
+        return "" +
+          "<tr>" +
+          "<td>" + escapeHtml(fmtDate(log.createdAt)) + "</td>" +
+          "<td>" + escapeHtml(actor) + "</td>" +
+          "<td class='mono'>" + escapeHtml(log.action || "-") + "</td>" +
+          "<td class='mono'>" + escapeHtml(log.entity || "-") + "</td>" +
+          "<td class='mono'>" + escapeHtml(log.entityId || "-") + "</td>" +
+          "<td>" + escapeHtml(toReadableAction(log)) + "</td>" +
+          "<td class='mono'>" + escapeHtml(log.meta || "-") + "</td>" +
+          "</tr>";
+      }).join("");
+      logsBody.innerHTML = html || "<tr><td colspan='7'>Kayit bulunamadi.</td></tr>";
+    }
+
+    document.getElementById("applyBtn").addEventListener("click", function () {
+      loadLogs().catch(function (err) { showMsg(err.message || "Loglar alinamadi."); });
+    });
+    document.getElementById("clearBtn").addEventListener("click", function () {
+      fromDate.value = "";
+      toDate.value = "";
+      actionFilter.value = "";
+      entityFilter.value = "";
+      actorFilter.value = "";
+      qFilter.value = "";
+      loadLogs().catch(function (err) { showMsg(err.message || "Loglar alinamadi."); });
+    });
+
+    Promise.resolve()
+      .then(loadLookups)
+      .then(loadLogs)
+      .catch(function (err) {
+        showMsg(err.message || "Loglar alinamadi.");
+      });
+  </script>
 </body>
 </html>

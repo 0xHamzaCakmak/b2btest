@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
@@ -60,10 +60,10 @@
       to { transform: translateY(0); opacity: 1; }
     }
     .top {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 1rem;
-      flex-wrap: wrap;
+      align-items: start;
       margin-bottom: 1rem;
     }
     .eyebrow {
@@ -88,6 +88,8 @@
       gap: .6rem;
       flex-wrap: wrap;
       align-content: flex-start;
+      justify-content: flex-end;
+      margin-left: auto;
     }
     .nav a {
       text-decoration: none;
@@ -98,6 +100,15 @@
       background: rgba(255, 255, 255, .72);
       font-weight: 600;
       height: fit-content;
+    }
+    @media (max-width: 980px) {
+      .top {
+        grid-template-columns: 1fr;
+      }
+      .nav {
+        justify-content: flex-start;
+        margin-left: 0;
+      }
     }
     .stats {
       display: grid;
@@ -118,7 +129,7 @@
     }
     .two-col {
       display: grid;
-      grid-template-columns: 1.45fr .9fr;
+      grid-template-columns: 1.7fr .65fr;
       gap: .9rem;
     }
     @media (max-width: 940px) {
@@ -140,6 +151,85 @@
       flex-wrap: wrap;
       margin-bottom: .7rem;
       align-items: center;
+    }
+    .orders-controls {
+      border: 1px solid rgba(19, 34, 31, .12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .58);
+      padding: .6rem;
+      margin-bottom: .75rem;
+      display: grid;
+      gap: .55rem;
+    }
+    .toolbar-row {
+      display: flex;
+      gap: .55rem;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .toolbar-group {
+      display: flex;
+      gap: .55rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .toolbar-label {
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-weight: 700;
+      color: rgba(19, 34, 31, .72);
+      margin-right: .25rem;
+    }
+    .btn.warn {
+      background: rgba(255, 243, 221, .95);
+      border-color: rgba(196, 143, 56, .35);
+    }
+    .btn.success {
+      background: rgba(216, 240, 227, .95);
+      border-color: rgba(74, 140, 92, .35);
+      color: #193726;
+    }
+    .orders-list-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .7rem;
+      margin-bottom: .35rem;
+      padding-left: .15rem;
+    }
+    .orders-list-head-left {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .orders-list-head-right {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .master-check {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #13221f;
+    }
+    .master-check-label {
+      font-size: .84rem;
+      color: rgba(19, 34, 31, .76);
+      font-weight: 600;
+      user-select: none;
+      cursor: pointer;
+    }
+    @media (max-width: 860px) {
+      .toolbar-row {
+        justify-content: flex-start;
+      }
+      .toolbar-label {
+        width: 100%;
+        margin-bottom: .2rem;
+      }
     }
     .check-wrap {
       display: inline-flex;
@@ -201,6 +291,8 @@
       display: inline-flex;
       align-items: center;
       gap: .45rem;
+      flex-wrap: nowrap;
+      white-space: nowrap;
     }
     .status-pill {
       font-size: .78rem;
@@ -208,9 +300,18 @@
       border-radius: 999px;
       border: 1px solid var(--border);
       background: rgba(255, 255, 255, .8);
+      white-space: nowrap;
     }
     .status-pill.ok {
       background: rgba(216, 240, 227, .95);
+    }
+    .status-pill.reject {
+      background: rgba(255, 231, 231, .95);
+      border-color: rgba(191, 72, 72, .35);
+    }
+    .status-pill.partial {
+      background: rgba(255, 243, 221, .95);
+      border-color: rgba(196, 143, 56, .35);
     }
     details.order.approved {
       border-color: rgba(74, 140, 92, .45);
@@ -218,6 +319,10 @@
     }
     details.order.pending {
       border-color: rgba(232, 111, 81, .35);
+    }
+    details.order.rejected {
+      border-color: rgba(191, 72, 72, .35);
+      background: rgba(255, 246, 246, .92);
     }
     .mini-stats {
       display: flex;
@@ -232,6 +337,51 @@
       font-size: .93rem;
       display: grid;
       gap: .45rem;
+    }
+    .item-table-wrap {
+      overflow: auto;
+      border: 1px solid rgba(19, 34, 31, .12);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .88);
+    }
+    .item-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 560px;
+    }
+    .item-table th,
+    .item-table td {
+      border-bottom: 1px solid rgba(19, 34, 31, .1);
+      padding: .36rem .45rem;
+      text-align: left;
+      font-size: .86rem;
+      vertical-align: middle;
+    }
+    .item-table th {
+      background: rgba(255, 255, 255, .96);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .item-status-pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .12rem .42rem;
+      background: rgba(255, 255, 255, .9);
+      font-size: .75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .item-status-pill.ok {
+      background: rgba(216, 240, 227, .95);
+    }
+    .item-status-pill.reject {
+      background: rgba(255, 231, 231, .95);
+      border-color: rgba(191, 72, 72, .35);
+    }
+    .item-status-pill.partial {
+      background: rgba(255, 243, 221, .95);
+      border-color: rgba(196, 143, 56, .35);
     }
     .totals {
       display: grid;
@@ -253,6 +403,79 @@
       padding: .85rem;
       font-weight: 600;
     }
+    .carryover-card {
+      margin-top: .9rem;
+    }
+    .carryover-toolbar {
+      display: flex;
+      gap: .55rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: .7rem;
+    }
+    .carryover-table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .78);
+    }
+    .carryover-table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 700px;
+    }
+    .carryover-table th,
+    .carryover-table td {
+      border-bottom: 1px solid rgba(19, 34, 31, .12);
+      padding: .45rem .55rem;
+      text-align: left;
+      font-size: .88rem;
+      vertical-align: top;
+    }
+    .carryover-table th {
+      background: rgba(255, 255, 255, .94);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .dialog-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(19, 34, 31, .28);
+      backdrop-filter: blur(2px);
+      z-index: 70;
+    }
+    .dialog-overlay.show {
+      display: flex;
+    }
+    .dialog-card {
+      width: min(420px, 100%);
+      border-radius: 14px;
+      border: 1px solid rgba(19, 34, 31, .18);
+      background: rgba(255, 255, 255, .97);
+      box-shadow: 0 18px 36px rgba(19, 34, 31, .24);
+      padding: .95rem 1rem;
+    }
+    .dialog-title {
+      margin: 0 0 .35rem;
+      font-size: 1.05rem;
+    }
+    .dialog-text {
+      margin: 0;
+      font-size: .94rem;
+      line-height: 1.4;
+      color: rgba(19, 34, 31, .9);
+    }
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: .55rem;
+      margin-top: .85rem;
+    }
   </style>
 </head>
 <body>
@@ -271,7 +494,6 @@
           <a href="merkez.html">Merkez Paneli</a>
           <a href="merkez-urun-fiyat.html">Urunler</a>
           <a href="merkez-subeler.html">Subeler</a>
-          <a href="../login.html">Cikis</a>
         </nav>
       </div>
 
@@ -288,20 +510,38 @@
           <div class="mini-stats">
             <span class="status-pill">Onay Bekleyen: <strong id="pendingCount">0</strong></span>
             <span class="status-pill ok">Onaylanan: <strong id="approvedCount">0</strong></span>
+            <span class="status-pill">Kismen Onay: <strong id="partialCount">0</strong></span>
+            <span class="status-pill reject">Onaylanmadi: <strong id="rejectedCount">0</strong></span>
+            <span class="status-pill ok">Teslim Edilen: <strong id="deliveredCount">0</strong></span>
           </div>
-          <div class="toolbar">
-            <label class="check-wrap">
-              Tarih
-              <input type="date" id="dateFilter">
-            </label>
-            <button class="btn" type="button" id="todayBtn">Bugune Don</button>
-            <label class="check-wrap">
-              <input type="checkbox" id="selectAllOrders">
-              Tumunu Sec
-            </label>
-            <button class="btn primary" type="button" id="approveSelectedBtn">Secilenleri Onayla</button>
-            <button class="btn" type="button" id="approveAllBtn">Tum Siparisleri Onayla</button>
-            <button class="btn" type="button" id="refreshBtn">Yenile</button>
+          <div class="orders-controls">
+            <div class="toolbar-row">
+              <div class="toolbar-group">
+                <span class="toolbar-label">Filtre</span>
+                <label class="check-wrap">
+                  Tarih
+                  <input type="date" id="dateFilter">
+                </label>
+                <button class="btn" type="button" id="todayBtn">Bugune Don</button>
+                <button class="btn" type="button" id="refreshBtn">Yenile</button>
+              </div>
+            </div>
+            <div class="toolbar-row">
+              <div class="toolbar-group">
+                <span class="toolbar-label">Onay Islemleri</span>
+                <button class="btn primary" type="button" id="approveSelectedBtn">Secilenleri Onayla</button>
+                <button class="btn" type="button" id="approveAllBtn">Tum Siparisleri Onayla</button>
+              </div>
+            </div>
+          </div>
+          <div class="orders-list-head">
+            <div class="orders-list-head-left">
+              <input id="selectAllOrders" class="master-check" type="checkbox" aria-label="Listede bekleyen siparislerin tumunu sec">
+              <label class="master-check-label" for="selectAllOrders">Tum siparisleri sec</label>
+            </div>
+            <div class="orders-list-head-right">
+              <button class="btn warn" type="button" id="deliverAllBtn">Tumunu Teslim Edildi Isaretle</button>
+            </div>
           </div>
           <div class="orders" id="ordersList"></div>
         </article>
@@ -310,7 +550,48 @@
           <div class="totals" id="totalByProduct"></div>
         </article>
       </section>
+
+      <article class="card carryover-card">
+        <h3>Sube Kalan Takip Raporu (Kg)</h3>
+        <div class="carryover-toolbar">
+          <label class="check-wrap">
+            Baslangic
+            <input type="date" id="carryoverFromDate">
+          </label>
+          <label class="check-wrap">
+            Bitis
+            <input type="date" id="carryoverToDate">
+          </label>
+          <button class="btn" type="button" id="carryoverFilterBtn">Filtrele</button>
+          <button class="btn" type="button" id="carryoverTodayBtn">Bugun</button>
+          <button class="btn" type="button" id="carryoverClearBtn">Temizle</button>
+        </div>
+        <div class="carryover-table-wrap">
+          <table class="carryover-table">
+            <thead>
+              <tr>
+                <th>Sube</th>
+                <th>Urun</th>
+                <th>Toplam Kalan (kg)</th>
+                <th>Bildirim Sayisi</th>
+                <th>Son Bildirim</th>
+              </tr>
+            </thead>
+            <tbody id="carryoverBody"></tbody>
+          </table>
+        </div>
+      </article>
     </main>
+  </div>
+  <div id="dialogOverlay" class="dialog-overlay">
+    <div class="dialog-card">
+      <h3 id="dialogTitle" class="dialog-title">Onay</h3>
+      <p id="dialogText" class="dialog-text"></p>
+      <div class="dialog-actions">
+        <button id="dialogCancelBtn" class="btn" type="button">Vazgec</button>
+        <button id="dialogConfirmBtn" class="btn primary" type="button">Tamam</button>
+      </div>
+    </div>
   </div>
 
   <script src="../assets/app-config.js"></script>
@@ -325,11 +606,26 @@
     const selectAllOrders = document.getElementById("selectAllOrders");
     const approveSelectedBtn = document.getElementById("approveSelectedBtn");
     const approveAllBtn = document.getElementById("approveAllBtn");
+    const deliverAllBtn = document.getElementById("deliverAllBtn");
     const refreshBtn = document.getElementById("refreshBtn");
     const pendingCount = document.getElementById("pendingCount");
     const approvedCount = document.getElementById("approvedCount");
+    const partialCount = document.getElementById("partialCount");
+    const rejectedCount = document.getElementById("rejectedCount");
+    const deliveredCount = document.getElementById("deliveredCount");
     const dateFilter = document.getElementById("dateFilter");
     const todayBtn = document.getElementById("todayBtn");
+    const carryoverFromDate = document.getElementById("carryoverFromDate");
+    const carryoverToDate = document.getElementById("carryoverToDate");
+    const carryoverFilterBtn = document.getElementById("carryoverFilterBtn");
+    const carryoverTodayBtn = document.getElementById("carryoverTodayBtn");
+    const carryoverClearBtn = document.getElementById("carryoverClearBtn");
+    const carryoverBody = document.getElementById("carryoverBody");
+    const dialogOverlay = document.getElementById("dialogOverlay");
+    const dialogTitle = document.getElementById("dialogTitle");
+    const dialogText = document.getElementById("dialogText");
+    const dialogCancelBtn = document.getElementById("dialogCancelBtn");
+    const dialogConfirmBtn = document.getElementById("dialogConfirmBtn");
     const openOrderNos = new Set();
     let currentFilteredOrders = [];
     let currentProductTotals = {};
@@ -404,7 +700,14 @@
 
     function normalizeStatus(status) {
       if (status === "Onaylandi") return "Onaylandi";
+      if (status === "Kismen Onaylandi") return "Kismen Onaylandi";
+      if (status === "Onaylanmadi") return "Onaylanmadi";
       return "Onay Bekliyor";
+    }
+
+    function normalizeDeliveryStatus(status) {
+      if (String(status || "").toLowerCase() === "teslim edildi") return "Teslim Edildi";
+      return "Teslim Bekliyor";
     }
 
     function escapeHtml(text) {
@@ -414,12 +717,185 @@
         .replaceAll(">", "&gt;");
     }
 
+    function showConfirmDialog(title, text, confirmText, cancelText) {
+      return new Promise(function (resolve) {
+        dialogTitle.textContent = title || "Onay";
+        dialogText.textContent = text || "";
+        dialogConfirmBtn.textContent = confirmText || "Tamam";
+        dialogCancelBtn.textContent = cancelText || "Vazgec";
+        dialogCancelBtn.style.display = "";
+        dialogOverlay.classList.add("show");
+
+        function cleanup() {
+          dialogOverlay.classList.remove("show");
+          dialogConfirmBtn.removeEventListener("click", onConfirm);
+          dialogCancelBtn.removeEventListener("click", onCancel);
+          dialogOverlay.removeEventListener("click", onOverlay);
+          document.removeEventListener("keydown", onEsc);
+        }
+        function onConfirm() {
+          cleanup();
+          resolve(true);
+        }
+        function onCancel() {
+          cleanup();
+          resolve(false);
+        }
+        function onOverlay(event) {
+          if (event.target !== dialogOverlay) return;
+          cleanup();
+          resolve(false);
+        }
+        function onEsc(event) {
+          if (event.key !== "Escape") return;
+          cleanup();
+          resolve(false);
+        }
+
+        dialogConfirmBtn.addEventListener("click", onConfirm);
+        dialogCancelBtn.addEventListener("click", onCancel);
+        dialogOverlay.addEventListener("click", onOverlay);
+        document.addEventListener("keydown", onEsc);
+      });
+    }
+
+    function showInfoDialog(title, text, buttonText) {
+      return new Promise(function (resolve) {
+        dialogTitle.textContent = title || "Bilgi";
+        dialogText.textContent = text || "";
+        dialogConfirmBtn.textContent = buttonText || "Kapat";
+        dialogCancelBtn.style.display = "none";
+        dialogOverlay.classList.add("show");
+
+        function cleanup() {
+          dialogOverlay.classList.remove("show");
+          dialogConfirmBtn.removeEventListener("click", onClose);
+          dialogOverlay.removeEventListener("click", onOverlay);
+          document.removeEventListener("keydown", onEsc);
+          dialogCancelBtn.style.display = "";
+        }
+        function onClose() {
+          cleanup();
+          resolve();
+        }
+        function onOverlay(event) {
+          if (event.target !== dialogOverlay) return;
+          cleanup();
+          resolve();
+        }
+        function onEsc(event) {
+          if (event.key !== "Escape") return;
+          cleanup();
+          resolve();
+        }
+
+        dialogConfirmBtn.addEventListener("click", onClose);
+        dialogOverlay.addEventListener("click", onOverlay);
+        document.addEventListener("keydown", onEsc);
+      });
+    }
+
     function selectedDateKey() {
       return dateFilter.value || todayKey();
     }
 
+    function selectedCarryoverRange() {
+      return {
+        from: carryoverFromDate.value || "",
+        to: carryoverToDate.value || ""
+      };
+    }
+
     function setTodayFilter() {
       dateFilter.value = todayKey();
+    }
+
+    function setTodayCarryoverRange() {
+      const today = todayKey();
+      carryoverFromDate.value = today;
+      carryoverToDate.value = today;
+    }
+
+    async function loadCarryoverOrdersByRange() {
+      const range = selectedCarryoverRange();
+      if (!testMode) {
+        const query = [];
+        if (range.from) query.push("from=" + encodeURIComponent(range.from));
+        if (range.to) query.push("to=" + encodeURIComponent(range.to));
+        const path = "/orders" + (query.length ? "?" + query.join("&") : "");
+        const rows = await apiRequest(path, { method: "GET" });
+        return Array.isArray(rows) ? rows : [];
+      }
+
+      const allOrders = getOrders();
+      const fromDate = range.from ? new Date(range.from + "T00:00:00") : null;
+      const toDate = range.to ? new Date(range.to + "T23:59:59") : null;
+      return allOrders.filter(function (order) {
+        const d = new Date(order.createdAt);
+        if (Number.isNaN(d.getTime())) return false;
+        if (fromDate && d < fromDate) return false;
+        if (toDate && d > toDate) return false;
+        return true;
+      });
+    }
+
+    function renderCarryoverTable(rows) {
+      const map = {};
+      rows.forEach(function (order) {
+        const branch = order.branchName || "Bilinmeyen Sube";
+        const createdAt = order.createdAt || "";
+        const entries = Array.isArray(order.carryovers) ? order.carryovers : [];
+        entries.forEach(function (entry) {
+          const qtyKg = Number(entry.qtyKg || 0);
+          if (!(qtyKg > 0)) return;
+          const productName = entry.name || "Urun";
+          const key = branch + "||" + productName;
+          if (!map[key]) {
+            map[key] = {
+              branch: branch,
+              product: productName,
+              totalKg: 0,
+              count: 0,
+              lastAt: createdAt
+            };
+          }
+          map[key].totalKg += qtyKg;
+          map[key].count += 1;
+          if (new Date(createdAt).getTime() > new Date(map[key].lastAt).getTime()) {
+            map[key].lastAt = createdAt;
+          }
+        });
+      });
+
+      const list = Object.values(map).sort(function (a, b) {
+        if (a.branch !== b.branch) return a.branch.localeCompare(b.branch, "tr");
+        return a.product.localeCompare(b.product, "tr");
+      });
+
+      if (!list.length) {
+        carryoverBody.innerHTML = '<tr><td colspan="5">Secilen aralikta elde kalan kaydi bulunmuyor.</td></tr>';
+        return;
+      }
+
+      carryoverBody.innerHTML = list.map(function (item) {
+        return '' +
+          '<tr>' +
+          '<td>' + escapeHtml(item.branch) + '</td>' +
+          '<td>' + escapeHtml(item.product) + '</td>' +
+          '<td>' + escapeHtml(item.totalKg.toFixed(2)) + '</td>' +
+          '<td>' + String(item.count) + '</td>' +
+          '<td>' + escapeHtml(formatDate(item.lastAt)) + '</td>' +
+          '</tr>';
+      }).join("");
+    }
+
+    async function renderCarryoverReport() {
+      try {
+        const rows = await loadCarryoverOrdersByRange();
+        renderCarryoverTable(rows);
+      } catch (_err) {
+        carryoverBody.innerHTML = '<tr><td colspan="5">Kalan raporu alinamadi.</td></tr>';
+      }
     }
 
     async function render() {
@@ -450,6 +926,11 @@
       let totalAmount = 0;
       let pending = 0;
       let approved = 0;
+      let partial = 0;
+      let rejected = 0;
+      let delivered = 0;
+      let approvableOrderCount = 0;
+      let deliveryPendingCount = 0;
 
       filteredOrders.forEach(function (order) {
         const branch = order.branchName || "Bilinmeyen Sube";
@@ -466,8 +947,17 @@
           const qty = Number(item.qty || 0);
           productTotals[name] = (productTotals[name] || 0) + qty;
         });
-        if (normalizeStatus(order.status) === "Onaylandi") approved += 1;
+        const normalizedStatus = normalizeStatus(order.status);
+        if (normalizedStatus === "Onaylandi") approved += 1;
+        else if (normalizedStatus === "Kismen Onaylandi") partial += 1;
+        else if (normalizedStatus === "Onaylanmadi") rejected += 1;
         else pending += 1;
+        const normalizedDelivery = normalizeDeliveryStatus(order.deliveryStatus);
+        if (normalizedDelivery === "Teslim Edildi") delivered += 1;
+        if (normalizedStatus === "Onaylandi" || normalizedStatus === "Kismen Onaylandi") {
+          approvableOrderCount += 1;
+          if (normalizedDelivery !== "Teslim Edildi") deliveryPendingCount += 1;
+        }
       });
 
       statOrderCount.textContent = String(filteredOrders.length);
@@ -476,11 +966,16 @@
       statAmount.textContent = formatTL(totalAmount);
       pendingCount.textContent = String(pending);
       approvedCount.textContent = String(approved);
+      partialCount.textContent = String(partial);
+      rejectedCount.textContent = String(rejected);
+      deliveredCount.textContent = String(delivered);
+      updateDeliverAllButtonState(approvableOrderCount, deliveryPendingCount);
       currentProductTotals = Object.assign({}, productTotals);
 
       if (!filteredOrders.length) {
         ordersList.innerHTML = '<div class="empty">Secilen tarihte henuz siparis yok.</div>';
         totalByProduct.innerHTML = '<div class="empty">Total alani siparis geldikce dolacak.</div>';
+        updateDeliverAllButtonState(0, 0);
         return;
       }
 
@@ -492,10 +987,34 @@
         .map(function (order) {
           const statusText = normalizeStatus(order.status);
           const isApproved = statusText === "Onaylandi";
+          const isPartial = statusText === "Kismen Onaylandi";
+          const isRejected = statusText === "Onaylanmadi";
+          const isPending = statusText === "Onay Bekliyor";
+          const deliveryText = normalizeDeliveryStatus(order.deliveryStatus);
+          const isDelivered = deliveryText === "Teslim Edildi";
           const isOpen = openOrderNos.has(order.orderNo || "");
           const branch = order.branchName || "Bilinmeyen Sube";
           const itemLines = (order.items || []).map(function (item) {
-            return escapeHtml(item.name) + ": " + Number(item.qty || 0) + " tepsi";
+            const itemStatus = String(item.itemStatus || (isPending ? "Onay Bekliyor" : (isRejected ? "Onaylanmadi" : "Onaylandi")));
+            const itemStatusClass = itemStatus === "Onaylandi"
+              ? "ok"
+              : (itemStatus === "Onaylanmadi" ? "reject" : (itemStatus === "Kismen Onaylandi" ? "partial" : ""));
+            const requestedQty = Number(item.qty || 0);
+            const approvedQty = item.approvedQty === null || item.approvedQty === undefined ? "-" : String(Number(item.approvedQty));
+            const rowChecked = isPending ? " checked" : ((itemStatus === "Onaylandi" || itemStatus === "Kismen Onaylandi") ? " checked" : "");
+            const rowDisabled = isPending ? "" : " disabled";
+            return '' +
+              '<tr>' +
+              '<td>' + escapeHtml(item.name || "-") + '</td>' +
+              '<td>' + requestedQty + '</td>' +
+              '<td>' + escapeHtml(approvedQty) + '</td>' +
+              '<td>' + escapeHtml(formatTL(Number(item.unitPrice || 0))) + '</td>' +
+              '<td><span class="item-status-pill ' + itemStatusClass + '">' + escapeHtml(itemStatus) + '</span></td>' +
+              '<td><input class="item-check" type="checkbox" data-order-no="' + (order.orderNo || "") + '" data-item-id="' + (item.id || "") + '"' + rowChecked + rowDisabled + '></td>' +
+              '</tr>';
+          }).join("");
+          const carryoverLines = (order.carryovers || []).map(function (entry) {
+            return escapeHtml(entry.name) + ": " + Number(entry.qtyKg || 0) + " kg";
           }).join("<br>");
           const branchTotal = branchTotals[branch] ? branchTotals[branch].amount : 0;
           const safeOrderNo = escapeHtml(order.orderNo || "-");
@@ -504,24 +1023,42 @@
           const safeCreated = escapeHtml(formatDate(order.createdAt));
           const safeNote = escapeHtml(order.note || "-");
           const safeStatus = escapeHtml(statusText);
+          const safeDeliveryStatus = escapeHtml(deliveryText);
           const safeAmount = escapeHtml(formatTL(Number(order.totalAmount || 0)));
+          const safeDeliveredAt = escapeHtml(formatDate(order.deliveredAt));
+          const safeDeliveredBy = escapeHtml(order.deliveredByName || "-");
+          const deliveryBtnDisabled = ((!isApproved && !isPartial) || isDelivered) ? " disabled" : "";
+          const deliveryBtnText = isDelivered ? "Teslim Edildi" : "Teslim Edildi Isaretle";
+          const orderStateClass = (isApproved || isPartial) ? "approved" : (isRejected ? "rejected" : "pending");
+          const statusClass = isApproved ? "ok" : (isPartial ? "partial" : (isRejected ? "reject" : ""));
+          const deliveryClass = isDelivered ? "ok" : "partial";
+          const checkboxDisabled = !isPending ? " disabled" : "";
+          const checkboxChecked = isPending ? " checked" : "";
+          const approveBtnDisabled = !isPending ? " disabled" : "";
+          const approveBtnClass = isPending ? "primary" : "";
+          const approveBtnText = (isApproved || isPartial)
+            ? (isPartial ? "Kismen Onaylandi" : "Onaylandi")
+            : (isRejected ? "Onaylanmadi" : "Bu Siparisi Onayla");
 
           return '' +
-            '<details class="order ' + (isApproved ? "approved" : "pending") + '" data-order-no="' + (order.orderNo || "") + '"' + (isOpen ? " open" : "") + '>' +
+            '<details class="order ' + orderStateClass + '" data-order-no="' + (order.orderNo || "") + '"' + (isOpen ? " open" : "") + '>' +
             '  <summary>' +
             '    <span class="summary-left">' +
-            '      <input class="order-check" type="checkbox" data-order-no="' + (order.orderNo || "") + '"' + (isApproved ? " disabled" : "") + '>' +
+            '      <input class="order-check" type="checkbox" data-order-no="' + (order.orderNo || "") + '"' + checkboxDisabled + checkboxChecked + '>' +
             '      <span>' + safeBranch + ' | ' + safeOrderNo + '</span>' +
             '    </span>' +
-            '    <span class="summary-right"><span class="status-pill ' + (isApproved ? "ok" : "") + '">' + safeStatus + '</span><span>' + safeAmount + '</span></span>' +
+            '    <span class="summary-right"><span class="status-pill ' + statusClass + '">' + safeStatus + '</span><span class="status-pill ' + deliveryClass + '">' + safeDeliveryStatus + '</span><span>' + safeAmount + '</span></span>' +
             '  </summary>' +
             '  <div class="subline">Olusturma: ' + safeCreated + ' | Teslimat: ' + safeDelivery + '</div>' +
             '  <div class="detail-body">' +
-            '    <div><strong>Siparis Kalemleri:</strong><br>' + itemLines + '</div>' +
+            '    <div><strong>Siparis Kalemleri:</strong></div>' +
+            '    <div class="item-table-wrap"><table class="item-table"><thead><tr><th>Urun</th><th>Talep</th><th>Onaylanan</th><th>Birim Fiyat</th><th>Durum</th><th>Onay</th></tr></thead><tbody>' + itemLines + '</tbody></table></div>' +
+            (carryoverLines ? '    <div><strong>Elde Kalan (Dunden):</strong><br>' + carryoverLines + '</div>' : '') +
             '    <div><strong>Siparis Toplami:</strong> ' + escapeHtml(formatTL(Number(order.totalAmount || 0))) + ' (' + Number(order.totalTray || 0) + ' tepsi)</div>' +
             '    <div><strong>Bu Subenin Secilen Tarih Toplami:</strong> ' + escapeHtml(formatTL(branchTotal)) + '</div>' +
-            '    <div><strong>Durum:</strong> <span class="status-pill ' + (isApproved ? "ok" : "") + '">' + safeStatus + '</span></div>' +
-            '    <div><button class="btn ' + (isApproved ? "" : "primary") + ' approve-one-btn" type="button" data-order-no="' + (order.orderNo || "") + '"' + (isApproved ? " disabled" : "") + '>' + (isApproved ? "Onaylandi" : "Bu Siparisi Onayla") + '</button></div>' +
+            '    <div><strong>Durum:</strong> <span class="status-pill ' + statusClass + '">' + safeStatus + '</span></div>' +
+            '    <div><strong>Teslimat Durumu:</strong> <span class="status-pill ' + (isDelivered ? "ok" : "") + '">' + safeDeliveryStatus + '</span>' + (isDelivered ? (' | <strong>Teslim:</strong> ' + safeDeliveredAt + ' | <strong>Yetkili:</strong> ' + safeDeliveredBy) : '') + '</div>' +
+            '    <div><button class="btn ' + approveBtnClass + ' approve-one-btn" type="button" data-order-no="' + (order.orderNo || "") + '"' + approveBtnDisabled + '>' + approveBtnText + '</button> <button class="btn ' + (isDelivered ? "" : "primary") + ' deliver-one-btn" type="button" data-order-no="' + (order.orderNo || "") + '"' + deliveryBtnDisabled + '>' + deliveryBtnText + '</button></div>' +
             '    <div><strong>Not:</strong> ' + safeNote + '</div>' +
             '  </div>' +
             '</details>';
@@ -550,7 +1087,14 @@
         checkbox.addEventListener("click", function (event) {
           event.stopPropagation();
         });
+        checkbox.addEventListener("change", syncSelectAllState);
       });
+      document.querySelectorAll(".item-check").forEach(function (checkbox) {
+        checkbox.addEventListener("click", function (event) {
+          event.stopPropagation();
+        });
+      });
+      syncSelectAllState();
 
       document.querySelectorAll(".approve-one-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
@@ -559,10 +1103,210 @@
           approveOrdersByNos([orderNo]);
         });
       });
+      document.querySelectorAll(".deliver-one-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const orderNo = btn.dataset.orderNo || "";
+          if (!orderNo) return;
+          deliverOrdersByNos([orderNo]);
+        });
+      });
 
     }
 
     async function approveOrdersByNos(orderNos) {
+      if (!orderNos.length) return;
+      const setNos = new Set(orderNos);
+      const selectedOrders = currentFilteredOrders.filter(function (order) {
+        return setNos.has(order.orderNo);
+      });
+      const orderItemDecisions = selectedOrders
+        .filter(function (order) { return normalizeStatus(order.status) === "Onay Bekliyor"; })
+        .map(function (order) {
+          const itemCheckboxes = Array.from(document.querySelectorAll('.item-check[data-order-no="' + (order.orderNo || "") + '"]'));
+          const approveItemIds = itemCheckboxes
+            .filter(function (cb) { return cb.checked; })
+            .map(function (cb) { return cb.dataset.itemId || ""; })
+            .filter(Boolean);
+          const rejectItemIds = itemCheckboxes
+            .filter(function (cb) { return !cb.checked; })
+            .map(function (cb) { return cb.dataset.itemId || ""; })
+            .filter(Boolean);
+          const fallbackIds = (order.items || []).map(function (item) { return item.id; }).filter(Boolean);
+          return {
+            orderId: order.id,
+            approveItemIds: itemCheckboxes.length ? approveItemIds : fallbackIds,
+            rejectItemIds: itemCheckboxes.length ? rejectItemIds : []
+          };
+        });
+      if (!orderItemDecisions.length) return;
+
+      if (!testMode) {
+        try {
+          await apiRequest("/orders/approve-bulk", {
+            method: "PUT",
+            body: JSON.stringify({ orderItemDecisions: orderItemDecisions })
+          });
+          orderNos.forEach(function (no) { openOrderNos.add(no || ""); });
+          await render();
+        } catch (_err) {}
+        return;
+      }
+
+      const allOrders = getOrders();
+      const decisionMap = new Map(orderItemDecisions.map(function (d) { return [d.orderId, d]; }));
+      allOrders.forEach(function (order) {
+        const decision = decisionMap.get(order.id);
+        if (!decision) return;
+        const approveSet = new Set(decision.approveItemIds || []);
+        let approvedCount = 0;
+        (order.items || []).forEach(function (item) {
+          const ok = approveSet.has(item.id);
+          item.approvedQty = ok ? Number(item.qty || 0) : 0;
+          item.itemStatus = ok ? "Onaylandi" : "Onaylanmadi";
+          if (ok) approvedCount += 1;
+        });
+        if (approvedCount === 0) order.status = "Onaylanmadi";
+        else if (approvedCount === (order.items || []).length) order.status = "Onaylandi";
+        else order.status = "Kismen Onaylandi";
+        openOrderNos.add(order.orderNo || "");
+      });
+      saveOrders(allOrders);
+      await render();
+    }
+
+    async function approveSelected() {
+      await processBulkApprovalByCheckboxes();
+    }
+
+    async function approveAllForSelectedDate() {
+      await processBulkApprovalByCheckboxes();
+    }
+
+    function syncSelectAllState() {
+      const checkboxes = Array.from(document.querySelectorAll(".order-check:not(:disabled)"));
+      if (!checkboxes.length) {
+        selectAllOrders.checked = false;
+        selectAllOrders.indeterminate = false;
+        return;
+      }
+      const checkedCount = checkboxes.filter(function (cb) { return cb.checked; }).length;
+      if (checkedCount === 0) {
+        selectAllOrders.checked = false;
+        selectAllOrders.indeterminate = false;
+      } else if (checkedCount === checkboxes.length) {
+        selectAllOrders.checked = true;
+        selectAllOrders.indeterminate = false;
+      } else {
+        selectAllOrders.checked = false;
+        selectAllOrders.indeterminate = true;
+      }
+    }
+
+    function collectPendingDecisionIds() {
+      const checkboxMap = new Map();
+      document.querySelectorAll(".order-check:not(:disabled)").forEach(function (cb) {
+        const orderNo = cb.dataset.orderNo || "";
+        if (!orderNo) return;
+        checkboxMap.set(orderNo, !!cb.checked);
+      });
+      const orderItemDecisions = [];
+      const approveOrderNos = [];
+      const rejectOrderNos = [];
+      currentFilteredOrders.forEach(function (order) {
+        const key = order.orderNo || "";
+        if (!checkboxMap.has(key)) return;
+        if (!order.id) return;
+        if (!checkboxMap.get(key)) {
+          rejectOrderNos.push(key);
+          orderItemDecisions.push({
+            orderId: order.id,
+            approveItemIds: [],
+            rejectItemIds: (order.items || []).map(function (item) { return item.id; }).filter(Boolean)
+          });
+          return;
+        }
+        approveOrderNos.push(key);
+        const itemCheckboxes = Array.from(document.querySelectorAll('.item-check[data-order-no="' + key + '"]'));
+        const approveItemIds = itemCheckboxes
+          .filter(function (cb) { return cb.checked; })
+          .map(function (cb) { return cb.dataset.itemId || ""; })
+          .filter(Boolean);
+        const rejectItemIds = itemCheckboxes
+          .filter(function (cb) { return !cb.checked; })
+          .map(function (cb) { return cb.dataset.itemId || ""; })
+          .filter(Boolean);
+        if (!itemCheckboxes.length) {
+          const ids = (order.items || []).map(function (item) { return item.id; }).filter(Boolean);
+          orderItemDecisions.push({
+            orderId: order.id,
+            approveItemIds: ids,
+            rejectItemIds: []
+          });
+        } else {
+          orderItemDecisions.push({
+            orderId: order.id,
+            approveItemIds: approveItemIds,
+            rejectItemIds: rejectItemIds
+          });
+        }
+      });
+      return {
+        approveIds: [],
+        rejectIds: [],
+        orderItemDecisions: orderItemDecisions,
+        approveOrderNos: approveOrderNos,
+        rejectOrderNos: rejectOrderNos
+      };
+    }
+
+    async function processBulkApprovalByCheckboxes() {
+      const ids = collectPendingDecisionIds();
+      if (!ids.orderItemDecisions.length && !ids.approveIds.length && !ids.rejectIds.length) return;
+      if (!testMode) {
+        try {
+          await apiRequest("/orders/approve-bulk", {
+            method: "PUT",
+            body: JSON.stringify({
+              approveIds: ids.approveIds,
+              rejectIds: ids.rejectIds,
+              orderItemDecisions: ids.orderItemDecisions
+            })
+          });
+          await render();
+        } catch (_err) {}
+        return;
+      }
+
+      const allOrders = getOrders();
+      const approveSet = new Set(ids.approveOrderNos);
+      const rejectSet = new Set(ids.rejectOrderNos);
+      const decisionMap = new Map(ids.orderItemDecisions.map(function (d) { return [d.orderId, d]; }));
+      allOrders.forEach(function (order) {
+        const key = order.orderNo || "";
+        if (!key) return;
+        const decision = decisionMap.get(order.id);
+        if (decision) {
+          const approveItems = new Set((decision.approveItemIds || []).filter(Boolean));
+          let approvedCount = 0;
+          (order.items || []).forEach(function (item) {
+            const isApprovedItem = approveItems.has(item.id);
+            item.approvedQty = isApprovedItem ? Number(item.qty || 0) : 0;
+            item.itemStatus = isApprovedItem ? "Onaylandi" : "Onaylanmadi";
+            if (isApprovedItem) approvedCount += 1;
+          });
+          if (approvedCount === 0) order.status = "Onaylanmadi";
+          else if (approvedCount === (order.items || []).length) order.status = "Onaylandi";
+          else order.status = "Kismen Onaylandi";
+          return;
+        }
+        if (approveSet.has(key)) order.status = "Onaylandi";
+        if (rejectSet.has(key)) order.status = "Onaylanmadi";
+      });
+      saveOrders(allOrders);
+      await render();
+    }
+
+    async function deliverOrdersByNos(orderNos) {
       if (!orderNos.length) return;
       if (!testMode) {
         const setNos = new Set(orderNos);
@@ -572,12 +1316,11 @@
           .filter(Boolean);
         if (!ids.length) return;
         try {
-          await apiRequest("/orders/approve-bulk", {
-            method: "PUT",
-            body: JSON.stringify({ ids: ids })
-          });
-          orderNos.forEach(function (no) { openOrderNos.add(no || ""); });
+          for (const id of ids) {
+            await apiRequest("/orders/" + encodeURIComponent(id) + "/deliver", { method: "PUT" });
+          }
           await render();
+          await renderCarryoverReport();
         } catch (_err) {}
         return;
       }
@@ -585,33 +1328,81 @@
       const allOrders = getOrders();
       const setNos = new Set(orderNos);
       allOrders.forEach(function (order) {
-        if (setNos.has(order.orderNo)) {
-          order.status = "Onaylandi";
-          openOrderNos.add(order.orderNo || "");
+        if (setNos.has(order.orderNo) && normalizeStatus(order.status) === "Onaylandi") {
+          order.deliveryStatus = "Teslim Edildi";
+          order.deliveredAt = new Date().toISOString();
+          order.deliveredByName = "Merkez";
         }
       });
       saveOrders(allOrders);
       await render();
+      await renderCarryoverReport();
     }
 
-    async function approveSelected() {
-      const selectedNos = Array.from(document.querySelectorAll(".order-check:checked"))
-        .map(function (cb) { return cb.dataset.orderNo || ""; })
-        .filter(Boolean);
-      await approveOrdersByNos(selectedNos);
-    }
+    async function deliverAllApprovedForSelectedDate() {
+      const firstConfirm = await showConfirmDialog(
+        "Toplu Teslim Onayi",
+        "Secili tarihteki onayli siparislerin tumunu teslim edildi olarak isaretlemek istediginize emin misiniz?",
+        "Evet",
+        "Hayir"
+      );
+      if (!firstConfirm) return;
+      const secondConfirm = await showConfirmDialog(
+        "Son Onay",
+        "Bu islem ile onayli siparisler teslim edildi olarak kaydedilecek. Devam etmek istiyor musunuz?",
+        "Tamam",
+        "Vazgec"
+      );
+      if (!secondConfirm) return;
 
-    async function approveAllForSelectedDate() {
-      const dateNos = currentFilteredOrders
+      const approvedNos = currentFilteredOrders
+        .filter(function (order) {
+          const st = normalizeStatus(order.status);
+          return (st === "Onaylandi" || st === "Kismen Onaylandi") &&
+            normalizeDeliveryStatus(order.deliveryStatus) !== "Teslim Edildi";
+        })
         .map(function (order) { return order.orderNo; })
         .filter(Boolean);
-      await approveOrdersByNos(dateNos);
+
+      if (!approvedNos.length) {
+        await showInfoDialog("Bilgi", "Teslim edilecek onayli siparis bulunmuyor.", "Kapat");
+        return;
+      }
+
+      await deliverOrdersByNos(approvedNos);
+      await showInfoDialog("Basarili", "Tum onayli siparisler teslim edildi olarak isaretlendi.", "Kapat");
+    }
+
+    function updateDeliverAllButtonState(approvableOrderCount, deliveryPendingCount) {
+      deliverAllBtn.classList.remove("warn", "success");
+      if (deliveryPendingCount > 0) {
+        deliverAllBtn.classList.add("warn");
+        deliverAllBtn.textContent = "Tumunu Teslim Edildi Isaretle";
+        deliverAllBtn.disabled = false;
+        return;
+      }
+
+      if (approvableOrderCount > 0) {
+        deliverAllBtn.classList.add("success");
+        deliverAllBtn.textContent = "Tum siparisler teslim edildi";
+        deliverAllBtn.disabled = true;
+        return;
+      }
+
+      deliverAllBtn.classList.add("warn");
+      deliverAllBtn.textContent = "Tumunu Teslim Edildi Isaretle";
+      deliverAllBtn.disabled = true;
     }
 
     setTodayFilter();
+    setTodayCarryoverRange();
     render();
+    renderCarryoverReport();
     approveSelectedBtn.addEventListener("click", approveSelected);
     approveAllBtn.addEventListener("click", approveAllForSelectedDate);
+    deliverAllBtn.addEventListener("click", function () {
+      deliverAllApprovedForSelectedDate().catch(function () {});
+    });
     refreshBtn.addEventListener("click", render);
     dateFilter.addEventListener("change", function () {
       selectAllOrders.checked = false;
@@ -622,11 +1413,22 @@
       selectAllOrders.checked = false;
       render();
     });
+    carryoverFilterBtn.addEventListener("click", renderCarryoverReport);
+    carryoverTodayBtn.addEventListener("click", function () {
+      setTodayCarryoverRange();
+      renderCarryoverReport();
+    });
+    carryoverClearBtn.addEventListener("click", function () {
+      carryoverFromDate.value = "";
+      carryoverToDate.value = "";
+      renderCarryoverReport();
+    });
     selectAllOrders.addEventListener("change", function () {
       const checked = selectAllOrders.checked;
       document.querySelectorAll(".order-check:not(:disabled)").forEach(function (cb) {
         cb.checked = checked;
       });
+      syncSelectAllState();
     });
     if (testMode) {
       window.addEventListener("storage", render);

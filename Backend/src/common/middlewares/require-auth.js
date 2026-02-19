@@ -29,7 +29,7 @@ async function requireAuth(req, res, next) {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { branch: true }
+      include: { branch: true, center: true }
     });
 
     if (!user || !user.isActive) {

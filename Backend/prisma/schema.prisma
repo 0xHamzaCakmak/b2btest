@@ -10,19 +10,41 @@ datasource db {
 model User {
   id             String     @id @default(uuid())
   email        String    @unique
+  phone          String?    @map("phone")
   passwordHash   String     @map("password_hash")
   displayName    String?    @map("display_name")
   role           String
   branchId       String?    @map("branch_id")
+  centerId       String?    @map("center_id")
   isActive       Boolean    @default(true) @map("is_active")
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
   branch         Branch?    @relation(fields: [branchId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  center         Center?    @relation(fields: [centerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   auditLogs      AuditLog[]
   approvedOrders Order[] @relation("OrderApprovedBy")
+  deliveredOrders Order[] @relation("OrderDeliveredBy")
 
   @@index([branchId], map: "idx_users_branch_id")
+  @@index([centerId], map: "idx_users_center_id")
+  @@index([phone], map: "idx_users_phone")
   @@map("users")
+}
+
+model Center {
+  id         String   @id @default(uuid())
+  name       String
+  manager    String?
+  phone      String?
+  email      String?
+  address    String?
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  users      User[]
+  branches   Branch[]
+
+  @@map("centers")
 }
 
 model Branch {
@@ -32,13 +54,16 @@ model Branch {
   phone           String?
   email           String?
   address         String?
+  centerId        String?                @map("center_id")
   isActive        Boolean                @default(true) @map("is_active")
   createdAt       DateTime               @default(now()) @map("created_at")
   updatedAt       DateTime               @updatedAt @map("updated_at")
+  center          Center?                @relation(fields: [centerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users           User[]
   orders          Order[]
   priceAdjustment BranchPriceAdjustment?
 
+  @@index([centerId], map: "idx_branches_center_id")
   @@map("branches")
 }
 
@@ -47,10 +72,13 @@ model Product {
   code       String      @unique
   name       String
   basePrice  Decimal     @map("base_price") @db.Decimal(12, 2)
+  imageUrl   String?     @map("image_url")
+  imageKey   String?     @map("image_key")
   isActive   Boolean     @default(true) @map("is_active")
   createdAt  DateTime    @default(now()) @map("created_at")
   updatedAt  DateTime    @updatedAt @map("updated_at")
   orderItems OrderItem[]
+  carryovers OrderCarryover[]
 
   @@map("products")
 }
@@ -78,11 +106,16 @@ model Order {
   totalAmount Decimal     @map("total_amount") @db.Decimal(12, 2)
   approvedBy  String?     @map("approved_by")
   approvedAt  DateTime?   @map("approved_at")
+  deliveryStatus String   @default("TESLIM_BEKLIYOR") @map("delivery_status")
+  deliveredBy String?     @map("delivered_by")
+  deliveredAt DateTime?   @map("delivered_at")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
   branch      Branch      @relation(fields: [branchId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   approvedByUser User?    @relation("OrderApprovedBy", fields: [approvedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  deliveredByUser User?   @relation("OrderDeliveredBy", fields: [deliveredBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
   items       OrderItem[]
+  carryovers  OrderCarryover[]
 
   @@index([branchId], map: "idx_orders_branch_id")
   @@index([createdAt], map: "idx_orders_created_at")
@@ -94,6 +127,7 @@ model OrderItem {
   orderId   String   @map("order_id")
   productId String   @map("product_id")
   qtyTray   Int      @map("qty_tray")
+  approvedQtyTray Int? @map("approved_qty_tray")
   unitPrice Decimal  @map("unit_price") @db.Decimal(12, 2)
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id])
@@ -101,6 +135,21 @@ model OrderItem {
   @@index([orderId], map: "idx_order_items_order_id")
   @@index([productId], map: "idx_order_items_product_id")
   @@map("order_items")
+}
+
+model OrderCarryover {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  productId String   @map("product_id")
+  qtyKg     Decimal  @map("qty_kg") @db.Decimal(12, 3)
+  createdAt DateTime @default(now()) @map("created_at")
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([orderId, productId], map: "uq_order_carryovers_order_product")
+  @@index([orderId], map: "idx_order_carryovers_order_id")
+  @@index([productId], map: "idx_order_carryovers_product_id")
+  @@map("order_carryovers")
 }
 
 model AuditLog {
@@ -117,4 +166,15 @@ model AuditLog {
 
   @@index([createdAt], map: "idx_audit_logs_created_at")
   @@map("audit_logs")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedBy String?  @map("updated_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
 }

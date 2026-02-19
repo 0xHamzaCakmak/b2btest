@@ -22,8 +22,14 @@ function verifyAccessToken(token) {
   return jwt.verify(token, env.JWT_ACCESS_SECRET);
 }
 
+function verifyRefreshToken(token) {
+  ensureSecret("JWT_REFRESH_SECRET", env.JWT_REFRESH_SECRET);
+  return jwt.verify(token, env.JWT_REFRESH_SECRET);
+}
+
 module.exports = {
   signAccessToken,
   signRefreshToken,
-  verifyAccessToken
+  verifyAccessToken,
+  verifyRefreshToken
 };

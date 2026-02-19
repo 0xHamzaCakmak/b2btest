@@ -8,6 +8,72 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .layout {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: .8rem;
+    }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(180px, 1fr));
+      gap: .55rem;
+    }
+    @media (max-width: 740px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    label { font-size: .88rem; font-weight: 600; display: block; }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, .85);
+      border-radius: 10px;
+      padding: .52rem .62rem;
+      font: inherit;
+      margin-top: .25rem;
+      outline: none;
+    }
+    textarea { min-height: 68px; resize: vertical; }
+    .actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .7rem; }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .45rem .62rem;
+      background: rgba(255, 255, 255, .82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.75); }
+    table { border-collapse: collapse; width: 100%; min-width: 760px; }
+    th, td { border-bottom: 1px solid rgba(19,34,31,.12); padding: .45rem .52rem; text-align: left; font-size: .88rem; }
+    th { background: rgba(255,255,255,.92); position: sticky; top: 0; z-index: 1; }
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .15rem .45rem;
+      font-size: .77rem;
+      font-weight: 700;
+      background: rgba(216,240,227,.9);
+    }
+    .badge.passive { background: rgba(255,226,226,.92); border-color: rgba(171,47,47,.35); color: #7c1d1d; }
+    .mini { font-size: .8rem; opacity: .82; }
+    .msg {
+      display: none;
+      margin-top: .6rem;
+      border: 1px solid rgba(19,34,31,.2);
+      background: rgba(216,240,227,.75);
+      border-radius: 10px;
+      padding: .55rem .62rem;
+      font-weight: 700;
+    }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -17,29 +83,359 @@
           <span class="eyebrow">Admin</span>
           <h1>Sube Yonetimi</h1>
         </div>
-        <nav class="nav">
+                <nav class="nav">
           <a href="index.html">Dashboard</a>
-          <a href="users.html">Kullanicilar</a>
-          <a href="branches.html">Subeler</a>
-          <a href="products.html">Urunler</a>
-          <a href="orders.html">Siparisler</a>
-          <a href="logs.html">Loglar</a>
-          <a href="settings.html">Ayarlar</a>
-          <a href="../login.html">Cikis</a>
+          <details class="nav-dd">
+            <summary>Yonetim</summary>
+            <div class="nav-dd-menu">
+              <a href="users.html">Kullanicilar</a>
+              <a href="branches.html">Subeler</a>
+              <a href="centers.html">Merkezler</a>
+              <a href="products.html">Urunler</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Operasyon</summary>
+            <div class="nav-dd-menu">
+              <a href="orders.html">Siparisler</a>
+              <a href="logs.html">Loglar</a>
+            </div>
+          </details>
+          <details class="nav-dd">
+            <summary>Sistem</summary>
+            <div class="nav-dd-menu">
+              <a href="settings.html">Ayarlar</a>
+            </div>
+          </details>
         </nav>
       </div>
 
-      <article class="card">
-        <h3>Planlanan Islemler</h3>
-        <ul>
-          <li>Sube olusturma ve profil duzenleme</li>
-          <li>Sube aktif/pasif durumu</li>
-          <li>Sube bazli fiyat farki (%+/-)</li>
-        </ul>
+      <section class="layout">
+        <article class="card">
+          <h3>Yeni Sube Ekle</h3>
+          <form id="createBranchForm" class="form-grid">
+            <label>Sube Adi
+              <input type="text" id="createName" required>
+            </label>
+            <label>Yetkili
+              <input type="text" id="createManager">
+            </label>
+            <label>Telefon
+              <input type="text" id="createPhone">
+            </label>
+            <label>E-posta
+              <input type="email" id="createEmail">
+            </label>
+            <label>Merkez
+              <select id="createCenterId"></select>
+            </label>
+            <label style="grid-column:1/-1;">Adres
+              <textarea id="createAddress"></textarea>
+            </label>
+            <label>Durum
+              <select id="createActive">
+                <option value="true">Aktif</option>
+                <option value="false">Pasif</option>
+              </select>
+            </label>
+            <label>Fiyat Farki (%)
+              <input type="number" id="createPercent" min="-90" max="200" step="0.5" value="0">
+            </label>
+          </form>
+          <div class="actions">
+            <button class="btn primary" id="createBtn" type="button">Sube Olustur</button>
+            <button class="btn" id="reloadBtn" type="button">Listeyi Yenile</button>
+          </div>
+          <div id="createMsg" class="msg"></div>
+        </article>
+
+        <article class="card">
+          <h3>Secili Sube Duzenle</h3>
+          <div class="mini" id="selectedInfo">Henuz secim yok.</div>
+          <form id="editBranchForm" class="form-grid">
+            <label>Sube Adi
+              <input type="text" id="editName" required>
+            </label>
+            <label>Yetkili
+              <input type="text" id="editManager">
+            </label>
+            <label>Telefon
+              <input type="text" id="editPhone">
+            </label>
+            <label>E-posta
+              <input type="email" id="editEmail">
+            </label>
+            <label>Merkez
+              <select id="editCenterId"></select>
+            </label>
+            <label style="grid-column:1/-1;">Adres
+              <textarea id="editAddress"></textarea>
+            </label>
+            <label>Durum
+              <select id="editActive">
+                <option value="true">Aktif</option>
+                <option value="false">Pasif</option>
+              </select>
+            </label>
+            <label>Fiyat Farki (%)
+              <input type="number" id="editPercent" min="-90" max="200" step="0.5" value="0">
+            </label>
+          </form>
+          <div class="actions">
+            <button class="btn primary" id="saveEditBtn" type="button">Bilgileri Kaydet</button>
+            <button class="btn" id="saveStatusBtn" type="button">Durumu Kaydet</button>
+            <button class="btn" id="savePercentBtn" type="button">Fiyat Farki Kaydet</button>
+          </div>
+          <div id="editMsg" class="msg"></div>
+        </article>
+      </section>
+
+      <article class="card" style="margin-top:.8rem;">
+        <h3>Sube Listesi</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Sube</th>
+                <th>Yetkili</th>
+                <th>Telefon</th>
+                <th>E-posta</th>
+                <th>Merkez</th>
+                <th>Durum</th>
+                <th>Fiyat Farki</th>
+                <th>Sube Kullanici</th>
+                <th>Islem</th>
+              </tr>
+            </thead>
+            <tbody id="branchesBody"></tbody>
+          </table>
+        </div>
       </article>
     </main>
   </div>
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const sessionKey = cfg.AUTH_SESSION_KEY || "authSession";
+    const branchesBody = document.getElementById("branchesBody");
+    const createCenterId = document.getElementById("createCenterId");
+    const editCenterId = document.getElementById("editCenterId");
+    const selectedInfo = document.getElementById("selectedInfo");
+    const createMsg = document.getElementById("createMsg");
+    const editMsg = document.getElementById("editMsg");
+    let branches = [];
+    let centers = [];
+    let selectedBranchId = "";
+
+    function showMsg(el, text) {
+      el.style.display = "block";
+      el.textContent = text;
+      setTimeout(function () {
+        el.style.display = "none";
+      }, 2600);
+    }
+
+    function getSession() {
+      try {
+        return JSON.parse(localStorage.getItem(sessionKey) || "null");
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    async function apiRequest(path, options) {
+      const session = getSession();
+      const token = session && session.accessToken ? session.accessToken : "";
+      if (!token) throw new Error("Oturum bulunamadi. Tekrar giris yapin.");
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        headers: Object.assign(
+          { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    function selectedBranch() {
+      return branches.find(function (b) { return b.id === selectedBranchId; }) || null;
+    }
+
+    function fillCenterOptions(selectEl) {
+      const opts = ['<option value="">Merkez sec</option>']
+        .concat(
+          centers.map(function (c) {
+            return '<option value="' + c.id + '">' + c.name + (c.isActive ? "" : " (pasif)") + '</option>';
+          })
+        );
+      selectEl.innerHTML = opts.join("");
+    }
+
+    function renderBranches() {
+      const html = branches.map(function (b) {
+        const activeCls = b.isActive ? "" : "passive";
+        const activeText = b.isActive ? "Aktif" : "Pasif";
+        const selected = selectedBranchId === b.id ? " style='background:rgba(19,34,31,.06)'" : "";
+        return '' +
+          '<tr' + selected + '>' +
+          '<td>' + b.name + '</td>' +
+          '<td>' + (b.manager || "-") + '</td>' +
+          '<td>' + (b.phone || "-") + '</td>' +
+          '<td>' + (b.email || "-") + '</td>' +
+          '<td>' + (b.centerName || "-") + '</td>' +
+          '<td><span class="badge ' + activeCls + '">' + activeText + '</span></td>' +
+          '<td>' + Number(b.priceAdjustmentPercent || 0) + '%</td>' +
+          '<td>' + (b.userEmail || "-") + '</td>' +
+          '<td><button class="btn" data-select-branch="' + b.id + '">Sec</button></td>' +
+          '</tr>';
+      }).join("");
+      branchesBody.innerHTML = html || '<tr><td colspan="9">Sube bulunmadi.</td></tr>';
+      branchesBody.querySelectorAll("[data-select-branch]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          selectedBranchId = btn.getAttribute("data-select-branch") || "";
+          applySelectedToForm();
+          renderBranches();
+        });
+      });
+    }
+
+    function applySelectedToForm() {
+      const b = selectedBranch();
+      if (!b) {
+        selectedInfo.textContent = "Henuz secim yok.";
+        document.getElementById("editName").value = "";
+        document.getElementById("editManager").value = "";
+        document.getElementById("editPhone").value = "";
+        document.getElementById("editEmail").value = "";
+        editCenterId.value = "";
+        document.getElementById("editAddress").value = "";
+        document.getElementById("editActive").value = "true";
+        document.getElementById("editPercent").value = "0";
+        return;
+      }
+      selectedInfo.textContent = "Secili: " + b.name;
+      document.getElementById("editName").value = b.name || "";
+      document.getElementById("editManager").value = b.manager || "";
+      document.getElementById("editPhone").value = b.phone || "";
+      document.getElementById("editEmail").value = b.email || "";
+      editCenterId.value = b.centerId || "";
+      document.getElementById("editAddress").value = b.address || "";
+      document.getElementById("editActive").value = b.isActive ? "true" : "false";
+      document.getElementById("editPercent").value = String(Number(b.priceAdjustmentPercent || 0));
+    }
+
+    async function loadBranches() {
+      const results = await Promise.all([
+        apiRequest("/centers", { method: "GET" }),
+        apiRequest("/branches", { method: "GET" })
+      ]);
+      centers = Array.isArray(results[0]) ? results[0] : [];
+      branches = Array.isArray(results[1]) ? results[1] : [];
+      fillCenterOptions(createCenterId);
+      fillCenterOptions(editCenterId);
+      if (!selectedBranch() && branches.length) selectedBranchId = branches[0].id;
+      renderBranches();
+      applySelectedToForm();
+    }
+
+    async function createBranch() {
+      const payload = {
+        name: document.getElementById("createName").value.trim(),
+        manager: document.getElementById("createManager").value.trim(),
+        phone: document.getElementById("createPhone").value.trim(),
+        email: document.getElementById("createEmail").value.trim(),
+        centerId: createCenterId.value || null,
+        address: document.getElementById("createAddress").value.trim(),
+        isActive: document.getElementById("createActive").value === "true",
+        priceAdjustmentPercent: Number(document.getElementById("createPercent").value || 0)
+      };
+      const created = await apiRequest("/branches", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      branches.push(created);
+      selectedBranchId = created.id;
+      renderBranches();
+      applySelectedToForm();
+      showMsg(createMsg, "Sube olusturuldu.");
+    }
+
+    async function saveBranchEdit() {
+      const b = selectedBranch();
+      if (!b) throw new Error("Lutfen listeden sube secin.");
+      const payload = {
+        name: document.getElementById("editName").value.trim(),
+        manager: document.getElementById("editManager").value.trim(),
+        phone: document.getElementById("editPhone").value.trim(),
+        email: document.getElementById("editEmail").value.trim(),
+        centerId: editCenterId.value || null,
+        address: document.getElementById("editAddress").value.trim()
+      };
+      const updated = await apiRequest("/branches/" + b.id, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      branches = branches.map(function (x) { return x.id === updated.id ? updated : x; });
+      renderBranches();
+      applySelectedToForm();
+      showMsg(editMsg, "Sube bilgileri guncellendi.");
+    }
+
+    async function saveBranchStatus() {
+      const b = selectedBranch();
+      if (!b) throw new Error("Lutfen listeden sube secin.");
+      const isActive = document.getElementById("editActive").value === "true";
+      const updated = await apiRequest("/branches/" + b.id + "/status", {
+        method: "PUT",
+        body: JSON.stringify({ isActive: isActive })
+      });
+      branches = branches.map(function (x) { return x.id === updated.id ? updated : x; });
+      renderBranches();
+      applySelectedToForm();
+      showMsg(editMsg, "Durum guncellendi.");
+    }
+
+    async function saveBranchPercent() {
+      const b = selectedBranch();
+      if (!b) throw new Error("Lutfen listeden sube secin.");
+      const percent = Number(document.getElementById("editPercent").value || 0);
+      const updated = await apiRequest("/branches/" + b.id + "/price-adjustment", {
+        method: "PUT",
+        body: JSON.stringify({ percent: percent })
+      });
+      branches = branches.map(function (x) { return x.id === updated.id ? updated : x; });
+      renderBranches();
+      applySelectedToForm();
+      showMsg(editMsg, "Fiyat farki guncellendi.");
+    }
+
+    document.getElementById("createBtn").addEventListener("click", function () {
+      createBranch().catch(function (err) { showMsg(createMsg, err.message || "Sube olusturulamadi."); });
+    });
+    document.getElementById("reloadBtn").addEventListener("click", function () {
+      loadBranches().catch(function (err) { showMsg(createMsg, err.message || "Liste yenilenemedi."); });
+    });
+    document.getElementById("saveEditBtn").addEventListener("click", function () {
+      saveBranchEdit().catch(function (err) { showMsg(editMsg, err.message || "Kaydedilemedi."); });
+    });
+    document.getElementById("saveStatusBtn").addEventListener("click", function () {
+      saveBranchStatus().catch(function (err) { showMsg(editMsg, err.message || "Durum guncellenemedi."); });
+    });
+    document.getElementById("savePercentBtn").addEventListener("click", function () {
+      saveBranchPercent().catch(function (err) { showMsg(editMsg, err.message || "Fiyat farki guncellenemedi."); });
+    });
+
+    loadBranches().catch(function (err) {
+      showMsg(createMsg, err.message || "Sube verileri alinamadi.");
+    });
+  </script>
 </body>
 </html>
+
+
+
