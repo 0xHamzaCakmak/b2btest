@@ -66,18 +66,8 @@
       align-items: start;
       margin-bottom: 1rem;
     }
-    .eyebrow {
-      display: inline-block;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: .3rem .7rem;
-      font-size: .8rem;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      background: rgba(255, 255, 255, 0.65);
-    }
     h1 {
-      margin: .7rem 0 .3rem;
+      margin: 0 0 .3rem;
       font-family: "Fraunces", serif;
       font-size: clamp(1.9rem, 4.4vw, 3rem);
       line-height: 1.1;
@@ -88,8 +78,8 @@
       gap: .6rem;
       flex-wrap: wrap;
       align-content: flex-start;
-      justify-content: flex-end;
-      margin-left: auto;
+      justify-content: flex-start;
+      margin-left: 0;
     }
     .nav a {
       text-decoration: none;
@@ -99,7 +89,9 @@
       padding: .5rem .75rem;
       background: rgba(255, 255, 255, .72);
       font-weight: 600;
-      height: fit-content;
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
     }
     @media (max-width: 980px) {
       .top {
@@ -190,6 +182,11 @@
       background: rgba(216, 240, 227, .95);
       border-color: rgba(74, 140, 92, .35);
       color: #193726;
+    }
+    .btn.danger-outline {
+      background: rgba(255, 255, 255, .9);
+      border-color: rgba(191, 72, 72, .45);
+      color: #8f2b2b;
     }
     .orders-list-head {
       display: flex;
@@ -288,11 +285,23 @@
       gap: .45rem;
     }
     .summary-right {
-      display: inline-flex;
+      display: grid;
+      grid-template-columns: 132px 132px minmax(88px, 110px);
       align-items: center;
       gap: .45rem;
-      flex-wrap: nowrap;
+      justify-items: start;
       white-space: nowrap;
+    }
+    .summary-col-amount {
+      text-align: left;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    @media (max-width: 760px) {
+      .summary-right {
+        grid-template-columns: 1fr;
+        justify-items: start;
+      }
     }
     .status-pill {
       font-size: .78rem;
@@ -403,41 +412,6 @@
       padding: .85rem;
       font-weight: 600;
     }
-    .carryover-card {
-      margin-top: .9rem;
-    }
-    .carryover-toolbar {
-      display: flex;
-      gap: .55rem;
-      flex-wrap: wrap;
-      align-items: center;
-      margin-bottom: .7rem;
-    }
-    .carryover-table-wrap {
-      overflow: auto;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(255, 255, 255, .78);
-    }
-    .carryover-table {
-      border-collapse: collapse;
-      width: 100%;
-      min-width: 700px;
-    }
-    .carryover-table th,
-    .carryover-table td {
-      border-bottom: 1px solid rgba(19, 34, 31, .12);
-      padding: .45rem .55rem;
-      text-align: left;
-      font-size: .88rem;
-      vertical-align: top;
-    }
-    .carryover-table th {
-      background: rgba(255, 255, 255, .94);
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
     .dialog-overlay {
       position: fixed;
       inset: 0;
@@ -485,15 +459,15 @@
     <main class="panel">
       <div class="top">
         <div>
-          <span class="eyebrow">Merkez Rolu</span>
-          <h1>Subelerden Gelen Siparisler</h1>
+          <h1>Bugünün Siparisleri</h1>
         </div>
         <nav class="nav">
-          <a href="../sube/siparis.html">Siparis Ver</a>
-          <a href="../sube/siparislerim.html">Siparislerim</a>
+          <a href="../sube/siparis.html">Sipariş Ver</a>
+          <a href="../sube/siparislerim.html">Siparişlerim</a>
           <a href="merkez.html">Merkez Paneli</a>
-          <a href="merkez-urun-fiyat.html">Urunler</a>
-          <a href="merkez-subeler.html">Subeler</a>
+          <a href="merkez-raporlar.html">Raporlar</a>
+          <a href="merkez-urun-fiyat.html">Ürünler</a>
+          <a href="merkez-subeler.html">Şubeler</a>
         </nav>
       </div>
 
@@ -530,7 +504,8 @@
               <div class="toolbar-group">
                 <span class="toolbar-label">Onay Islemleri</span>
                 <button class="btn primary" type="button" id="approveSelectedBtn">Secilenleri Onayla</button>
-                <button class="btn" type="button" id="approveAllBtn">Tum Siparisleri Onayla</button>
+                <button class="btn danger-outline" type="button" id="rejectSelectedBtn">Secilenleri Reddet</button>
+                <button class="btn warn" type="button" id="approveAllBtn">Tum Siparisleri Onayla</button>
               </div>
             </div>
           </div>
@@ -540,7 +515,7 @@
               <label class="master-check-label" for="selectAllOrders">Tum siparisleri sec</label>
             </div>
             <div class="orders-list-head-right">
-              <button class="btn warn" type="button" id="deliverAllBtn">Tumunu Teslim Edildi Isaretle</button>
+              <button class="btn warn" type="button" id="deliverAllBtn">Tamami Teslim Edildi</button>
             </div>
           </div>
           <div class="orders" id="ordersList"></div>
@@ -550,37 +525,6 @@
           <div class="totals" id="totalByProduct"></div>
         </article>
       </section>
-
-      <article class="card carryover-card">
-        <h3>Sube Kalan Takip Raporu (Kg)</h3>
-        <div class="carryover-toolbar">
-          <label class="check-wrap">
-            Baslangic
-            <input type="date" id="carryoverFromDate">
-          </label>
-          <label class="check-wrap">
-            Bitis
-            <input type="date" id="carryoverToDate">
-          </label>
-          <button class="btn" type="button" id="carryoverFilterBtn">Filtrele</button>
-          <button class="btn" type="button" id="carryoverTodayBtn">Bugun</button>
-          <button class="btn" type="button" id="carryoverClearBtn">Temizle</button>
-        </div>
-        <div class="carryover-table-wrap">
-          <table class="carryover-table">
-            <thead>
-              <tr>
-                <th>Sube</th>
-                <th>Urun</th>
-                <th>Toplam Kalan (kg)</th>
-                <th>Bildirim Sayisi</th>
-                <th>Son Bildirim</th>
-              </tr>
-            </thead>
-            <tbody id="carryoverBody"></tbody>
-          </table>
-        </div>
-      </article>
     </main>
   </div>
   <div id="dialogOverlay" class="dialog-overlay">
@@ -605,6 +549,7 @@
     const statAmount = document.getElementById("statAmount");
     const selectAllOrders = document.getElementById("selectAllOrders");
     const approveSelectedBtn = document.getElementById("approveSelectedBtn");
+    const rejectSelectedBtn = document.getElementById("rejectSelectedBtn");
     const approveAllBtn = document.getElementById("approveAllBtn");
     const deliverAllBtn = document.getElementById("deliverAllBtn");
     const refreshBtn = document.getElementById("refreshBtn");
@@ -615,12 +560,6 @@
     const deliveredCount = document.getElementById("deliveredCount");
     const dateFilter = document.getElementById("dateFilter");
     const todayBtn = document.getElementById("todayBtn");
-    const carryoverFromDate = document.getElementById("carryoverFromDate");
-    const carryoverToDate = document.getElementById("carryoverToDate");
-    const carryoverFilterBtn = document.getElementById("carryoverFilterBtn");
-    const carryoverTodayBtn = document.getElementById("carryoverTodayBtn");
-    const carryoverClearBtn = document.getElementById("carryoverClearBtn");
-    const carryoverBody = document.getElementById("carryoverBody");
     const dialogOverlay = document.getElementById("dialogOverlay");
     const dialogTitle = document.getElementById("dialogTitle");
     const dialogText = document.getElementById("dialogText");
@@ -777,90 +716,8 @@
       return dateFilter.value || todayKey();
     }
 
-    function selectedCarryoverRange() {
-      return {
-        from: carryoverFromDate.value || "",
-        to: carryoverToDate.value || ""
-      };
-    }
-
     function setTodayFilter() {
       dateFilter.value = todayKey();
-    }
-
-    function setTodayCarryoverRange() {
-      const today = todayKey();
-      carryoverFromDate.value = today;
-      carryoverToDate.value = today;
-    }
-
-    async function loadCarryoverOrdersByRange() {
-      const range = selectedCarryoverRange();
-      const query = [];
-      if (range.from) query.push("from=" + encodeURIComponent(range.from));
-      if (range.to) query.push("to=" + encodeURIComponent(range.to));
-      const path = "/orders" + (query.length ? "?" + query.join("&") : "");
-      const rows = await apiRequest(path, { method: "GET" });
-      return Array.isArray(rows) ? rows : [];
-    }
-
-    function renderCarryoverTable(rows) {
-      const map = {};
-      rows.forEach(function (order) {
-        const branch = order.branchName || "Bilinmeyen Sube";
-        const createdAt = order.createdAt || "";
-        const entries = Array.isArray(order.carryovers) ? order.carryovers : [];
-        entries.forEach(function (entry) {
-          const qtyKg = Number(entry.qtyKg || 0);
-          if (!(qtyKg > 0)) return;
-          const productName = entry.name || "Urun";
-          const key = branch + "||" + productName;
-          if (!map[key]) {
-            map[key] = {
-              branch: branch,
-              product: productName,
-              totalKg: 0,
-              count: 0,
-              lastAt: createdAt
-            };
-          }
-          map[key].totalKg += qtyKg;
-          map[key].count += 1;
-          if (new Date(createdAt).getTime() > new Date(map[key].lastAt).getTime()) {
-            map[key].lastAt = createdAt;
-          }
-        });
-      });
-
-      const list = Object.values(map).sort(function (a, b) {
-        if (a.branch !== b.branch) return a.branch.localeCompare(b.branch, "tr");
-        return a.product.localeCompare(b.product, "tr");
-      });
-
-      if (!list.length) {
-        carryoverBody.innerHTML = '<tr><td colspan="5">Secilen aralikta elde kalan kaydi bulunmuyor.</td></tr>';
-        return;
-      }
-
-      carryoverBody.innerHTML = list.map(function (item) {
-        return '' +
-          '<tr>' +
-          '<td>' + escapeHtml(item.branch) + '</td>' +
-          '<td>' + escapeHtml(item.product) + '</td>' +
-          '<td>' + escapeHtml(item.totalKg.toFixed(2)) + '</td>' +
-          '<td>' + String(item.count) + '</td>' +
-          '<td>' + escapeHtml(formatDate(item.lastAt)) + '</td>' +
-          '</tr>';
-      }).join("");
-    }
-
-    async function renderCarryoverReport() {
-      try {
-        const rows = await loadCarryoverOrdersByRange();
-        renderCarryoverTable(rows);
-      } catch (_err) {
-        carryoverBody.innerHTML = '<tr><td colspan="5">Kalan raporu alinamadi.</td></tr>';
-      }
     }
 
     async function render() {
@@ -927,12 +784,14 @@
       partialCount.textContent = String(partial);
       rejectedCount.textContent = String(rejected);
       deliveredCount.textContent = String(delivered);
+      updateApproveAllButtonState(pending, partial, rejected, approved);
       updateDeliverAllButtonState(approvableOrderCount, deliveryPendingCount);
       currentProductTotals = Object.assign({}, productTotals);
 
       if (!filteredOrders.length) {
         ordersList.innerHTML = '<div class="empty">Secilen tarihte henuz siparis yok.</div>';
         totalByProduct.innerHTML = '<div class="empty">Total alani siparis geldikce dolacak.</div>';
+        updateApproveAllButtonState(0, 0, 0, 0);
         updateDeliverAllButtonState(0, 0);
         return;
       }
@@ -994,9 +853,11 @@
           const checkboxChecked = isPending ? " checked" : "";
           const approveBtnDisabled = !isPending ? " disabled" : "";
           const approveBtnClass = isPending ? "primary" : "";
+          const rejectBtnDisabled = !isPending ? " disabled" : "";
           const approveBtnText = (isApproved || isPartial)
             ? (isPartial ? "Kismen Onaylandi" : "Onaylandi")
             : (isRejected ? "Onaylanmadi" : "Bu Siparisi Onayla");
+          const rejectBtnText = isRejected ? "Onaylanmadi" : "Bu Siparisi Reddet";
 
           return '' +
             '<details class="order ' + orderStateClass + '" data-order-no="' + (order.orderNo || "") + '"' + (isOpen ? " open" : "") + '>' +
@@ -1005,7 +866,7 @@
             '      <input class="order-check" type="checkbox" data-order-no="' + (order.orderNo || "") + '"' + checkboxDisabled + checkboxChecked + '>' +
             '      <span>' + safeBranch + ' | ' + safeOrderNo + '</span>' +
             '    </span>' +
-            '    <span class="summary-right"><span class="status-pill ' + statusClass + '">' + safeStatus + '</span><span class="status-pill ' + deliveryClass + '">' + safeDeliveryStatus + '</span><span>' + safeAmount + '</span></span>' +
+            '    <span class="summary-right"><span class="status-pill ' + statusClass + '">' + safeStatus + '</span><span class="status-pill ' + deliveryClass + '">' + safeDeliveryStatus + '</span><span class="summary-col-amount">' + safeAmount + '</span></span>' +
             '  </summary>' +
             '  <div class="subline">Olusturma: ' + safeCreated + ' | Teslimat: ' + safeDelivery + '</div>' +
             '  <div class="detail-body">' +
@@ -1016,7 +877,7 @@
             '    <div><strong>Bu Subenin Secilen Tarih Toplami:</strong> ' + escapeHtml(formatTL(branchTotal)) + '</div>' +
             '    <div><strong>Durum:</strong> <span class="status-pill ' + statusClass + '">' + safeStatus + '</span></div>' +
             '    <div><strong>Teslimat Durumu:</strong> <span class="status-pill ' + (isDelivered ? "ok" : "") + '">' + safeDeliveryStatus + '</span>' + (isDelivered ? (' | <strong>Teslim:</strong> ' + safeDeliveredAt + ' | <strong>Yetkili:</strong> ' + safeDeliveredBy) : '') + '</div>' +
-            '    <div><button class="btn ' + approveBtnClass + ' approve-one-btn" type="button" data-order-no="' + (order.orderNo || "") + '"' + approveBtnDisabled + '>' + approveBtnText + '</button> <button class="btn ' + (isDelivered ? "" : "primary") + ' deliver-one-btn" type="button" data-order-no="' + (order.orderNo || "") + '"' + deliveryBtnDisabled + '>' + deliveryBtnText + '</button></div>' +
+            '    <div><button class="btn ' + approveBtnClass + ' approve-one-btn" type="button" data-order-no="' + (order.orderNo || "") + '"' + approveBtnDisabled + '>' + approveBtnText + '</button> <button class="btn danger-outline reject-one-btn" type="button" data-order-no="' + (order.orderNo || "") + '"' + rejectBtnDisabled + '>' + rejectBtnText + '</button> <button class="btn ' + (isDelivered ? "" : "primary") + ' deliver-one-btn" type="button" data-order-no="' + (order.orderNo || "") + '"' + deliveryBtnDisabled + '>' + deliveryBtnText + '</button></div>' +
             '    <div><strong>Not:</strong> ' + safeNote + '</div>' +
             '  </div>' +
             '</details>';
@@ -1059,6 +920,13 @@
           const orderNo = btn.dataset.orderNo || "";
           if (!orderNo) return;
           approveOrdersByNos([orderNo]);
+        });
+      });
+      document.querySelectorAll(".reject-one-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const orderNo = btn.dataset.orderNo || "";
+          if (!orderNo) return;
+          rejectOrdersByNos([orderNo]);
         });
       });
       document.querySelectorAll(".deliver-one-btn").forEach(function (btn) {
@@ -1112,8 +980,42 @@
       await processBulkApprovalByCheckboxes();
     }
 
+    async function rejectSelected() {
+      const selectedOrderNos = Array.from(document.querySelectorAll(".order-check:checked:not(:disabled)"))
+        .map(function (cb) { return cb.dataset.orderNo || ""; })
+        .filter(Boolean);
+      if (!selectedOrderNos.length) return;
+      await rejectOrdersByNos(selectedOrderNos);
+    }
+
     async function approveAllForSelectedDate() {
       await processBulkApprovalByCheckboxes();
+    }
+
+    async function rejectOrdersByNos(orderNos) {
+      if (!orderNos.length) return;
+      const setNos = new Set(orderNos);
+      const orderItemDecisions = currentFilteredOrders
+        .filter(function (order) {
+          return setNos.has(order.orderNo) && normalizeStatus(order.status) === "Onay Bekliyor";
+        })
+        .map(function (order) {
+          return {
+            orderId: order.id,
+            approveItemIds: [],
+            rejectItemIds: (order.items || []).map(function (item) { return item.id; }).filter(Boolean)
+          };
+        });
+      if (!orderItemDecisions.length) return;
+
+      try {
+        await apiRequest("/orders/approve-bulk", {
+          method: "PUT",
+          body: JSON.stringify({ orderItemDecisions: orderItemDecisions })
+        });
+        orderNos.forEach(function (no) { openOrderNos.add(no || ""); });
+        await render();
+      } catch (_err) {}
     }
 
     function syncSelectAllState() {
@@ -1222,7 +1124,6 @@
           await apiRequest("/orders/" + encodeURIComponent(id) + "/deliver", { method: "PUT" });
         }
         await render();
-        await renderCarryoverReport();
       } catch (_err) {}
     }
 
@@ -1264,7 +1165,7 @@
       deliverAllBtn.classList.remove("warn", "success");
       if (deliveryPendingCount > 0) {
         deliverAllBtn.classList.add("warn");
-        deliverAllBtn.textContent = "Tumunu Teslim Edildi Isaretle";
+        deliverAllBtn.textContent = "Tamami Teslim Edildi";
         deliverAllBtn.disabled = false;
         return;
       }
@@ -1277,15 +1178,23 @@
       }
 
       deliverAllBtn.classList.add("warn");
-      deliverAllBtn.textContent = "Tumunu Teslim Edildi Isaretle";
+      deliverAllBtn.textContent = "Tamami Teslim Edildi";
       deliverAllBtn.disabled = true;
     }
 
+    function updateApproveAllButtonState(pending, partial, rejected, approved) {
+      approveAllBtn.classList.remove("warn", "success");
+      if (approved > 0 && pending === 0 && partial === 0 && rejected === 0) {
+        approveAllBtn.classList.add("success");
+        return;
+      }
+      approveAllBtn.classList.add("warn");
+    }
+
     setTodayFilter();
-    setTodayCarryoverRange();
     render();
-    renderCarryoverReport();
     approveSelectedBtn.addEventListener("click", approveSelected);
+    rejectSelectedBtn.addEventListener("click", rejectSelected);
     approveAllBtn.addEventListener("click", approveAllForSelectedDate);
     deliverAllBtn.addEventListener("click", function () {
       deliverAllApprovedForSelectedDate().catch(function () {});
@@ -1299,16 +1208,6 @@
       setTodayFilter();
       selectAllOrders.checked = false;
       render();
-    });
-    carryoverFilterBtn.addEventListener("click", renderCarryoverReport);
-    carryoverTodayBtn.addEventListener("click", function () {
-      setTodayCarryoverRange();
-      renderCarryoverReport();
-    });
-    carryoverClearBtn.addEventListener("click", function () {
-      carryoverFromDate.value = "";
-      carryoverToDate.value = "";
-      renderCarryoverReport();
     });
     selectAllOrders.addEventListener("change", function () {
       const checked = selectAllOrders.checked;

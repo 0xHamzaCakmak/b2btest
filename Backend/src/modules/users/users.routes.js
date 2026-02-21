@@ -4,7 +4,7 @@ const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
-const { normalizePhone } = require("../../common/utils/phone");
+const { normalizePhone, isStrictTrPhone } = require("../../common/utils/phone");
 const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const usersRouter = express.Router();
@@ -119,6 +119,13 @@ usersRouter.post("/", requireAuth, requireRole("admin"), userAdminMutationRateLi
 
     const payload = parsed.data;
     const normalizedPhone = payload.phone ? normalizePhone(payload.phone) : null;
+    if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+      });
+    }
     if (normalizedPhone) {
       const phoneOwner = await prisma.user.findFirst({
         where: { phone: normalizedPhone },
@@ -203,6 +210,13 @@ usersRouter.put("/:id", requireAuth, requireRole("admin"), userAdminMutationRate
     const normalizedPhone = Object.prototype.hasOwnProperty.call(payload, "phone")
       ? (payload.phone ? normalizePhone(payload.phone) : null)
       : undefined;
+    if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+      });
+    }
     if (normalizedPhone) {
       const phoneOwner = await prisma.user.findFirst({
         where: { phone: normalizedPhone },
@@ -335,6 +349,55 @@ usersRouter.put("/:id/reset-password", requireAuth, requireRole("admin"), userAd
         message: "User not found"
       });
     }
+    return next(err);
+  }
+});
+
+usersRouter.delete("/:id", requireAuth, requireRole("admin"), userAdminMutationRateLimiter, async (req, res, next) => {
+  try {
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Kendi hesabinizi silemezsiniz."
+      });
+    }
+
+    const existing = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, email: true }
+    });
+    if (!existing) {
+      return res.status(404).json({
+        ok: false,
+        error: "NOT_FOUND",
+        message: "User not found"
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.auditLog.updateMany({
+        where: { actorUserId: req.params.id },
+        data: { actorUserId: null }
+      }),
+      prisma.order.updateMany({
+        where: { approvedBy: req.params.id },
+        data: { approvedBy: null }
+      }),
+      prisma.order.updateMany({
+        where: { deliveredBy: req.params.id },
+        data: { deliveredBy: null }
+      }),
+      prisma.user.delete({
+        where: { id: req.params.id }
+      })
+    ]);
+
+    return res.status(200).json({
+      ok: true,
+      data: { id: existing.id, email: existing.email, deleted: true }
+    });
+  } catch (err) {
     return next(err);
   }
 });

@@ -4,6 +4,7 @@ const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
 const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
+const { normalizePhone, isStrictTrPhone } = require("../../common/utils/phone");
 
 const centersRouter = express.Router();
 const centerMutationRateLimiter = createSimpleRateLimiter({
@@ -51,6 +52,47 @@ function mapCenter(center) {
   };
 }
 
+async function checkCenterContactUniqueness(email, phone, excludeId) {
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const normalizedPhone = typeof phone === "string" ? normalizePhone(phone) : "";
+
+  if (normalizedEmail) {
+    const where = excludeId
+      ? { email: normalizedEmail, id: { not: excludeId } }
+      : { email: normalizedEmail };
+    const owner = await prisma.center.findFirst({
+      where,
+      select: { id: true }
+    });
+    if (owner) {
+      return {
+        ok: false,
+        error: "CENTER_EMAIL_IN_USE",
+        message: "Bu e-posta baska bir merkezde kullaniliyor."
+      };
+    }
+  }
+
+  if (normalizedPhone) {
+    const where = excludeId
+      ? { phone: normalizedPhone, id: { not: excludeId } }
+      : { phone: normalizedPhone };
+    const owner = await prisma.center.findFirst({
+      where,
+      select: { id: true }
+    });
+    if (owner) {
+      return {
+        ok: false,
+        error: "CENTER_PHONE_IN_USE",
+        message: "Bu telefon numarasi baska bir merkezde kullaniliyor."
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
 centersRouter.get("/", requireAuth, requireRole("admin"), async (_req, res, next) => {
   try {
     const centers = await prisma.center.findMany({
@@ -79,12 +121,29 @@ centersRouter.post("/", requireAuth, requireRole("admin"), centerMutationRateLim
     }
 
     const payload = parsed.data;
+    const normalizedEmail = payload.email ? payload.email.trim().toLowerCase() : "";
+    const normalizedPhone = payload.phone ? normalizePhone(payload.phone) : "";
+    if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+      });
+    }
+    const uniqueCheck = await checkCenterContactUniqueness(normalizedEmail, normalizedPhone);
+    if (!uniqueCheck.ok) {
+      return res.status(409).json({
+        ok: false,
+        error: uniqueCheck.error,
+        message: uniqueCheck.message
+      });
+    }
     const created = await prisma.center.create({
       data: {
         name: payload.name.trim(),
         manager: payload.manager ? payload.manager.trim() : null,
-        phone: payload.phone ? payload.phone.trim() : null,
-        email: payload.email ? payload.email.trim().toLowerCase() : null,
+        phone: normalizedPhone || null,
+        email: normalizedEmail || null,
         address: payload.address ? payload.address.trim() : null,
         isActive: payload.isActive !== false
       },
@@ -116,9 +175,28 @@ centersRouter.put("/:id", requireAuth, requireRole("admin"), centerMutationRateL
     const data = {};
     if (typeof payload.name === "string") data.name = payload.name.trim();
     if (typeof payload.manager === "string") data.manager = payload.manager.trim();
-    if (typeof payload.phone === "string") data.phone = payload.phone.trim();
+    if (typeof payload.phone === "string") {
+      const normalizedPhone = payload.phone.trim() ? normalizePhone(payload.phone) : null;
+      if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+        return res.status(400).json({
+          ok: false,
+          error: "VALIDATION_ERROR",
+          message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+        });
+      }
+      data.phone = normalizedPhone;
+    }
     if (typeof payload.email === "string") data.email = payload.email.trim().toLowerCase();
     if (typeof payload.address === "string") data.address = payload.address.trim();
+
+    const uniqueCheck = await checkCenterContactUniqueness(data.email, data.phone, req.params.id);
+    if (!uniqueCheck.ok) {
+      return res.status(409).json({
+        ok: false,
+        error: uniqueCheck.error,
+        message: uniqueCheck.message
+      });
+    }
 
     const updated = await prisma.center.update({
       where: { id: req.params.id },
@@ -172,6 +250,47 @@ centersRouter.put("/:id/status", requireAuth, requireRole("admin"), centerMutati
         message: "Center not found"
       });
     }
+    return next(err);
+  }
+});
+
+centersRouter.delete("/:id", requireAuth, requireRole("admin"), centerMutationRateLimiter, async (req, res, next) => {
+  try {
+    const center = await prisma.center.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true }
+    });
+    if (!center) {
+      return res.status(404).json({
+        ok: false,
+        error: "NOT_FOUND",
+        message: "Center not found"
+      });
+    }
+
+    const [userCount, branchCount] = await Promise.all([
+      prisma.user.count({ where: { centerId: req.params.id } }),
+      prisma.branch.count({ where: { centerId: req.params.id } })
+    ]);
+
+    if (userCount > 0 || branchCount > 0) {
+      return res.status(409).json({
+        ok: false,
+        error: "CENTER_DELETE_BLOCKED",
+        message: "Merkez silinemedi. Once bagli sube ve kullanici kayitlarini temizleyin.",
+        data: { userCount, branchCount }
+      });
+    }
+
+    await prisma.center.delete({
+      where: { id: req.params.id }
+    });
+
+    return res.status(200).json({
+      ok: true,
+      data: { id: center.id, name: center.name, deleted: true }
+    });
+  } catch (err) {
     return next(err);
   }
 });

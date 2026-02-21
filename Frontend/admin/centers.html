@@ -37,6 +37,7 @@
       cursor: pointer;
     }
     .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .btn.warn { border-color: rgba(171,47,47,.35); color: #7c1d1d; background: #fff1f1; }
     .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.75); }
     table { border-collapse: collapse; width: 100%; min-width: 760px; }
     th, td { border-bottom: 1px solid rgba(19,34,31,.12); padding: .45rem .52rem; text-align: left; font-size: .88rem; }
@@ -61,6 +62,40 @@
       padding: .55rem .62rem;
       font-weight: 700;
     }
+    .notice-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(19, 34, 31, .3);
+      backdrop-filter: blur(2px);
+      z-index: 90;
+      padding: 1rem;
+    }
+    .notice-modal.show { display: flex; }
+    .notice-card {
+      width: min(420px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .98);
+      box-shadow: 0 14px 34px rgba(19, 34, 31, .22);
+      padding: .95rem 1rem;
+    }
+    .notice-card.error {
+      border-color: rgba(171,47,47,.35);
+      background: rgba(255,241,241,.97);
+    }
+    .notice-card h4 {
+      margin: .1rem 0 .45rem;
+      font-size: 1.02rem;
+    }
+    .notice-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
@@ -68,7 +103,6 @@
     <main class="panel">
       <div class="top">
         <div>
-          <span class="eyebrow">Admin</span>
           <h1>Merkez Yonetimi</h1>
         </div>
         <nav class="nav">
@@ -117,16 +151,9 @@
             <label style="grid-column:1/-1;">Adres
               <textarea id="createAddress"></textarea>
             </label>
-            <label>Durum
-              <select id="createActive">
-                <option value="true">Aktif</option>
-                <option value="false">Pasif</option>
-              </select>
-            </label>
           </form>
           <div class="actions">
             <button class="btn primary" id="createBtn" type="button">Merkez Olustur</button>
-            <button class="btn" id="reloadBtn" type="button">Listeyi Yenile</button>
           </div>
           <div id="createMsg" class="msg"></div>
         </article>
@@ -159,7 +186,6 @@
           </form>
           <div class="actions">
             <button class="btn primary" id="saveEditBtn" type="button">Bilgileri Kaydet</button>
-            <button class="btn" id="saveStatusBtn" type="button">Durumu Kaydet</button>
           </div>
           <div id="editMsg" class="msg"></div>
         </article>
@@ -171,6 +197,7 @@
           <table>
             <thead>
               <tr>
+                <th>Sec</th>
                 <th>Merkez</th>
                 <th>Yetkili</th>
                 <th>Telefon</th>
@@ -186,16 +213,51 @@
       </article>
     </main>
   </div>
+  <div id="createCenterModal" class="notice-modal" role="dialog" aria-modal="true">
+    <div id="createCenterCard" class="notice-card">
+      <h4 id="createCenterTitle">Bilgi</h4>
+      <p id="createCenterText"></p>
+      <div class="notice-actions">
+        <button id="createCenterCloseBtn" class="btn primary" type="button">Kapat</button>
+      </div>
+    </div>
+  </div>
+  <div id="deleteCenterModal" class="notice-modal" role="dialog" aria-modal="true">
+    <div class="notice-card error">
+      <h4>Silme Onayi</h4>
+      <p id="deleteCenterText">Bu merkezi silmek istediginize emin misiniz?</p>
+      <div class="notice-actions">
+        <button id="deleteCenterCancelBtn" class="btn" type="button">Iptal</button>
+        <button id="deleteCenterConfirmBtn" class="btn warn" type="button">Sil</button>
+      </div>
+    </div>
+  </div>
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <script src="../assets/form-validators.js"></script>
   <script>
     const cfg = window.APP_CONFIG || {};
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");    const centersBody = document.getElementById("centersBody");
     const selectedInfo = document.getElementById("selectedInfo");
     const createMsg = document.getElementById("createMsg");
     const editMsg = document.getElementById("editMsg");
+    const createCenterModal = document.getElementById("createCenterModal");
+    const createCenterCard = document.getElementById("createCenterCard");
+    const createCenterTitle = document.getElementById("createCenterTitle");
+    const createCenterText = document.getElementById("createCenterText");
+    const createCenterCloseBtn = document.getElementById("createCenterCloseBtn");
+    const deleteCenterModal = document.getElementById("deleteCenterModal");
+    const deleteCenterText = document.getElementById("deleteCenterText");
+    const deleteCenterCancelBtn = document.getElementById("deleteCenterCancelBtn");
+    const deleteCenterConfirmBtn = document.getElementById("deleteCenterConfirmBtn");
+    const createEmailInput = document.getElementById("createEmail");
+    const createPhoneInput = document.getElementById("createPhone");
+    const editEmailInput = document.getElementById("editEmail");
+    const editPhoneInput = document.getElementById("editPhone");
+    const validators = window.FormValidators || null;
     let centers = [];
     let selectedCenterId = "";
+    let pendingDeleteCenterId = "";
 
     function showMsg(el, text) {
       el.style.display = "block";
@@ -203,6 +265,15 @@
       setTimeout(function () {
         el.style.display = "none";
       }, 2600);
+    }
+    function showCreateCenterModal(type, title, message) {
+      createCenterCard.classList.toggle("error", type === "error");
+      createCenterTitle.textContent = title || "Bilgi";
+      createCenterText.textContent = message || "";
+      createCenterModal.classList.add("show");
+    }
+    function hideCreateCenterModal() {
+      createCenterModal.classList.remove("show");
     }
 
     function getSession() {
@@ -240,21 +311,43 @@
         const selected = selectedCenterId === c.id ? " style='background:rgba(19,34,31,.06)'" : "";
         return '' +
           '<tr' + selected + '>' +
+          '<td><button class="btn" data-select-center="' + c.id + '">Sec</button></td>' +
           '<td>' + c.name + '</td>' +
           '<td>' + (c.manager || "-") + '</td>' +
           '<td>' + (c.phone || "-") + '</td>' +
           '<td>' + (c.email || "-") + '</td>' +
           '<td><span class="badge ' + activeCls + '">' + activeText + '</span></td>' +
           '<td>' + Number(c.userCount || 0) + '</td>' +
-          '<td><button class="btn" data-select-center="' + c.id + '">Sec</button></td>' +
+          '<td><button class="btn warn" data-delete-center="' + c.id + '">Sil</button></td>' +
           '</tr>';
       }).join("");
-      centersBody.innerHTML = html || '<tr><td colspan="7">Merkez bulunamadi.</td></tr>';
+      centersBody.innerHTML = html || '<tr><td colspan="8">Merkez bulunamadi.</td></tr>';
       centersBody.querySelectorAll("[data-select-center]").forEach(function (btn) {
         btn.addEventListener("click", function () {
           selectedCenterId = btn.getAttribute("data-select-center") || "";
           applySelectedToForm();
           renderCenters();
+        });
+      });
+      centersBody.querySelectorAll("tr").forEach(function (row) {
+        row.addEventListener("click", function (event) {
+          const target = event.target;
+          if (target && (target.closest("[data-delete-center]") || target.closest("[data-select-center]"))) return;
+          const selectBtn = row.querySelector("[data-select-center]");
+          if (!selectBtn) return;
+          selectedCenterId = selectBtn.getAttribute("data-select-center") || "";
+          applySelectedToForm();
+          renderCenters();
+        });
+      });
+      centersBody.querySelectorAll("[data-delete-center]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const id = btn.getAttribute("data-delete-center") || "";
+          const target = centers.find(function (c) { return c.id === id; });
+          if (!target) return;
+          pendingDeleteCenterId = id;
+          deleteCenterText.textContent = '"' + (target.name || "Merkez") + '" kaydini silmek istediginize emin misiniz?';
+          deleteCenterModal.classList.add("show");
         });
       });
     }
@@ -265,7 +358,7 @@
         selectedInfo.textContent = "Henuz secim yok.";
         document.getElementById("editName").value = "";
         document.getElementById("editManager").value = "";
-        document.getElementById("editPhone").value = "";
+        document.getElementById("editPhone").value = "90";
         document.getElementById("editEmail").value = "";
         document.getElementById("editAddress").value = "";
         document.getElementById("editActive").value = "true";
@@ -274,7 +367,7 @@
       selectedInfo.textContent = "Secili: " + c.name;
       document.getElementById("editName").value = c.name || "";
       document.getElementById("editManager").value = c.manager || "";
-      document.getElementById("editPhone").value = c.phone || "";
+      document.getElementById("editPhone").value = c.phone || "90";
       document.getElementById("editEmail").value = c.email || "";
       document.getElementById("editAddress").value = c.address || "";
       document.getElementById("editActive").value = c.isActive ? "true" : "false";
@@ -289,13 +382,27 @@
     }
 
     async function createCenter() {
+      const createEmailResult = validators
+        ? validators.validateEmailInput(createEmailInput, { required: false, label: "E-posta" })
+        : { ok: true, value: createEmailInput.value.trim().toLowerCase() || null };
+      if (!createEmailResult.ok) {
+        createEmailInput.reportValidity();
+        throw new Error(createEmailResult.message);
+      }
+      const createPhoneResult = validators
+        ? validators.validatePhoneInput(createPhoneInput, { required: false, label: "Telefon" })
+        : { ok: true, value: createPhoneInput.value.trim() || null };
+      if (!createPhoneResult.ok) {
+        createPhoneInput.reportValidity();
+        throw new Error(createPhoneResult.message);
+      }
+
       const payload = {
         name: document.getElementById("createName").value.trim(),
         manager: document.getElementById("createManager").value.trim(),
-        phone: document.getElementById("createPhone").value.trim(),
-        email: document.getElementById("createEmail").value.trim(),
-        address: document.getElementById("createAddress").value.trim(),
-        isActive: document.getElementById("createActive").value === "true"
+        phone: createPhoneResult.value || undefined,
+        email: createEmailResult.value || undefined,
+        address: document.getElementById("createAddress").value.trim()
       };
       const created = await apiRequest("/centers", {
         method: "POST",
@@ -305,58 +412,111 @@
       selectedCenterId = created.id;
       renderCenters();
       applySelectedToForm();
-      showMsg(createMsg, "Merkez olusturuldu.");
+      document.getElementById("createName").value = "";
+      document.getElementById("createManager").value = "";
+      createPhoneInput.value = "90";
+      createEmailInput.value = "";
+      document.getElementById("createAddress").value = "";
+      showCreateCenterModal("success", "Basarili", '"' + (created.name || "Merkez") + '" olusturuldu.');
     }
 
     async function saveCenterEdit() {
       const c = selectedCenter();
       if (!c) throw new Error("Lutfen listeden merkez secin.");
+      const isActive = document.getElementById("editActive").value === "true";
+      const editEmailResult = validators
+        ? validators.validateEmailInput(editEmailInput, { required: false, label: "E-posta" })
+        : { ok: true, value: editEmailInput.value.trim().toLowerCase() || null };
+      if (!editEmailResult.ok) {
+        editEmailInput.reportValidity();
+        throw new Error(editEmailResult.message);
+      }
+      const editPhoneResult = validators
+        ? validators.validatePhoneInput(editPhoneInput, { required: false, label: "Telefon" })
+        : { ok: true, value: editPhoneInput.value.trim() || null };
+      if (!editPhoneResult.ok) {
+        editPhoneInput.reportValidity();
+        throw new Error(editPhoneResult.message);
+      }
+
       const payload = {
         name: document.getElementById("editName").value.trim(),
         manager: document.getElementById("editManager").value.trim(),
-        phone: document.getElementById("editPhone").value.trim(),
-        email: document.getElementById("editEmail").value.trim(),
+        phone: editPhoneResult.value || undefined,
+        email: editEmailResult.value || undefined,
         address: document.getElementById("editAddress").value.trim()
       };
-      const updated = await apiRequest("/centers/" + c.id, {
+      let updated = await apiRequest("/centers/" + c.id, {
         method: "PUT",
         body: JSON.stringify(payload)
       });
+
+      if (updated.isActive !== isActive) {
+        updated = await apiRequest("/centers/" + c.id + "/status", {
+          method: "PUT",
+          body: JSON.stringify({ isActive: isActive })
+        });
+      }
+
       centers = centers.map(function (x) { return x.id === updated.id ? updated : x; });
       renderCenters();
       applySelectedToForm();
-      showMsg(editMsg, "Merkez bilgileri guncellendi.");
+      showMsg(editMsg, "Merkez bilgileri (durum dahil) guncellendi.");
     }
 
-    async function saveCenterStatus() {
-      const c = selectedCenter();
-      if (!c) throw new Error("Lutfen listeden merkez secin.");
-      const isActive = document.getElementById("editActive").value === "true";
-      const updated = await apiRequest("/centers/" + c.id + "/status", {
-        method: "PUT",
-        body: JSON.stringify({ isActive: isActive })
+    async function deleteCenter() {
+      if (!pendingDeleteCenterId) return;
+      const target = centers.find(function (c) { return c.id === pendingDeleteCenterId; });
+      const deleted = await apiRequest("/centers/" + pendingDeleteCenterId, {
+        method: "DELETE"
       });
-      centers = centers.map(function (x) { return x.id === updated.id ? updated : x; });
+      centers = centers.filter(function (c) { return c.id !== pendingDeleteCenterId; });
+      if (selectedCenterId === pendingDeleteCenterId) {
+        selectedCenterId = centers.length ? centers[0].id : "";
+      }
+      pendingDeleteCenterId = "";
+      deleteCenterModal.classList.remove("show");
       renderCenters();
       applySelectedToForm();
-      showMsg(editMsg, "Durum guncellendi.");
+      showCreateCenterModal("success", "Basarili", '"' + ((target && target.name) || (deleted && deleted.name) || "Merkez") + '" silindi.');
     }
 
     document.getElementById("createBtn").addEventListener("click", function () {
-      createCenter().catch(function (err) { showMsg(createMsg, err.message || "Merkez olusturulamadi."); });
-    });
-    document.getElementById("reloadBtn").addEventListener("click", function () {
-      loadCenters().catch(function (err) { showMsg(createMsg, err.message || "Liste yenilenemedi."); });
+      createCenter().catch(function (err) {
+        showCreateCenterModal("error", "Uyari", (err && err.message) || "Merkez olusturulamadi.");
+      });
     });
     document.getElementById("saveEditBtn").addEventListener("click", function () {
       saveCenterEdit().catch(function (err) { showMsg(editMsg, err.message || "Kaydedilemedi."); });
     });
-    document.getElementById("saveStatusBtn").addEventListener("click", function () {
-      saveCenterStatus().catch(function (err) { showMsg(editMsg, err.message || "Durum guncellenemedi."); });
-    });
 
     loadCenters().catch(function (err) {
       showMsg(createMsg, err.message || "Merkez verileri alinamadi.");
+    });
+    if (validators) {
+      validators.initStrictPhoneInput(createPhoneInput);
+      validators.initStrictPhoneInput(editPhoneInput);
+    }
+    createCenterCloseBtn.addEventListener("click", hideCreateCenterModal);
+    createCenterModal.addEventListener("click", function (event) {
+      if (event.target === createCenterModal) hideCreateCenterModal();
+    });
+    deleteCenterCancelBtn.addEventListener("click", function () {
+      pendingDeleteCenterId = "";
+      deleteCenterModal.classList.remove("show");
+    });
+    deleteCenterConfirmBtn.addEventListener("click", function () {
+      deleteCenter().catch(function (err) {
+        pendingDeleteCenterId = "";
+        deleteCenterModal.classList.remove("show");
+        showCreateCenterModal("error", "Uyari", (err && err.message) || "Merkez silinemedi.");
+      });
+    });
+    deleteCenterModal.addEventListener("click", function (event) {
+      if (event.target === deleteCenterModal) {
+        pendingDeleteCenterId = "";
+        deleteCenterModal.classList.remove("show");
+      }
     });
   </script>
 </body>

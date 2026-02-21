@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merkez Raporlar | B2B Tedarik</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-1: #f3ede0;
+      --bg-2: #d8f0e3;
+      --ink: #13221f;
+      --card: rgba(255, 255, 255, 0.74);
+      --border: rgba(19, 34, 31, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, #fef6d8 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, #d4f6eb 0%, transparent 35%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      padding: 1.2rem;
+    }
+    .wrap { width: min(1150px, 100%); margin: 0 auto; }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: clamp(1rem, 2.2vw, 1.8rem);
+      box-shadow: 0 24px 60px rgba(19, 34, 31, 0.12);
+    }
+    .top {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 1rem;
+      align-items: start;
+      margin-bottom: 1rem;
+    }
+    .eyebrow {
+      display: inline-block;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .3rem .7rem;
+      font-size: .8rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.65);
+    }
+    h1 {
+      margin: .7rem 0 .3rem;
+      font-family: "Fraunces", serif;
+      font-size: clamp(1.9rem, 4.4vw, 3rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+    .nav {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      justify-content: flex-end;
+      margin-left: auto;
+    }
+    .nav a {
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: .5rem .75rem;
+      background: rgba(255, 255, 255, .72);
+      font-weight: 600;
+      height: fit-content;
+    }
+    @media (max-width: 980px) {
+      .top { grid-template-columns: 1fr; }
+      .nav { justify-content: flex-start; margin-left: 0; }
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: .7rem;
+      margin-bottom: .95rem;
+    }
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .66);
+      padding: .75rem .85rem;
+    }
+    .stat strong {
+      display: block;
+      margin-top: .1rem;
+      font-size: 1.35rem;
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .67);
+      padding: .9rem;
+      margin-top: .9rem;
+    }
+    .card h3 {
+      margin: .1rem 0 .7rem;
+      font-size: 1.05rem;
+    }
+    .toolbar {
+      display: flex;
+      gap: .55rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: .7rem;
+    }
+    .check-wrap {
+      display: inline-flex;
+      gap: .35rem;
+      align-items: center;
+      font-weight: 600;
+      font-size: .92rem;
+      background: rgba(255, 255, 255, .8);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: .4rem .55rem;
+    }
+    .check-wrap select,
+    .check-wrap input[type="date"] {
+      border: 1px solid rgba(19, 34, 31, .22);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, .98);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      min-height: 34px;
+      padding: .2rem .45rem;
+      outline: none;
+    }
+    .check-wrap select {
+      min-width: 180px;
+      appearance: none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(19, 34, 31, .72) 50%),
+        linear-gradient(135deg, rgba(19, 34, 31, .72) 50%, transparent 50%);
+      background-position:
+        calc(100% - 14px) calc(50% - 2px),
+        calc(100% - 9px) calc(50% - 2px);
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+      padding-right: 1.6rem;
+    }
+    .check-wrap select:focus,
+    .check-wrap input[type="date"]:focus {
+      border-color: rgba(19, 34, 31, .45);
+      box-shadow: 0 0 0 2px rgba(19, 34, 31, .08);
+    }
+    .branch-picker {
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      gap: .35rem;
+      min-width: 240px;
+    }
+    .branch-picker-btn {
+      border: 1px solid rgba(19, 34, 31, .22);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, .98);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      min-height: 34px;
+      padding: .2rem .75rem;
+      text-align: left;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .7rem;
+    }
+    .branch-picker-btn::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid rgba(19, 34, 31, .72);
+      border-bottom: 2px solid rgba(19, 34, 31, .72);
+      transform: rotate(45deg);
+      margin-top: -3px;
+      flex: 0 0 auto;
+    }
+    .branch-picker-menu {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 4px);
+      z-index: 20;
+      border: 1px solid rgba(19, 34, 31, .16);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, .98);
+      box-shadow: 0 16px 30px rgba(19, 34, 31, .18);
+      max-height: 210px;
+      overflow-y: auto;
+      padding: .35rem;
+    }
+    .branch-picker-item {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+      font: inherit;
+      font-weight: 600;
+      padding: .45rem .5rem;
+      cursor: pointer;
+    }
+    .branch-picker-item:hover {
+      background: rgba(19, 34, 31, .06);
+    }
+    .branch-picker-item.active {
+      border-color: rgba(19, 34, 31, .22);
+      background: rgba(19, 34, 31, .08);
+    }
+    .branch-picker-menu[hidden] {
+      display: none;
+    }
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: .45rem .65rem;
+      background: rgba(255, 255, 255, .82);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: var(--ink);
+      color: #fff;
+      border-color: transparent;
+    }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .78);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 760px;
+    }
+    th, td {
+      border-bottom: 1px solid rgba(19, 34, 31, .12);
+      padding: .45rem .55rem;
+      text-align: left;
+      font-size: .88rem;
+      vertical-align: top;
+    }
+    th {
+      background: rgba(255, 255, 255, .94);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .tabs {
+      display: flex;
+      gap: .55rem;
+      margin-bottom: .25rem;
+      flex-wrap: wrap;
+    }
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .64);
+      padding: .85rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <main class="panel">
+      <div class="top">
+        <div>
+          <h1>Raporlar</h1>
+        </div>
+        <nav class="nav">
+          <a href="../sube/siparis.html">Siparis Ver</a>
+          <a href="../sube/siparislerim.html">Siparislerim</a>
+          <a href="merkez.html">Merkez Paneli</a>
+          <a href="merkez-raporlar.html">Raporlar</a>
+          <a href="merkez-urun-fiyat.html">Urunler</a>
+          <a href="merkez-subeler.html">Subeler</a>
+        </nav>
+      </div>
+
+      <section class="stats">
+        <article class="stat">Aralik Siparis Sayisi<strong id="statOrderCount">0</strong></article>
+        <article class="stat">Toplam Sube<strong id="statBranchCount">0</strong></article>
+        <article class="stat">Toplam Tepsi<strong id="statTrayCount">0</strong></article>
+        <article class="stat">Toplam Tutar<strong id="statAmount">0 TL</strong></article>
+      </section>
+
+      <div class="tabs">
+        <button id="tabCarryoverBtn" class="btn primary" type="button">Kalan Stok Takibi</button>
+        <button id="tabOrdersBtn" class="btn" type="button">Gecmis Siparisler</button>
+        <button id="tabProductTotalsBtn" class="btn" type="button">Toplam Siparis (Urun Bazli)</button>
+        <button id="tabBranchTotalsBtn" class="btn" type="button">Toplam Siparis (Sube Bazli)</button>
+      </div>
+
+      <section id="carryoverSection" class="card">
+        <h3>Sube Kalan Takip Raporu (Kg)</h3>
+        <div class="toolbar">
+          <label class="check-wrap">
+            Baslangic
+            <input type="date" id="carryoverFromDate">
+          </label>
+          <label class="check-wrap">
+            Bitis
+            <input type="date" id="carryoverToDate">
+          </label>
+          <button class="btn" type="button" id="carryoverFilterBtn">Filtrele</button>
+          <button class="btn" type="button" id="carryoverTodayBtn">Bugun</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Sube</th>
+                <th>Urun</th>
+                <th>Toplam Kalan (kg)</th>
+                <th>Bildirim Sayisi</th>
+                <th>Son Bildirim</th>
+              </tr>
+            </thead>
+            <tbody id="carryoverBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="historySection" class="card" hidden>
+        <h3>Gecmis Siparis Raporu</h3>
+        <div class="toolbar">
+          <label class="check-wrap">
+            Baslangic
+            <input type="date" id="historyFromDate">
+          </label>
+          <label class="check-wrap">
+            Bitis
+            <input type="date" id="historyToDate">
+          </label>
+          <button class="btn" type="button" id="historyFilterBtn">Filtrele</button>
+          <button class="btn" type="button" id="historyTodayBtn">Bugun</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Siparis No</th>
+                <th>Sube</th>
+                <th>Olusturma</th>
+                <th>Teslimat</th>
+                <th>Durum</th>
+                <th>Teslim Durumu</th>
+                <th>Tepsi</th>
+                <th>Tutar</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="productTotalsSection" class="card" hidden>
+        <h3>Urun Bazli Toplam Siparis Raporu</h3>
+        <div class="toolbar">
+          <label class="check-wrap">
+            Baslangic
+            <input type="date" id="productTotalsFromDate">
+          </label>
+          <label class="check-wrap">
+            Bitis
+            <input type="date" id="productTotalsToDate">
+          </label>
+          <button class="btn" type="button" id="productTotalsFilterBtn">Filtrele</button>
+          <button class="btn" type="button" id="productTotalsTodayBtn">Bugun</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Urun</th>
+                <th>Siparis Adedi</th>
+                <th>Fiyat</th>
+                <th>Toplam Tepsi</th>
+                <th>Toplam Fiyat</th>
+              </tr>
+            </thead>
+            <tbody id="productTotalsBody"></tbody>
+            <tfoot>
+              <tr>
+                <th colspan="3">Genel Toplam</th>
+                <th id="productTotalsGrandTray">0</th>
+                <th id="productTotalsGrandAmount">0 TL</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section id="branchTotalsSection" class="card" hidden>
+        <h3>Sube Bazli Siparis Raporu</h3>
+        <div class="toolbar">
+          <label class="check-wrap">
+            Sube
+            <div id="branchPicker" class="branch-picker">
+              <button type="button" id="branchPickerBtn" class="branch-picker-btn">Sube sec</button>
+              <div id="branchPickerMenu" class="branch-picker-menu" hidden></div>
+            </div>
+          </label>
+          <label class="check-wrap">
+            Baslangic
+            <input type="date" id="branchTotalsFromDate">
+          </label>
+          <label class="check-wrap">
+            Bitis
+            <input type="date" id="branchTotalsToDate">
+          </label>
+          <button class="btn" type="button" id="branchTotalsFilterBtn">Filtrele</button>
+          <button class="btn" type="button" id="branchTotalsTodayBtn">Bugun</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Siparis No</th>
+                <th>Olusturma</th>
+                <th>Teslimat</th>
+                <th>Durum</th>
+                <th>Teslim Durumu</th>
+                <th>Tepsi</th>
+                <th>Tutar</th>
+              </tr>
+            </thead>
+            <tbody id="branchTotalsBody"></tbody>
+            <tfoot>
+              <tr>
+                <th colspan="5">Genel Toplam</th>
+                <th id="branchTotalsGrandTray">0</th>
+                <th id="branchTotalsGrandAmount">0 TL</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="../assets/app-config.js"></script>
+  <script src="../assets/role-guard.js"></script>
+  <script>
+    const cfg = window.APP_CONFIG || {};
+    const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
+    const statOrderCount = document.getElementById("statOrderCount");
+    const statBranchCount = document.getElementById("statBranchCount");
+    const statTrayCount = document.getElementById("statTrayCount");
+    const statAmount = document.getElementById("statAmount");
+
+    const tabCarryoverBtn = document.getElementById("tabCarryoverBtn");
+    const tabOrdersBtn = document.getElementById("tabOrdersBtn");
+    const tabProductTotalsBtn = document.getElementById("tabProductTotalsBtn");
+    const tabBranchTotalsBtn = document.getElementById("tabBranchTotalsBtn");
+    const carryoverSection = document.getElementById("carryoverSection");
+    const historySection = document.getElementById("historySection");
+    const productTotalsSection = document.getElementById("productTotalsSection");
+    const branchTotalsSection = document.getElementById("branchTotalsSection");
+
+    const carryoverFromDate = document.getElementById("carryoverFromDate");
+    const carryoverToDate = document.getElementById("carryoverToDate");
+    const carryoverFilterBtn = document.getElementById("carryoverFilterBtn");
+    const carryoverTodayBtn = document.getElementById("carryoverTodayBtn");
+    const carryoverBody = document.getElementById("carryoverBody");
+
+    const historyFromDate = document.getElementById("historyFromDate");
+    const historyToDate = document.getElementById("historyToDate");
+    const historyFilterBtn = document.getElementById("historyFilterBtn");
+    const historyTodayBtn = document.getElementById("historyTodayBtn");
+    const historyBody = document.getElementById("historyBody");
+
+    const productTotalsFromDate = document.getElementById("productTotalsFromDate");
+    const productTotalsToDate = document.getElementById("productTotalsToDate");
+    const productTotalsFilterBtn = document.getElementById("productTotalsFilterBtn");
+    const productTotalsTodayBtn = document.getElementById("productTotalsTodayBtn");
+    const productTotalsBody = document.getElementById("productTotalsBody");
+    const productTotalsGrandTray = document.getElementById("productTotalsGrandTray");
+    const productTotalsGrandAmount = document.getElementById("productTotalsGrandAmount");
+
+    const branchPicker = document.getElementById("branchPicker");
+    const branchPickerBtn = document.getElementById("branchPickerBtn");
+    const branchPickerMenu = document.getElementById("branchPickerMenu");
+    const branchTotalsFromDate = document.getElementById("branchTotalsFromDate");
+    const branchTotalsToDate = document.getElementById("branchTotalsToDate");
+    const branchTotalsFilterBtn = document.getElementById("branchTotalsFilterBtn");
+    const branchTotalsTodayBtn = document.getElementById("branchTotalsTodayBtn");
+    const branchTotalsBody = document.getElementById("branchTotalsBody");
+    const branchTotalsGrandTray = document.getElementById("branchTotalsGrandTray");
+    const branchTotalsGrandAmount = document.getElementById("branchTotalsGrandAmount");
+    let branchOptions = [];
+    let selectedBranchId = "";
+    let selectedBranchName = "";
+
+    async function apiRequest(path, options) {
+      const response = await fetch(apiBaseUrl + path, Object.assign({}, options || {}, {
+        credentials: "include",
+        headers: Object.assign(
+          { "Content-Type": "application/json" },
+          (options && options.headers) || {}
+        )
+      }));
+      const payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !payload || payload.ok !== true) {
+        throw new Error((payload && payload.message) || "API islemi basarisiz.");
+      }
+      return payload.data;
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function formatDate(isoText) {
+      const d = new Date(isoText);
+      if (Number.isNaN(d.getTime())) return "-";
+      return d.toLocaleString("tr-TR");
+    }
+
+    function formatTL(value) {
+      return new Intl.NumberFormat("tr-TR").format(Number(value || 0)) + " TL";
+    }
+
+    function toDateKey(dateValue) {
+      const yyyy = dateValue.getFullYear();
+      const mm = String(dateValue.getMonth() + 1).padStart(2, "0");
+      const dd = String(dateValue.getDate()).padStart(2, "0");
+      return yyyy + "-" + mm + "-" + dd;
+    }
+
+    function todayKey() {
+      return toDateKey(new Date());
+    }
+
+    function queryByRange(from, to) {
+      const query = [];
+      if (from) query.push("from=" + encodeURIComponent(from));
+      if (to) query.push("to=" + encodeURIComponent(to));
+      return "/orders" + (query.length ? "?" + query.join("&") : "");
+    }
+
+    async function loadOrdersByRange(from, to) {
+      const rows = await apiRequest(queryByRange(from, to), { method: "GET" });
+      return Array.isArray(rows) ? rows : [];
+    }
+
+    async function loadProducts() {
+      const rows = await apiRequest("/products", { method: "GET" });
+      return Array.isArray(rows) ? rows : [];
+    }
+
+    async function loadBranches() {
+      const rows = await apiRequest("/branches", { method: "GET" });
+      return Array.isArray(rows) ? rows : [];
+    }
+
+    function setTab(tabName) {
+      const carryoverActive = tabName === "carryover";
+      const historyActive = tabName === "history";
+      const productTotalsActive = tabName === "productTotals";
+      const branchTotalsActive = tabName === "branchTotals";
+
+      tabCarryoverBtn.classList.toggle("primary", carryoverActive);
+      tabOrdersBtn.classList.toggle("primary", historyActive);
+      tabProductTotalsBtn.classList.toggle("primary", productTotalsActive);
+      tabBranchTotalsBtn.classList.toggle("primary", branchTotalsActive);
+
+      carryoverSection.hidden = !carryoverActive;
+      historySection.hidden = !historyActive;
+      productTotalsSection.hidden = !productTotalsActive;
+      branchTotalsSection.hidden = !branchTotalsActive;
+    }
+
+    function renderRangeStats(rows) {
+      const branchSet = new Set();
+      let totalTray = 0;
+      let totalAmount = 0;
+
+      rows.forEach(function (order) {
+        branchSet.add(order.branchName || "Bilinmeyen Sube");
+        totalTray += Number(order.totalTray || 0);
+        totalAmount += Number(order.totalAmount || 0);
+      });
+
+      statOrderCount.textContent = String(rows.length);
+      statBranchCount.textContent = String(branchSet.size);
+      statTrayCount.textContent = String(totalTray);
+      statAmount.textContent = formatTL(totalAmount);
+    }
+
+    function renderCarryoverTable(rows) {
+      const map = {};
+      rows.forEach(function (order) {
+        const branch = order.branchName || "Bilinmeyen Sube";
+        const createdAt = order.createdAt || "";
+        const entries = Array.isArray(order.carryovers) ? order.carryovers : [];
+
+        entries.forEach(function (entry) {
+          const qtyKg = Number(entry.qtyKg || 0);
+          if (!(qtyKg > 0)) return;
+          const productName = entry.name || "Urun";
+          const key = branch + "||" + productName;
+          if (!map[key]) {
+            map[key] = {
+              branch: branch,
+              product: productName,
+              totalKg: 0,
+              count: 0,
+              lastAt: createdAt
+            };
+          }
+          map[key].totalKg += qtyKg;
+          map[key].count += 1;
+          if (new Date(createdAt).getTime() > new Date(map[key].lastAt).getTime()) {
+            map[key].lastAt = createdAt;
+          }
+        });
+      });
+
+      const list = Object.values(map).sort(function (a, b) {
+        if (a.branch !== b.branch) return a.branch.localeCompare(b.branch, "tr");
+        return a.product.localeCompare(b.product, "tr");
+      });
+
+      if (!list.length) {
+        carryoverBody.innerHTML = '<tr><td colspan="5">Secilen aralikta elde kalan kaydi bulunmuyor.</td></tr>';
+        return;
+      }
+
+      carryoverBody.innerHTML = list.map(function (item) {
+        return '' +
+          '<tr>' +
+            '<td>' + escapeHtml(item.branch) + '</td>' +
+            '<td>' + escapeHtml(item.product) + '</td>' +
+            '<td>' + escapeHtml(item.totalKg.toFixed(2)) + '</td>' +
+            '<td>' + String(item.count) + '</td>' +
+            '<td>' + escapeHtml(formatDate(item.lastAt)) + '</td>' +
+          '</tr>';
+      }).join("");
+    }
+
+    function renderHistoryTable(rows) {
+      if (!rows.length) {
+        historyBody.innerHTML = '<tr><td colspan="8">Secilen aralikta siparis bulunmuyor.</td></tr>';
+        return;
+      }
+
+      const sorted = rows.slice().sort(function (a, b) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      historyBody.innerHTML = sorted.map(function (order) {
+        return '' +
+          '<tr>' +
+            '<td>' + escapeHtml(order.orderNo || "-") + '</td>' +
+            '<td>' + escapeHtml(order.branchName || "-") + '</td>' +
+            '<td>' + escapeHtml(formatDate(order.createdAt)) + '</td>' +
+            '<td>' + escapeHtml((order.deliveryDate || "-") + " " + (order.deliveryTime || "")) + '</td>' +
+            '<td>' + escapeHtml(order.status || "-") + '</td>' +
+            '<td>' + escapeHtml(order.deliveryStatus || "-") + '</td>' +
+            '<td>' + escapeHtml(String(order.totalTray || 0)) + '</td>' +
+            '<td>' + escapeHtml(formatTL(order.totalAmount || 0)) + '</td>' +
+          '</tr>';
+      }).join("");
+    }
+
+    async function renderCarryoverReport() {
+      try {
+        const from = carryoverFromDate.value || "";
+        const to = carryoverToDate.value || "";
+        const rows = await loadOrdersByRange(from, to);
+        renderRangeStats(rows);
+        renderCarryoverTable(rows);
+      } catch (_err) {
+        carryoverBody.innerHTML = '<tr><td colspan="5">Kalan raporu alinamadi.</td></tr>';
+      }
+    }
+
+    async function renderHistoryReport() {
+      try {
+        const from = historyFromDate.value || "";
+        const to = historyToDate.value || "";
+        const rows = await loadOrdersByRange(from, to);
+        renderRangeStats(rows);
+        renderHistoryTable(rows);
+      } catch (_err) {
+        historyBody.innerHTML = '<tr><td colspan="8">Gecmis siparis raporu alinamadi.</td></tr>';
+      }
+    }
+
+    function renderProductTotalsTable(rows, products) {
+      const map = {};
+      let grandTotalTray = 0;
+      let grandTotalAmount = 0;
+
+      (products || []).forEach(function (product) {
+        const name = String(product.name || "").trim();
+        if (!name) return;
+        map[name] = {
+          name: name,
+          unitPrice: Number(product.basePrice || 0),
+          totalTray: 0,
+          totalAmount: 0,
+          orderNos: new Set()
+        };
+      });
+
+      rows.forEach(function (order) {
+        const orderNo = order.orderNo || "";
+        (order.items || []).forEach(function (item) {
+          const name = String(item.name || "Urun");
+          const qty = Number(item.qty || 0);
+          const unitPrice = Number(item.unitPrice || 0);
+          if (!map[name]) {
+            map[name] = {
+              name: name,
+              unitPrice: unitPrice,
+              totalTray: 0,
+              totalAmount: 0,
+              orderNos: new Set()
+            };
+          }
+          if (!map[name].unitPrice && unitPrice > 0) {
+            map[name].unitPrice = unitPrice;
+          }
+          map[name].totalTray += qty;
+          map[name].totalAmount += qty * unitPrice;
+          if (orderNo) map[name].orderNos.add(orderNo);
+          grandTotalTray += qty;
+          grandTotalAmount += qty * unitPrice;
+        });
+      });
+
+      const list = Object.values(map).sort(function (a, b) {
+        if (b.totalTray !== a.totalTray) return b.totalTray - a.totalTray;
+        return a.name.localeCompare(b.name, "tr");
+      });
+
+      if (!list.length) {
+        productTotalsBody.innerHTML = '<tr><td colspan="5">Urun kaydi bulunmuyor.</td></tr>';
+        productTotalsGrandTray.textContent = "0";
+        productTotalsGrandAmount.textContent = "0 TL";
+        return;
+      }
+
+      productTotalsBody.innerHTML = list.map(function (item) {
+        return '' +
+          '<tr>' +
+            '<td>' + escapeHtml(item.name) + '</td>' +
+            '<td>' + String(item.orderNos.size) + '</td>' +
+            '<td>' + escapeHtml(formatTL(item.unitPrice)) + '</td>' +
+            '<td>' + String(item.totalTray) + '</td>' +
+            '<td>' + escapeHtml(formatTL(item.totalAmount)) + '</td>' +
+          '</tr>';
+      }).join("");
+      productTotalsGrandTray.textContent = String(grandTotalTray);
+      productTotalsGrandAmount.textContent = formatTL(grandTotalAmount);
+    }
+
+    async function renderProductTotalsReport() {
+      try {
+        const from = productTotalsFromDate.value || "";
+        const to = productTotalsToDate.value || "";
+        const rows = await loadOrdersByRange(from, to);
+        const products = await loadProducts();
+        renderRangeStats(rows);
+        renderProductTotalsTable(rows, products);
+      } catch (_err) {
+        productTotalsBody.innerHTML = '<tr><td colspan="5">Urun bazli rapor alinamadi.</td></tr>';
+        productTotalsGrandTray.textContent = "0";
+        productTotalsGrandAmount.textContent = "0 TL";
+      }
+    }
+
+    function renderBranchTotalsTable(rows) {
+      let grandTray = 0;
+      let grandAmount = 0;
+
+      if (!rows.length) {
+        branchTotalsBody.innerHTML = '<tr><td colspan="7">Secilen sube ve aralikta siparis bulunmuyor.</td></tr>';
+        branchTotalsGrandTray.textContent = "0";
+        branchTotalsGrandAmount.textContent = "0 TL";
+        return;
+      }
+
+      const sorted = rows.slice().sort(function (a, b) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      branchTotalsBody.innerHTML = sorted.map(function (order) {
+        const tray = Number(order.totalTray || 0);
+        const amount = Number(order.totalAmount || 0);
+        grandTray += tray;
+        grandAmount += amount;
+        return '' +
+          '<tr>' +
+            '<td>' + escapeHtml(order.orderNo || "-") + '</td>' +
+            '<td>' + escapeHtml(formatDate(order.createdAt)) + '</td>' +
+            '<td>' + escapeHtml((order.deliveryDate || "-") + " " + (order.deliveryTime || "")) + '</td>' +
+            '<td>' + escapeHtml(order.status || "-") + '</td>' +
+            '<td>' + escapeHtml(order.deliveryStatus || "-") + '</td>' +
+            '<td>' + escapeHtml(String(tray)) + '</td>' +
+            '<td>' + escapeHtml(formatTL(amount)) + '</td>' +
+          '</tr>';
+      }).join("");
+
+      branchTotalsGrandTray.textContent = String(grandTray);
+      branchTotalsGrandAmount.textContent = formatTL(grandAmount);
+    }
+
+    function selectedBranchMeta() {
+      return { id: selectedBranchId, name: selectedBranchName };
+    }
+
+    async function renderBranchTotalsReport() {
+      try {
+        const branch = selectedBranchMeta();
+        if (!branch.id && !branch.name) {
+          branchTotalsBody.innerHTML = '<tr><td colspan="7">Sube secimi bulunamadi.</td></tr>';
+          branchTotalsGrandTray.textContent = "0";
+          branchTotalsGrandAmount.textContent = "0 TL";
+          return;
+        }
+        const from = branchTotalsFromDate.value || "";
+        const to = branchTotalsToDate.value || "";
+        const rows = await loadOrdersByRange(from, to);
+        const filtered = rows.filter(function (order) {
+          if (branch.id && String(order.branchId || "") === branch.id) return true;
+          return String(order.branchName || "").trim() === branch.name;
+        });
+        renderRangeStats(filtered);
+        renderBranchTotalsTable(filtered);
+      } catch (_err) {
+        branchTotalsBody.innerHTML = '<tr><td colspan="7">Sube bazli rapor alinamadi.</td></tr>';
+        branchTotalsGrandTray.textContent = "0";
+        branchTotalsGrandAmount.textContent = "0 TL";
+      }
+    }
+
+    function setTodayCarryoverRange() {
+      const today = todayKey();
+      carryoverFromDate.value = today;
+      carryoverToDate.value = today;
+    }
+
+    function setTodayHistoryRange() {
+      const today = todayKey();
+      historyFromDate.value = today;
+      historyToDate.value = today;
+    }
+
+    function setTodayProductTotalsRange() {
+      const today = todayKey();
+      productTotalsFromDate.value = today;
+      productTotalsToDate.value = today;
+    }
+
+    function setTodayBranchTotalsRange() {
+      const today = todayKey();
+      branchTotalsFromDate.value = today;
+      branchTotalsToDate.value = today;
+    }
+
+    async function initBranchTotalsSelect() {
+      const branches = await loadBranches();
+      branchOptions = branches
+        .map(function (b) {
+          return {
+            id: String(b.id || ""),
+            name: String(b.name || "").trim()
+          };
+        })
+        .filter(function (b) { return b.id && b.name; })
+        .sort(function (a, b) { return a.name.localeCompare(b.name, "tr"); });
+
+      if (!branchOptions.length) {
+        branchPickerBtn.textContent = "Sube bulunamadi";
+        branchPickerBtn.disabled = true;
+        branchPickerMenu.innerHTML = "";
+        return;
+      }
+      selectedBranchId = branchOptions[0].id;
+      selectedBranchName = branchOptions[0].name;
+      renderBranchPickerMenu();
+      updateBranchPickerLabel();
+    }
+
+    function updateBranchPickerLabel() {
+      branchPickerBtn.textContent = selectedBranchName || "Sube sec";
+    }
+
+    function renderBranchPickerMenu() {
+      branchPickerMenu.innerHTML = branchOptions.map(function (branch) {
+        const activeClass = branch.id === selectedBranchId ? " active" : "";
+        return '' +
+          '<button type="button" class="branch-picker-item' + activeClass + '" data-branch-id="' + escapeHtml(branch.id) + '" data-branch-name="' + escapeHtml(branch.name) + '">' +
+            escapeHtml(branch.name) +
+          '</button>';
+      }).join("");
+      branchPickerMenu.querySelectorAll(".branch-picker-item").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          selectedBranchId = btn.dataset.branchId || "";
+          selectedBranchName = btn.dataset.branchName || "";
+          updateBranchPickerLabel();
+          closeBranchPicker();
+          renderBranchTotalsReport();
+        });
+      });
+    }
+
+    function openBranchPicker() {
+      branchPickerMenu.hidden = false;
+    }
+
+    function closeBranchPicker() {
+      branchPickerMenu.hidden = true;
+    }
+
+    tabCarryoverBtn.addEventListener("click", function () {
+      setTab("carryover");
+      renderCarryoverReport();
+    });
+    tabOrdersBtn.addEventListener("click", function () {
+      setTab("history");
+      renderHistoryReport();
+    });
+    tabProductTotalsBtn.addEventListener("click", function () {
+      setTab("productTotals");
+      renderProductTotalsReport();
+    });
+    tabBranchTotalsBtn.addEventListener("click", function () {
+      setTab("branchTotals");
+      renderBranchTotalsReport();
+    });
+
+    carryoverFilterBtn.addEventListener("click", renderCarryoverReport);
+    carryoverTodayBtn.addEventListener("click", function () {
+      setTodayCarryoverRange();
+      renderCarryoverReport();
+    });
+
+    historyFilterBtn.addEventListener("click", renderHistoryReport);
+    historyTodayBtn.addEventListener("click", function () {
+      setTodayHistoryRange();
+      renderHistoryReport();
+    });
+
+    productTotalsFilterBtn.addEventListener("click", renderProductTotalsReport);
+    productTotalsTodayBtn.addEventListener("click", function () {
+      setTodayProductTotalsRange();
+      renderProductTotalsReport();
+    });
+    branchTotalsFilterBtn.addEventListener("click", renderBranchTotalsReport);
+    branchTotalsTodayBtn.addEventListener("click", function () {
+      setTodayBranchTotalsRange();
+      renderBranchTotalsReport();
+    });
+    branchPickerBtn.addEventListener("click", function () {
+      if (branchPickerMenu.hidden) {
+        openBranchPicker();
+      } else {
+        closeBranchPicker();
+      }
+    });
+    document.addEventListener("click", function (event) {
+      if (!branchPicker.contains(event.target)) {
+        closeBranchPicker();
+      }
+    });
+
+    setTab("carryover");
+    setTodayCarryoverRange();
+    setTodayHistoryRange();
+    setTodayProductTotalsRange();
+    setTodayBranchTotalsRange();
+    initBranchTotalsSelect()
+      .then(function () {
+        renderCarryoverReport();
+      })
+      .catch(function () {
+        branchTotalsBody.innerHTML = '<tr><td colspan="7">Sube listesi alinamadi.</td></tr>';
+        renderCarryoverReport();
+      });
+  </script>
+</body>
+</html>

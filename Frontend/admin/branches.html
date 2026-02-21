@@ -49,6 +49,7 @@
       cursor: pointer;
     }
     .btn.primary { background: var(--ink); color: #fff; border-color: transparent; }
+    .btn.warn { border-color: rgba(171,47,47,.35); color: #7c1d1d; background: #fff1f1; }
     .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.75); }
     table { border-collapse: collapse; width: 100%; min-width: 760px; }
     th, td { border-bottom: 1px solid rgba(19,34,31,.12); padding: .45rem .52rem; text-align: left; font-size: .88rem; }
@@ -73,6 +74,44 @@
       padding: .55rem .62rem;
       font-weight: 700;
     }
+    .notice-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(19, 34, 31, .3);
+      backdrop-filter: blur(2px);
+      z-index: 90;
+      padding: 1rem;
+    }
+    .notice-modal.show { display: flex; }
+    .notice-card {
+      width: min(420px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .98);
+      box-shadow: 0 14px 34px rgba(19, 34, 31, .22);
+      padding: .95rem 1rem;
+    }
+    .notice-card h4 {
+      margin: .1rem 0 .45rem;
+      font-size: 1.02rem;
+    }
+    .notice-card.error {
+      border-color: rgba(171,47,47,.35);
+      background: rgba(255,241,241,.97);
+    }
+    .notice-card p {
+      margin: 0 0 .7rem;
+      font-size: .93rem;
+    }
+    .notice-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
@@ -80,7 +119,6 @@
     <main class="panel">
       <div class="top">
         <div>
-          <span class="eyebrow">Admin</span>
           <h1>Sube Yonetimi</h1>
         </div>
                 <nav class="nav">
@@ -132,19 +170,9 @@
             <label style="grid-column:1/-1;">Adres
               <textarea id="createAddress"></textarea>
             </label>
-            <label>Durum
-              <select id="createActive">
-                <option value="true">Aktif</option>
-                <option value="false">Pasif</option>
-              </select>
-            </label>
-            <label>Fiyat Farki (%)
-              <input type="number" id="createPercent" min="-90" max="200" step="0.5" value="0">
-            </label>
           </form>
           <div class="actions">
             <button class="btn primary" id="createBtn" type="button">Sube Olustur</button>
-            <button class="btn" id="reloadBtn" type="button">Listeyi Yenile</button>
           </div>
           <div id="createMsg" class="msg"></div>
         </article>
@@ -196,6 +224,7 @@
           <table>
             <thead>
               <tr>
+                <th>Sec</th>
                 <th>Sube</th>
                 <th>Yetkili</th>
                 <th>Telefon</th>
@@ -213,8 +242,28 @@
       </article>
     </main>
   </div>
+  <div id="createSuccessModal" class="notice-modal" role="dialog" aria-modal="true">
+    <div id="createResultCard" class="notice-card">
+      <h4 id="createResultTitle">Basarili</h4>
+      <p id="createSuccessText">Sube olusturuldu.</p>
+      <div class="notice-actions">
+        <button id="createSuccessCloseBtn" class="btn primary" type="button">Kapat</button>
+      </div>
+    </div>
+  </div>
+  <div id="deleteBranchModal" class="notice-modal" role="dialog" aria-modal="true">
+    <div class="notice-card error">
+      <h4>Silme Onayi</h4>
+      <p id="deleteBranchText">Bu subeyi silmek istediginize emin misiniz?</p>
+      <div class="notice-actions">
+        <button id="deleteBranchCancelBtn" class="btn" type="button">Iptal</button>
+        <button id="deleteBranchConfirmBtn" class="btn warn" type="button">Sil</button>
+      </div>
+    </div>
+  </div>
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
+  <script src="../assets/form-validators.js"></script>
   <script>
     const cfg = window.APP_CONFIG || {};
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");    const branchesBody = document.getElementById("branchesBody");
@@ -223,9 +272,24 @@
     const selectedInfo = document.getElementById("selectedInfo");
     const createMsg = document.getElementById("createMsg");
     const editMsg = document.getElementById("editMsg");
+    const createSuccessModal = document.getElementById("createSuccessModal");
+    const createResultCard = document.getElementById("createResultCard");
+    const createResultTitle = document.getElementById("createResultTitle");
+    const createSuccessText = document.getElementById("createSuccessText");
+    const createSuccessCloseBtn = document.getElementById("createSuccessCloseBtn");
+    const deleteBranchModal = document.getElementById("deleteBranchModal");
+    const deleteBranchText = document.getElementById("deleteBranchText");
+    const deleteBranchCancelBtn = document.getElementById("deleteBranchCancelBtn");
+    const deleteBranchConfirmBtn = document.getElementById("deleteBranchConfirmBtn");
+    const createEmailInput = document.getElementById("createEmail");
+    const createPhoneInput = document.getElementById("createPhone");
+    const editEmailInput = document.getElementById("editEmail");
+    const editPhoneInput = document.getElementById("editPhone");
+    const validators = window.FormValidators || null;
     let branches = [];
     let centers = [];
     let selectedBranchId = "";
+    let pendingDeleteBranchId = "";
 
     function showMsg(el, text) {
       el.style.display = "block";
@@ -233,6 +297,26 @@
       setTimeout(function () {
         el.style.display = "none";
       }, 2600);
+    }
+
+    function showCreateResultModal(type, title, message) {
+      createResultCard.classList.toggle("error", type === "error");
+      createResultTitle.textContent = title || "Bilgi";
+      createSuccessText.textContent = message || "";
+      createSuccessModal.classList.add("show");
+    }
+
+    function hideCreateSuccessModal() {
+      createSuccessModal.classList.remove("show");
+    }
+
+    function resetCreateForm() {
+      document.getElementById("createName").value = "";
+      document.getElementById("createManager").value = "";
+      document.getElementById("createPhone").value = "90";
+      document.getElementById("createEmail").value = "";
+      document.getElementById("createAddress").value = "";
+      createCenterId.value = "";
     }
 
     function getSession() {
@@ -280,6 +364,7 @@
         const selected = selectedBranchId === b.id ? " style='background:rgba(19,34,31,.06)'" : "";
         return '' +
           '<tr' + selected + '>' +
+          '<td><button class="btn" data-select-branch="' + b.id + '">Sec</button></td>' +
           '<td>' + b.name + '</td>' +
           '<td>' + (b.manager || "-") + '</td>' +
           '<td>' + (b.phone || "-") + '</td>' +
@@ -288,15 +373,36 @@
           '<td><span class="badge ' + activeCls + '">' + activeText + '</span></td>' +
           '<td>' + Number(b.priceAdjustmentPercent || 0) + '%</td>' +
           '<td>' + (b.userEmail || "-") + '</td>' +
-          '<td><button class="btn" data-select-branch="' + b.id + '">Sec</button></td>' +
+          '<td><button class="btn warn" data-delete-branch="' + b.id + '">Sil</button></td>' +
           '</tr>';
       }).join("");
-      branchesBody.innerHTML = html || '<tr><td colspan="9">Sube bulunmadi.</td></tr>';
+      branchesBody.innerHTML = html || '<tr><td colspan="10">Sube bulunmadi.</td></tr>';
       branchesBody.querySelectorAll("[data-select-branch]").forEach(function (btn) {
         btn.addEventListener("click", function () {
           selectedBranchId = btn.getAttribute("data-select-branch") || "";
           applySelectedToForm();
           renderBranches();
+        });
+      });
+      branchesBody.querySelectorAll("tr").forEach(function (row) {
+        row.addEventListener("click", function (event) {
+          const target = event.target;
+          if (target && (target.closest("[data-delete-branch]") || target.closest("[data-select-branch]"))) return;
+          const selectBtn = row.querySelector("[data-select-branch]");
+          if (!selectBtn) return;
+          selectedBranchId = selectBtn.getAttribute("data-select-branch") || "";
+          applySelectedToForm();
+          renderBranches();
+        });
+      });
+      branchesBody.querySelectorAll("[data-delete-branch]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const id = btn.getAttribute("data-delete-branch") || "";
+          const target = branches.find(function (b) { return b.id === id; });
+          if (!target) return;
+          pendingDeleteBranchId = id;
+          deleteBranchText.textContent = '"' + (target.name || "Sube") + '" kaydini silmek istediginize emin misiniz?';
+          deleteBranchModal.classList.add("show");
         });
       });
     }
@@ -318,7 +424,7 @@
       selectedInfo.textContent = "Secili: " + b.name;
       document.getElementById("editName").value = b.name || "";
       document.getElementById("editManager").value = b.manager || "";
-      document.getElementById("editPhone").value = b.phone || "";
+      document.getElementById("editPhone").value = b.phone || "90";
       document.getElementById("editEmail").value = b.email || "";
       editCenterId.value = b.centerId || "";
       document.getElementById("editAddress").value = b.address || "";
@@ -341,15 +447,28 @@
     }
 
     async function createBranch() {
+      const createEmailResult = validators
+        ? validators.validateEmailInput(createEmailInput, { required: false, label: "E-posta" })
+        : { ok: true, value: createEmailInput.value.trim().toLowerCase() || null };
+      if (!createEmailResult.ok) {
+        createEmailInput.reportValidity();
+        throw new Error(createEmailResult.message);
+      }
+      const createPhoneResult = validators
+        ? validators.validatePhoneInput(createPhoneInput, { required: false, label: "Telefon" })
+        : { ok: true, value: createPhoneInput.value.trim() || null };
+      if (!createPhoneResult.ok) {
+        createPhoneInput.reportValidity();
+        throw new Error(createPhoneResult.message);
+      }
+
       const payload = {
         name: document.getElementById("createName").value.trim(),
         manager: document.getElementById("createManager").value.trim(),
-        phone: document.getElementById("createPhone").value.trim(),
-        email: document.getElementById("createEmail").value.trim(),
+        phone: createPhoneResult.value || undefined,
+        email: createEmailResult.value || undefined,
         centerId: createCenterId.value || null,
-        address: document.getElementById("createAddress").value.trim(),
-        isActive: document.getElementById("createActive").value === "true",
-        priceAdjustmentPercent: Number(document.getElementById("createPercent").value || 0)
+        address: document.getElementById("createAddress").value.trim()
       };
       const created = await apiRequest("/branches", {
         method: "POST",
@@ -359,17 +478,32 @@
       selectedBranchId = created.id;
       renderBranches();
       applySelectedToForm();
-      showMsg(createMsg, "Sube olusturuldu.");
+      resetCreateForm();
+      showCreateResultModal("success", "Basarili", '"' + (created.name || "Sube") + '" olusturuldu.');
     }
 
     async function saveBranchEdit() {
       const b = selectedBranch();
       if (!b) throw new Error("Lutfen listeden sube secin.");
+      const editEmailResult = validators
+        ? validators.validateEmailInput(editEmailInput, { required: false, label: "E-posta" })
+        : { ok: true, value: editEmailInput.value.trim().toLowerCase() || null };
+      if (!editEmailResult.ok) {
+        editEmailInput.reportValidity();
+        throw new Error(editEmailResult.message);
+      }
+      const editPhoneResult = validators
+        ? validators.validatePhoneInput(editPhoneInput, { required: false, label: "Telefon" })
+        : { ok: true, value: editPhoneInput.value.trim() || null };
+      if (!editPhoneResult.ok) {
+        editPhoneInput.reportValidity();
+        throw new Error(editPhoneResult.message);
+      }
       const payload = {
         name: document.getElementById("editName").value.trim(),
         manager: document.getElementById("editManager").value.trim(),
-        phone: document.getElementById("editPhone").value.trim(),
-        email: document.getElementById("editEmail").value.trim(),
+        phone: editPhoneResult.value || undefined,
+        email: editEmailResult.value || undefined,
         centerId: editCenterId.value || null,
         address: document.getElementById("editAddress").value.trim()
       };
@@ -411,11 +545,27 @@
       showMsg(editMsg, "Fiyat farki guncellendi.");
     }
 
+    async function deleteBranch() {
+      if (!pendingDeleteBranchId) return;
+      const target = branches.find(function (b) { return b.id === pendingDeleteBranchId; });
+      const deleted = await apiRequest("/branches/" + pendingDeleteBranchId, {
+        method: "DELETE"
+      });
+      branches = branches.filter(function (b) { return b.id !== pendingDeleteBranchId; });
+      if (selectedBranchId === pendingDeleteBranchId) {
+        selectedBranchId = branches.length ? branches[0].id : "";
+      }
+      pendingDeleteBranchId = "";
+      deleteBranchModal.classList.remove("show");
+      renderBranches();
+      applySelectedToForm();
+      showCreateResultModal("success", "Basarili", '"' + ((target && target.name) || (deleted && deleted.name) || "Sube") + '" silindi.');
+    }
+
     document.getElementById("createBtn").addEventListener("click", function () {
-      createBranch().catch(function (err) { showMsg(createMsg, err.message || "Sube olusturulamadi."); });
-    });
-    document.getElementById("reloadBtn").addEventListener("click", function () {
-      loadBranches().catch(function (err) { showMsg(createMsg, err.message || "Liste yenilenemedi."); });
+      createBranch().catch(function (err) {
+        showCreateResultModal("error", "Uyari", (err && err.message) || "Sube olusturulamadi.");
+      });
     });
     document.getElementById("saveEditBtn").addEventListener("click", function () {
       saveBranchEdit().catch(function (err) { showMsg(editMsg, err.message || "Kaydedilemedi."); });
@@ -426,10 +576,35 @@
     document.getElementById("savePercentBtn").addEventListener("click", function () {
       saveBranchPercent().catch(function (err) { showMsg(editMsg, err.message || "Fiyat farki guncellenemedi."); });
     });
+    createSuccessCloseBtn.addEventListener("click", hideCreateSuccessModal);
+    createSuccessModal.addEventListener("click", function (event) {
+      if (event.target === createSuccessModal) hideCreateSuccessModal();
+    });
+    deleteBranchCancelBtn.addEventListener("click", function () {
+      pendingDeleteBranchId = "";
+      deleteBranchModal.classList.remove("show");
+    });
+    deleteBranchConfirmBtn.addEventListener("click", function () {
+      deleteBranch().catch(function (err) {
+        pendingDeleteBranchId = "";
+        deleteBranchModal.classList.remove("show");
+        showCreateResultModal("error", "Uyari", (err && err.message) || "Sube silinemedi.");
+      });
+    });
+    deleteBranchModal.addEventListener("click", function (event) {
+      if (event.target === deleteBranchModal) {
+        pendingDeleteBranchId = "";
+        deleteBranchModal.classList.remove("show");
+      }
+    });
 
     loadBranches().catch(function (err) {
       showMsg(createMsg, err.message || "Sube verileri alinamadi.");
     });
+    if (validators) {
+      validators.initStrictPhoneInput(createPhoneInput);
+      validators.initStrictPhoneInput(editPhoneInput);
+    }
   </script>
 </body>
 </html>

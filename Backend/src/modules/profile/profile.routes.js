@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 const { z } = require("zod");
 const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
-const { normalizePhone } = require("../../common/utils/phone");
+const { normalizePhone, isStrictTrPhone } = require("../../common/utils/phone");
 const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
 
 const profileRouter = express.Router();
@@ -136,6 +136,13 @@ profileRouter.put("/me", requireAuth, profileUpdateRateLimiter, async (req, res,
 
     if (typeof effectiveUserPhone === "string" && effectiveUserPhone.trim()) {
       const normalizedPhone = normalizePhone(effectiveUserPhone);
+      if (!isStrictTrPhone(normalizedPhone)) {
+        return res.status(400).json({
+          ok: false,
+          error: "VALIDATION_ERROR",
+          message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+        });
+      }
       const phoneOwner = await prisma.user.findFirst({
         where: { phone: normalizedPhone },
         select: { id: true }
@@ -151,7 +158,17 @@ profileRouter.put("/me", requireAuth, profileUpdateRateLimiter, async (req, res,
 
     const userData = {};
     if (typeof effectiveUserEmail === "string") userData.email = effectiveUserEmail.trim();
-    if (typeof effectiveUserPhone === "string") userData.phone = effectiveUserPhone.trim() ? normalizePhone(effectiveUserPhone) : null;
+    if (typeof effectiveUserPhone === "string") {
+      const normalizedPhone = effectiveUserPhone.trim() ? normalizePhone(effectiveUserPhone) : null;
+      if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+        return res.status(400).json({
+          ok: false,
+          error: "VALIDATION_ERROR",
+          message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+        });
+      }
+      userData.phone = normalizedPhone;
+    }
     if (typeof payload.displayName === "string") userData.displayName = payload.displayName.trim();
     if (Object.keys(userData).length) {
       updates.push(
@@ -167,7 +184,17 @@ profileRouter.put("/me", requireAuth, profileUpdateRateLimiter, async (req, res,
       const branchData = {};
       if (typeof effectiveBranchName === "string") branchData.name = effectiveBranchName.trim();
       if (typeof effectiveBranchManager === "string") branchData.manager = effectiveBranchManager.trim();
-      if (typeof effectiveBranchPhone === "string") branchData.phone = effectiveBranchPhone.trim();
+      if (typeof effectiveBranchPhone === "string") {
+        const normalizedPhone = effectiveBranchPhone.trim() ? normalizePhone(effectiveBranchPhone) : null;
+        if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+          return res.status(400).json({
+            ok: false,
+            error: "VALIDATION_ERROR",
+            message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+          });
+        }
+        branchData.phone = normalizedPhone;
+      }
       if (typeof effectiveBranchEmail === "string") branchData.email = effectiveBranchEmail.trim();
       if (typeof effectiveBranchAddress === "string") branchData.address = effectiveBranchAddress.trim();
       if (Object.keys(branchData).length) {
@@ -185,7 +212,17 @@ profileRouter.put("/me", requireAuth, profileUpdateRateLimiter, async (req, res,
       const centerData = {};
       if (typeof effectiveCenterName === "string") centerData.name = effectiveCenterName.trim();
       if (typeof effectiveCenterManager === "string") centerData.manager = effectiveCenterManager.trim();
-      if (typeof effectiveCenterPhone === "string") centerData.phone = effectiveCenterPhone.trim();
+      if (typeof effectiveCenterPhone === "string") {
+        const normalizedPhone = effectiveCenterPhone.trim() ? normalizePhone(effectiveCenterPhone) : null;
+        if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+          return res.status(400).json({
+            ok: false,
+            error: "VALIDATION_ERROR",
+            message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+          });
+        }
+        centerData.phone = normalizedPhone;
+      }
       if (typeof effectiveCenterEmail === "string") centerData.email = effectiveCenterEmail.trim();
       if (typeof effectiveCenterAddress === "string") centerData.address = effectiveCenterAddress.trim();
       if (Object.keys(centerData).length) {

@@ -73,6 +73,40 @@
       padding: .55rem .62rem;
       font-weight: 700;
     }
+    .list-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .6rem;
+      flex-wrap: wrap;
+      margin-bottom: .55rem;
+    }
+    .notice-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(19, 34, 31, .3);
+      backdrop-filter: blur(2px);
+      z-index: 90;
+      padding: 1rem;
+    }
+    .notice-modal.show { display: flex; }
+    .notice-card {
+      width: min(420px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .98);
+      box-shadow: 0 14px 34px rgba(19, 34, 31, .22);
+      padding: .95rem 1rem;
+    }
+    .notice-card.error {
+      border-color: rgba(171,47,47,.35);
+      background: rgba(255,241,241,.97);
+    }
+    .notice-card h4 { margin: .1rem 0 .45rem; font-size: 1.02rem; }
+    .notice-actions { display: flex; justify-content: flex-end; gap: .5rem; flex-wrap: wrap; }
   </style>
 </head>
 <body>
@@ -80,7 +114,6 @@
     <main class="panel">
       <div class="top">
         <div>
-          <span class="eyebrow">Admin</span>
           <h1>Urun ve Fiyat Yonetimi</h1>
         </div>
                 <nav class="nav">
@@ -123,18 +156,9 @@
             <label>Baz Fiyat (TL)
               <input type="number" id="createBasePrice" min="0.01" step="0.01" required>
             </label>
-            <label>Durum
-              <select id="createActive">
-                <option value="true">Aktif</option>
-                <option value="false">Pasif</option>
-              </select>
-            </label>
           </form>
           <div class="actions">
             <button class="btn primary" id="createBtn" type="button">Urun Olustur</button>
-            <button class="btn" id="reloadBtn" type="button">Listeyi Yenile</button>
-            <button class="btn" id="bulkActiveBtn" type="button">Tumunu Aktif Yap</button>
-            <button class="btn warn" id="bulkPassiveBtn" type="button">Tumunu Pasif Yap</button>
           </div>
           <div id="createMsg" class="msg"></div>
         </article>
@@ -161,8 +185,6 @@
           </form>
           <div class="actions">
             <button class="btn primary" id="saveEditBtn" type="button">Bilgileri Kaydet</button>
-            <button class="btn" id="saveStatusBtn" type="button">Durumu Kaydet</button>
-            <button class="btn warn" id="deleteBtn" type="button">Urunu Sil</button>
           </div>
           <div id="editMsg" class="msg"></div>
         </article>
@@ -170,10 +192,15 @@
 
       <article class="card" style="margin-top:.8rem;">
         <h3>Urun Listesi</h3>
+        <div class="list-toolbar">
+          <button class="btn" id="bulkActiveBtn" type="button">Tumunu Aktif Yap</button>
+          <button class="btn warn" id="bulkPassiveBtn" type="button">Tumunu Pasif Yap</button>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                <th>Sec</th>
                 <th>Kod</th>
                 <th>Ad</th>
                 <th>Baz Fiyat</th>
@@ -189,6 +216,16 @@
       </article>
     </main>
   </div>
+  <div id="deleteProductModal" class="notice-modal" role="dialog" aria-modal="true">
+    <div class="notice-card error">
+      <h4>Silme Onayi</h4>
+      <p id="deleteProductText">Bu urunu silmek istediginize emin misiniz?</p>
+      <div class="notice-actions">
+        <button id="deleteProductCancelBtn" class="btn" type="button">Iptal</button>
+        <button id="deleteProductConfirmBtn" class="btn warn" type="button">Sil</button>
+      </div>
+    </div>
+  </div>
   <script src="../assets/app-config.js"></script>
   <script src="../assets/role-guard.js"></script>
   <script>
@@ -197,8 +234,13 @@
     const selectedInfo = document.getElementById("selectedInfo");
     const createMsg = document.getElementById("createMsg");
     const editMsg = document.getElementById("editMsg");
+    const deleteProductModal = document.getElementById("deleteProductModal");
+    const deleteProductText = document.getElementById("deleteProductText");
+    const deleteProductCancelBtn = document.getElementById("deleteProductCancelBtn");
+    const deleteProductConfirmBtn = document.getElementById("deleteProductConfirmBtn");
     let products = [];
     let selectedProductId = "";
+    let pendingDeleteProductId = "";
 
     function showMsg(el, text) {
       el.style.display = "block";
@@ -256,21 +298,43 @@
         const selected = selectedProductId === p.id ? " style='background:rgba(19,34,31,.06)'" : "";
         return "" +
           "<tr" + selected + ">" +
+          "<td><button class='btn' data-select-product='" + p.id + "'>Sec</button></td>" +
           "<td>" + (p.code || "-") + "</td>" +
           "<td>" + (p.name || "-") + "</td>" +
           "<td>" + toMoney(p.basePrice) + "</td>" +
           "<td><span class='badge " + activeCls + "'>" + activeText + "</span></td>" +
           "<td>" + toDateText(p.createdAt) + "</td>" +
           "<td>" + toDateText(p.updatedAt) + "</td>" +
-          "<td><button class='btn' data-select-product='" + p.id + "'>Sec</button></td>" +
+          "<td><button class='btn warn' data-delete-product='" + p.id + "'>Sil</button></td>" +
           "</tr>";
       }).join("");
-      productsBody.innerHTML = html || "<tr><td colspan='7'>Urun bulunamadi.</td></tr>";
+      productsBody.innerHTML = html || "<tr><td colspan='8'>Urun bulunamadi.</td></tr>";
       productsBody.querySelectorAll("[data-select-product]").forEach(function (btn) {
         btn.addEventListener("click", function () {
           selectedProductId = btn.getAttribute("data-select-product") || "";
           applySelectedToForm();
           renderProducts();
+        });
+      });
+      productsBody.querySelectorAll("tr").forEach(function (row) {
+        row.addEventListener("click", function (event) {
+          const target = event.target;
+          if (target && (target.closest("[data-delete-product]") || target.closest("[data-select-product]"))) return;
+          const selectBtn = row.querySelector("[data-select-product]");
+          if (!selectBtn) return;
+          selectedProductId = selectBtn.getAttribute("data-select-product") || "";
+          applySelectedToForm();
+          renderProducts();
+        });
+      });
+      productsBody.querySelectorAll("[data-delete-product]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const id = btn.getAttribute("data-delete-product") || "";
+          const target = products.find(function (p) { return p.id === id; });
+          if (!target) return;
+          pendingDeleteProductId = id;
+          deleteProductText.textContent = '"' + (target.name || "Urun") + '" kaydini silmek istediginize emin misiniz?';
+          deleteProductModal.classList.add("show");
         });
       });
     }
@@ -304,7 +368,6 @@
       const name = document.getElementById("createName").value.trim();
       const code = document.getElementById("createCode").value.trim();
       const basePrice = Number(document.getElementById("createBasePrice").value);
-      const isActive = document.getElementById("createActive").value === "true";
       if (!name || !Number.isFinite(basePrice) || basePrice <= 0) {
         throw new Error("Urun adi ve gecerli fiyat girin.");
       }
@@ -317,19 +380,11 @@
         body: JSON.stringify(payload)
       });
 
-      if (!isActive) {
-        await apiRequest("/products/" + created.id + "/status", {
-          method: "PUT",
-          body: JSON.stringify({ isActive: false })
-        });
-      }
-
       await loadProducts();
       selectedProductId = created.id;
       applySelectedToForm();
       renderProducts();
       document.getElementById("createProductForm").reset();
-      document.getElementById("createActive").value = "true";
       showMsg(createMsg, "Urun olusturuldu.");
     }
 
@@ -338,39 +393,29 @@
       if (!item) throw new Error("Lutfen listeden urun secin.");
       const name = document.getElementById("editName").value.trim();
       const basePrice = Number(document.getElementById("editBasePrice").value);
+      const isActive = document.getElementById("editActive").value === "true";
       if (!name || !Number.isFinite(basePrice) || basePrice <= 0) {
         throw new Error("Urun adi ve gecerli fiyat girin.");
       }
-      const updated = await apiRequest("/products/" + item.id, {
+      let updated = await apiRequest("/products/" + item.id, {
         method: "PUT",
         body: JSON.stringify({ name: name, basePrice: basePrice })
       });
+      if (updated.isActive !== isActive) {
+        updated = await apiRequest("/products/" + item.id + "/status", {
+          method: "PUT",
+          body: JSON.stringify({ isActive: isActive })
+        });
+      }
       products = products.map(function (p) { return p.id === updated.id ? updated : p; });
       renderProducts();
       applySelectedToForm();
-      showMsg(editMsg, "Urun bilgileri guncellendi.");
+      showMsg(editMsg, "Urun bilgileri (durum dahil) guncellendi.");
     }
 
-    async function saveProductStatus() {
-      const item = selectedProduct();
+    async function deleteProduct(productId) {
+      const item = products.find(function (p) { return p.id === productId; }) || selectedProduct();
       if (!item) throw new Error("Lutfen listeden urun secin.");
-      const isActive = document.getElementById("editActive").value === "true";
-      const updated = await apiRequest("/products/" + item.id + "/status", {
-        method: "PUT",
-        body: JSON.stringify({ isActive: isActive })
-      });
-      products = products.map(function (p) { return p.id === updated.id ? updated : p; });
-      renderProducts();
-      applySelectedToForm();
-      showMsg(editMsg, "Urun durumu guncellendi.");
-    }
-
-    async function deleteProduct() {
-      const item = selectedProduct();
-      if (!item) throw new Error("Lutfen listeden urun secin.");
-      const confirmed = window.confirm("Bu urun silinecek. Islem geri alinamaz. Devam edilsin mi?");
-      if (!confirmed) return;
-
       await apiRequest("/products/" + item.id, { method: "DELETE" });
       products = products.filter(function (p) { return p.id !== item.id; });
       selectedProductId = products.length ? products[0].id : "";
@@ -391,9 +436,6 @@
     document.getElementById("createBtn").addEventListener("click", function () {
       createProduct().catch(function (err) { showMsg(createMsg, err.message || "Urun olusturulamadi."); });
     });
-    document.getElementById("reloadBtn").addEventListener("click", function () {
-      loadProducts().catch(function (err) { showMsg(createMsg, err.message || "Liste yenilenemedi."); });
-    });
     document.getElementById("bulkActiveBtn").addEventListener("click", function () {
       bulkSetStatus(true).catch(function (err) { showMsg(createMsg, err.message || "Toplu islem basarisiz."); });
     });
@@ -403,11 +445,21 @@
     document.getElementById("saveEditBtn").addEventListener("click", function () {
       saveProductEdit().catch(function (err) { showMsg(editMsg, err.message || "Urun guncellenemedi."); });
     });
-    document.getElementById("saveStatusBtn").addEventListener("click", function () {
-      saveProductStatus().catch(function (err) { showMsg(editMsg, err.message || "Durum guncellenemedi."); });
+    deleteProductCancelBtn.addEventListener("click", function () {
+      pendingDeleteProductId = "";
+      deleteProductModal.classList.remove("show");
     });
-    document.getElementById("deleteBtn").addEventListener("click", function () {
-      deleteProduct().catch(function (err) { showMsg(editMsg, err.message || "Urun silinemedi."); });
+    deleteProductConfirmBtn.addEventListener("click", function () {
+      const id = pendingDeleteProductId;
+      pendingDeleteProductId = "";
+      deleteProductModal.classList.remove("show");
+      deleteProduct(id).catch(function (err) { showMsg(editMsg, err.message || "Urun silinemedi."); });
+    });
+    deleteProductModal.addEventListener("click", function (event) {
+      if (event.target === deleteProductModal) {
+        pendingDeleteProductId = "";
+        deleteProductModal.classList.remove("show");
+      }
     });
 
     loadProducts().catch(function (err) {

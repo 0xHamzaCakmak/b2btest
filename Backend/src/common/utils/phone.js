@@ -22,6 +22,11 @@ function normalizePhone(value) {
   return digits;
 }
 
+function isStrictTrPhone(value) {
+  const normalized = normalizePhone(value);
+  return /^90\d{10}$/.test(normalized);
+}
+
 function looksLikePhone(value) {
   const normalized = normalizePhone(value);
   const digitCount = normalized.replace(/\D/g, "").length;
@@ -30,5 +35,6 @@ function looksLikePhone(value) {
 
 module.exports = {
   normalizePhone,
+  isStrictTrPhone,
   looksLikePhone
 };

@@ -4,6 +4,7 @@ const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { requireRole } = require("../../common/middlewares/require-role");
 const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
+const { normalizePhone, isStrictTrPhone } = require("../../common/utils/phone");
 
 const branchesRouter = express.Router();
 const branchMutationRateLimiter = createSimpleRateLimiter({
@@ -88,6 +89,47 @@ async function ensureCenter(centerId) {
   return { ok: true, center };
 }
 
+async function checkBranchContactUniqueness(email, phone, excludeId) {
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const normalizedPhone = typeof phone === "string" ? normalizePhone(phone) : "";
+
+  if (normalizedEmail) {
+    const where = excludeId
+      ? { email: normalizedEmail, id: { not: excludeId } }
+      : { email: normalizedEmail };
+    const owner = await prisma.branch.findFirst({
+      where,
+      select: { id: true }
+    });
+    if (owner) {
+      return {
+        ok: false,
+        error: "BRANCH_EMAIL_IN_USE",
+        message: "Bu e-posta baska bir subede kullaniliyor."
+      };
+    }
+  }
+
+  if (normalizedPhone) {
+    const where = excludeId
+      ? { phone: normalizedPhone, id: { not: excludeId } }
+      : { phone: normalizedPhone };
+    const owner = await prisma.branch.findFirst({
+      where,
+      select: { id: true }
+    });
+    if (owner) {
+      return {
+        ok: false,
+        error: "BRANCH_PHONE_IN_USE",
+        message: "Bu telefon numarasi baska bir subede kullaniliyor."
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
 branchesRouter.get("/", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
   try {
     const where = {};
@@ -139,6 +181,24 @@ branchesRouter.post("/", requireAuth, requireRole("admin"), branchMutationRateLi
     }
 
     const payload = parsed.data;
+    const normalizedEmail = payload.email ? payload.email.trim().toLowerCase() : "";
+    const normalizedPhone = payload.phone ? normalizePhone(payload.phone) : "";
+    if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+      });
+    }
+
+    const uniqueCheck = await checkBranchContactUniqueness(normalizedEmail, normalizedPhone);
+    if (!uniqueCheck.ok) {
+      return res.status(409).json({
+        ok: false,
+        error: uniqueCheck.error,
+        message: uniqueCheck.message
+      });
+    }
     const centerCheck = await ensureCenter(payload.centerId);
     if (!centerCheck.ok) {
       return res.status(400).json({
@@ -152,8 +212,8 @@ branchesRouter.post("/", requireAuth, requireRole("admin"), branchMutationRateLi
       data: {
         name: payload.name.trim(),
         manager: payload.manager ? payload.manager.trim() : null,
-        phone: payload.phone ? payload.phone.trim() : null,
-        email: payload.email ? payload.email.trim() : null,
+        phone: normalizedPhone || null,
+        email: normalizedEmail || null,
         address: payload.address ? payload.address.trim() : null,
         centerId: payload.centerId,
         isActive: payload.isActive !== false
@@ -217,8 +277,18 @@ branchesRouter.put("/:id", requireAuth, requireRole("admin"), branchMutationRate
     const data = {};
     if (typeof payload.name === "string") data.name = payload.name.trim();
     if (typeof payload.manager === "string") data.manager = payload.manager.trim();
-    if (typeof payload.phone === "string") data.phone = payload.phone.trim();
-    if (typeof payload.email === "string") data.email = payload.email.trim();
+    if (typeof payload.phone === "string") {
+      const normalizedPhone = payload.phone.trim() ? normalizePhone(payload.phone) : null;
+      if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+        return res.status(400).json({
+          ok: false,
+          error: "VALIDATION_ERROR",
+          message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+        });
+      }
+      data.phone = normalizedPhone;
+    }
+    if (typeof payload.email === "string") data.email = payload.email.trim().toLowerCase();
     if (typeof payload.address === "string") data.address = payload.address.trim();
     if (typeof payload.centerId === "string") {
       const centerCheck = await ensureCenter(payload.centerId);
@@ -237,6 +307,15 @@ branchesRouter.put("/:id", requireAuth, requireRole("admin"), branchMutationRate
         ok: false,
         error: "VALIDATION_ERROR",
         message: "No fields to update"
+      });
+    }
+
+    const uniqueCheck = await checkBranchContactUniqueness(data.email, data.phone, req.params.id);
+    if (!uniqueCheck.ok) {
+      return res.status(409).json({
+        ok: false,
+        error: uniqueCheck.error,
+        message: uniqueCheck.message
       });
     }
 
@@ -640,6 +719,47 @@ branchesRouter.put("/:id/product-adjustments/:productId", requireAuth, requireRo
         extraAmount,
         adjustedPrice: applyPricing(toNumber(product.basePrice, 0), percent, extraAmount)
       }
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+branchesRouter.delete("/:id", requireAuth, requireRole("admin"), branchMutationRateLimiter, async (req, res, next) => {
+  try {
+    const branch = await prisma.branch.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true }
+    });
+    if (!branch) {
+      return res.status(404).json({
+        ok: false,
+        error: "NOT_FOUND",
+        message: "Branch not found"
+      });
+    }
+
+    const [userCount, orderCount] = await Promise.all([
+      prisma.user.count({ where: { branchId: req.params.id } }),
+      prisma.order.count({ where: { branchId: req.params.id } })
+    ]);
+
+    if (userCount > 0 || orderCount > 0) {
+      return res.status(409).json({
+        ok: false,
+        error: "BRANCH_DELETE_BLOCKED",
+        message: "Sube silinemedi. Once bagli kullanici ve siparis kayitlarini temizleyin.",
+        data: { userCount, orderCount }
+      });
+    }
+
+    await prisma.branch.delete({
+      where: { id: req.params.id }
+    });
+
+    return res.status(200).json({
+      ok: true,
+      data: { id: branch.id, name: branch.name, deleted: true }
     });
   } catch (err) {
     return next(err);
