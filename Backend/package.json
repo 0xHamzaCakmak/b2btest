@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
+    "prestart": "npm run prisma:generate && npm run prisma:deploy",
     "start": "node src/server.js",
     "seed": "node prisma/seed.js",
     "prisma:generate": "prisma generate",
