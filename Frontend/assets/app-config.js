@@ -12,6 +12,7 @@
   var protocol = locationObj.protocol || "http:";
   var port = locationObj.port || "";
   var isLocalHost = host === "localhost" || host === "127.0.0.1";
+  var productionApiBaseUrl = "https://api.subesiparis.com/api";
   var apiBaseUrl = "";
 
   if (explicitApiBaseUrl) {
@@ -19,6 +20,9 @@
   } else if (isLocalHost && port && port !== "4000") {
     // Live Server gibi lokal farkli portlarda backend varsayilan olarak 4000 kabul edilir.
     apiBaseUrl = protocol + "//" + host + ":4000/api";
+  } else if (!isLocalHost) {
+    // Canli ortamda frontend ve backend farkli subdomain kullanir.
+    apiBaseUrl = productionApiBaseUrl;
   } else {
     // Tek domain deploy veya backend'in ayni origin'de servis ettigi frontend.
     apiBaseUrl = (locationObj.origin || (protocol + "//" + host)) + "/api";
