@@ -12,7 +12,7 @@
   var protocol = locationObj.protocol || "http:";
   var port = locationObj.port || "";
   var isLocalHost = host === "localhost" || host === "127.0.0.1";
-  var productionApiBaseUrl = "https://api.subesiparis.com/api";
+  var productionApiBaseUrl = "https://www.subesiparis.com/api";
   var apiBaseUrl = "";
 
   if (explicitApiBaseUrl) {
