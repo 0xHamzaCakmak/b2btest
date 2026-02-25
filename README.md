@@ -1,363 +1,125 @@
-# B2B Borek Siparis Sistemi (Frontend Prototype)
+# B2B Tedarik Platformu
 
-Bu proje, **sube - merkez** arasindaki gunluk tepsi bazli siparis surecini modelleyen bir prototiptir.  
-Su an veriler tarayici tarafinda `localStorage` ile tutulur. Sonraki adimda backend + veritabani ile gercek sisteme tasinmasi hedeflenir.
+Merkez, sube ve admin rollerine sahip; siparis, fiyat ve operasyon yonetimi odakli B2B tedarik uygulamasi.
 
-## 0. Klasor Yapisi
+## Features
+- Rol bazli erisim: `sube`, `merkez`, `admin`
+- Sube tarafi:
+  - Siparis olusturma
+  - Siparis gecmisi goruntuleme
+  - Profil ve hesap ayarlari
+- Merkez tarafi:
+  - Gunluk siparis operasyonu (onay/reddet/teslim)
+  - Urun ve fiyat yonetimi
+  - Sube bazli fiyat farki yonetimi
+  - Raporlar (kalan stok, gecmis siparis, urun bazli toplam, sube bazli toplam)
+- Admin paneli:
+  - Kullanici/rol yonetimi
+  - Sube/merkez yonetimi
+  - Urun/siparis/log/sistem ayarlari
+- Backend API:
+  - Node.js + Express
+  - Prisma ORM + SQL Server
+  - JWT tabanli kimlik dogrulama
 
-- `Frontend/`: Tum arayuz (HTML) dosyalari
-- `Frontend/sube/`: Sube arayuzleri
-- `Frontend/merkez/`: Merkez arayuzleri
-- `Frontend/assets/`: Ortak frontend config ve rol-guard scriptleri
-- `Frontend/admin/`: Admin paneli baslangic iskeleti
-- `Backend/`: Backend gelistirmeleri icin ayrilan klasor
+## Tech Stack
+- Frontend: Vanilla HTML/CSS/JS (`Frontend/`)
+- Backend: Node.js + Express (`Backend/`)
+- Database: Microsoft SQL Server
+- ORM: Prisma
 
-Frontend prototipini calistirmak icin baslangic noktasi: `Frontend/login.html`.
-
-## 0.1 Test Modu ve Rol Guard
-
-- `Frontend/assets/app-config.js` icindeki `TEST_MODE` degeri `true` iken mevcut test akislariniz korunur.
-- `TEST_MODE=false` yapildiginda sayfa erisimleri rol bazli guard ile sinirlanir:
-  - `sube`: `profil`, `siparis`, `siparislerim`
-  - `merkez`: `merkez`, `merkez-urun-fiyat`, `merkez-subeler`
-  - `admin`: `Frontend/admin/*` ve diger roller
-
-## 1. Proje Amaci
-
-- Subelerin borek siparisi verebilmesi
-- Merkezin gelen siparisleri gormesi ve onaylamasi
-- Merkezin global fiyat belirleyebilmesi
-- Merkezin yeni urun ekleyebilmesi
-- Merkezin urunleri aktif/pasif yonetebilmesi
-- Merkezin sube bazli fiyat farki (+/- %) uygulayabilmesi
-- Pasif subelerin siparis gonderiminin engellenmesi
-
-## 2. Sayfalar ve Roller
-
-## 2.1 `Frontend/login.html`
-- Giris formu (demo).
-- Giris sonrasi role gore:
-  - `Frontend/sube/siparis.html` veya
-  - `Frontend/merkez/merkez.html` veya
-  - `Frontend/admin/index.html`
-- Bu asamada rol kisiti yok (admin hepsini gorebilir varsayimi).
-
-## 2.2 `Frontend/sube/siparis.html` (Sube Siparis Ekrani)
-- Sube urunleri tepsi adediyle girer.
-- Teslimat tarihi varsayilan: **yarin**.
-- Teslimat saati varsayilan: **07:00**.
-- Sepet tutari canli hesaplanir.
-- Siparis `branchOrders` kaydina yazilir.
-- Durum ilk kayitta: `Onay Bekliyor`.
-- Sube pasifse siparis engellenir ve kirmizi hata mesaji gosterilir:
-  - `Bu siparis gerceklestirilemiyor. Lutfen merkez ile irtibata gecin.`
-
-## 2.3 `Frontend/sube/siparislerim.html` (Sube Siparis Gecmisi)
-- Subenin verdigi siparisleri listeler.
-- Durum rozetleri:
-  - `Onay Bekliyor`
-  - `Onaylandi`
-- Merkez onayi geldikce durumlar guncellenir.
-
-## 2.4 `Frontend/sube/profil.html` (Sube Profil)
-- Sube profil bilgilerini goruntuleme/guncelleme:
-  - Sube adi, yetkili, telefon, e-posta, adres
-- Siparis ozet istatistikleri:
-  - Toplam siparis, toplam tepsi, toplam tutar
-
-## 2.5 `Frontend/merkez/merkez.html` (Merkez Gelen Siparis Paneli)
-- Varsayilan olarak bugunun siparislerini listeler.
-- Tarih filtresi ile gecmis bir tarih secilerek o gunun siparisleri goruntulenebilir.
-- Her sipariste disardan durum gorunur:
-  - `Onay Bekliyor` / `Onaylandi`
-- Toplu islem:
-  - Tumunu sec
-  - Secilenleri onayla
-  - Tum siparisleri onayla (secilen tarih filtresine gore)
-- Detaya girince:
-  - Siparis kalemleri, tutar, not, sube secilen tarih toplami
-- Alt bolum:
-  - **Total Uretim Ihtiyaci (Tepsi)** (urun bazli toplamlar)
-
-## 2.6 `Frontend/merkez/merkez-urun-fiyat.html` (Merkez Urunler ve Fiyat)
-- Urunlerin baz tepsi fiyatlari guncellenir.
-- Yeni urun eklenebilir (ad + baslangic fiyat).
-- Urun bazinda aktif/pasif secimi yapilabilir.
-- Toplu aksiyonlar:
-  - `Tumunu Aktif Yap`
-  - `Tumunu Pasif Yap`
-- Kaydedilen urun/fiyat/durum bilgileri subelerin siparis ekranina yansir.
-
-## 2.7 `Frontend/merkez/merkez-subeler.html` (Merkez Sube Yonetimi)
-- 20 sube liste halinde gorunur.
-- Sube secince profil detaylari gorunur.
-- Sube bazli fiyat farki uygulanir:
-  - `%` olarak + / - deger
-  - Kaydedilince sadece o subeye yansir
-- Sube aktif/pasif yonetimi:
-  - `Aktif Yap`
-  - `Pasif Yap`
-
-## 3. Uygulama Akisi (Adim Adim)
-
-1. Kullanici `Frontend/login.html` sayfasina gelir.
-2. Giris sonrasi role gore ilgili panel acilir.
-3. Sube siparis verir, kayit `branchOrders`'a gider.
-4. Merkez `Frontend/merkez/merkez.html` ekraninda siparisleri gorur ve tarih filtresi ile gecmis gunleri inceleyebilir.
-5. Merkez siparisi tekli/toplu onaylar.
-6. Sube `Frontend/sube/siparislerim.html` ekraninda onay durumunu gorur.
-7. Merkez `Frontend/merkez/merkez-urun-fiyat.html` ile urun ekler, fiyat gunceller ve urunleri aktif/pasif yonetir.
-8. Sube `Frontend/sube/siparis.html` ekraninda tum urunleri gorur; pasif urunler gorunur ancak siparise kapalidir.
-9. Pasif urune adet girilerek siparis verilmek istenirse siparis engellenir ve su mesaj gosterilir:
-   - `Bu urun tedariki su anda saglanamiyor.`
-10. Merkez `Frontend/merkez/merkez-subeler.html` ile subeye ozel % fiyat farki veya aktif/pasif durumu verir.
-11. Pasif sube siparis gondermeye calisirsa sistem engeller.
-
-## 4. Kullanilan Veri Anahtarlari (`localStorage`)
-
-## 4.1 `branchProfile`
-Sube profil bilgileri.
-
-Ornek:
-```json
-{
-  "subeAdi": "Borekci Sube 01",
-  "yetkili": "Ahmet Yilmaz",
-  "telefon": "0555 123 45 67",
-  "eposta": "sube01@ornek.com",
-  "adres": "Ornek Mah. Borek Cad. No:12"
-}
+## Project Structure
+```text
+Frontend/
+  admin/
+  merkez/
+  sube/
+  assets/
+Backend/
+  src/
+  prisma/
+  tests/
+index.html
+README.md
 ```
 
-## 4.2 `branchOrders`
-Subenin verdigi siparis kayitlari.
+## Getting Started (Local)
 
-Ornek:
-```json
-[
-  {
-    "orderNo": "SP-0001",
-    "branchName": "Borekci Sube 01",
-    "status": "Onay Bekliyor",
-    "deliveryDate": "2026-02-14",
-    "deliveryTime": "07:00",
-    "note": "Sabah sevkiyatina dahil edin.",
-    "totalTray": 12,
-    "totalAmount": 8450,
-    "items": [
-      { "name": "Su Boregi", "qty": 5, "unitPrice": 700 },
-      { "name": "Karisik Borek", "qty": 7, "unitPrice": 790 }
-    ],
-    "createdAt": "2026-02-13T18:20:00.000Z"
-  }
-]
+### 1) Backend
+```bash
+cd Backend
+npm install
+npm run prisma:generate
+npm run prisma:deploy
+npm run seed
+npm run dev
 ```
 
-## 4.3 `productPrices`
-Merkezin belirledigi global urun fiyatlari.
+Backend default URL: `http://localhost:4000`
 
-## 4.4 `productCatalog`
-Urun anahtar -> urun gorunen ad haritasi.
+### 2) Frontend
+Frontend dosyalarini bir static server ile acin (VS Code Live Server vb.).
 
-Ornek:
-```json
-{
-  "su_boregi": "Su Boregi",
-  "peynirli_borek": "Peynirli Borek",
-  "pogaca": "Pogaca"
-}
-```
+Giris:
+- `http://127.0.0.1:5500/Frontend/login.html`
+- veya root redirect: `http://localhost:<frontend-port>/`
 
-## 4.5 `productAvailability`
-Urunlerin aktif/pasif durumu.
+## Environment Variables
+`Backend/.env` icinde en az su degerler olmalidir:
+- `DATABASE_URL`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+- `JWT_ACCESS_EXPIRES_IN`
+- `JWT_REFRESH_EXPIRES_IN`
+- `RATE_LIMIT_STRATEGY` (`memory` veya `redis`)
+- `REDIS_URL` (opsiyonel)
 
-Ornek:
-```json
-{
-  "su_boregi": true,
-  "peynirli_borek": true,
-  "pogaca": false
-}
-```
+> Guvenlik notu: README icinde gercek secret, token, sifre veya sunucu bilgisi paylasilmaz.
 
-## 4.6 `branchPriceAdjustments`
-Sube bazli fiyat farklari (%).
+## API (High Level)
+- Auth: `/api/auth/*`
+- Profile: `/api/profile/*`
+- Orders: `/api/orders/*`
+- Products: `/api/products/*`
+- Branches: `/api/branches/*`
+- Centers: `/api/centers/*`
+- Admin: `/api/admin/*`
 
-Ornek:
-```json
-{
-  "Borekci Sube 01": 5,
-  "Borekci Sube 02": -3
-}
-```
+## Screenshots
+Asagidaki klasore ekran goruntuleri ekleyebilirsin:
+- `docs/screenshots/`
 
-## 4.7 `centerBranches`
-Merkezin yonettigi sube listesi + aktif/pasif durumu.
+Ornek liste:
+- Login
+- Sube Siparis Ekrani
+- Merkez Paneli
+- Merkez Raporlar
+- Admin Dashboard
 
-Ornek:
-```json
-[
-  {
-    "name": "Borekci Sube 01",
-    "manager": "Yetkili 01",
-    "phone": "0555 100 01 01",
-    "email": "sube01@ornek.com",
-    "address": "Ornek Mah. Borek Sok. No:1",
-    "active": true
-  }
-]
-```
+## Deployment (Summary)
+- Frontend ve backend ayri servis olarak yayinlanir.
+- Frontend static hosting ile sunulur.
+- Backend API, SQL Server ile ayni private network/VPC uzerinde calisir.
+- Reverse proxy ile tek domain routing yapilabilir.
+- HTTPS zorunlu olmalidir.
 
-## 5. Fiyat Hesaplama Mantigi
+## Roadmap
+- [ ] Raporlarda export (CSV/Excel)
+- [ ] Bildirim altyapisi (mail/push)
+- [ ] Ileri seviye rol/yetki matrisi
+- [ ] Redis ile dagitik rate-limit
+- [ ] E2E test ve release pipeline guclendirme
 
-1. Merkezden gelen global fiyat (`productPrices`) okunur.
-2. Aktif sube icin `%` fark (`branchPriceAdjustments[branchName]`) okunur.
-3. Urun birim fiyati su formulle hesaplanir:
-   - `adjusted = base * (1 + percent / 100)`
-4. Sonuc yuvarlanir ve en az `1` olacak sekilde uygulanir.
+## Security Notes
+- Frontend tarafinda secret tutulmaz.
+- Tum kritik kurallar backend tarafinda uygulanir.
+- Production ortaminda CORS, cookie, TLS ve firewall politikalari zorunlu olarak sikilastirilmalidir.
 
-## 6. Aktif/Pasif Sube Davranisi
+## Legacy Docs
+Eski detayli teknik notlar:
+- `docs/archive/README-legacy-root.md`
+- `docs/archive/README-legacy-backend.md`
 
-- `centerBranches.active = false` olan sube:
-  - Panele girebilir
-  - Siparis ekranini gorebilir
-  - Ancak siparis gonderemez
-- Gonderim denemesinde kirmizi hata mesaji alir.
-
-## 6.1 Aktif/Pasif Urun Davranisi
-
-- Tum urunler sube siparis ekraninda listelenir.
-- `productAvailability[productKey] = false` olan urun:
-  - Gorsel olarak `Pasif - Tedarik Saglanamiyor` etiketiyle gorunur.
-  - Sepete eklenmek istenirse siparis gonderimi engellenir.
-  - Uyari metni: `Bu urun tedariki su anda saglanamiyor.`
-
-## 7. Mevcut Sinirlar (Prototype)
-
-- Gercek kimlik dogrulama yok.
-- Rol kontrolu sayfa bazli kesinlestirilmedi.
-- Veri kaliciligi sadece tarayiciya bagli.
-- Cok kullanicili eszamanli senaryo backend olmadan sinirlidir.
-
-## 8. Veritabanina Gecis Icin Oneri
-
-Asagidaki temel tablolarla baslanabilir:
-
-1. `users`
-   - `id`, `email`, `password_hash`, `role` (`sube`, `merkez`, `admin`), `branch_id`
-2. `branches`
-   - `id`, `name`, `manager`, `phone`, `email`, `address`, `is_active`
-3. `products`
-   - `id`, `code`, `name`, `base_price`, `is_active`, `created_at`, `updated_at`
-4. `branch_price_adjustments`
-   - `id`, `branch_id`, `percent`
-5. `orders`
-   - `id`, `order_no`, `branch_id`, `status`, `delivery_date`, `delivery_time`, `note`, `total_tray`, `total_amount`, `created_at`
-6. `order_items`
-   - `id`, `order_id`, `product_id`, `qty_tray`, `unit_price`
-
-## 9. API Taslagi (Oneri)
-
-1. `POST /auth/login`
-2. `GET /me`
-3. `GET /branches/:id/profile` / `PUT /branches/:id/profile`
-4. `GET /products` (sube+merkez, aktif/pasif bilgisi dahil)
-5. `POST /products` (merkez, yeni urun)
-6. `PUT /products/:id` (merkez, ad/fiyat guncelleme)
-7. `PUT /products/:id/status` (merkez, aktif/pasif)
-8. `PUT /products/status-bulk` (merkez, tumunu aktif/pasif)
-9. `PUT /branches/:id/price-adjustment` (merkez)
-10. `PUT /branches/:id/status` (aktif/pasif, merkez)
-11. `POST /orders` (pasif urun kontrolu backend tarafinda da zorunlu)
-12. `GET /orders?branch_id=...` (sube)
-13. `GET /orders?date=today` (merkez)
-14. `PUT /orders/:id/approve`
-15. `PUT /orders/approve-bulk`
-
-## 10. Test Senaryolari (Kisa Checklist)
-
-1. Sube girisi yap -> siparis ver -> merkezde gorunuyor mu?
-2. Merkez onay ver -> subede durum `Onaylandi` oluyor mu?
-3. Merkez global fiyat degistir -> sube siparis ekraninda fiyat degisiyor mu?
-4. Merkez yeni urun ekle -> sube siparis ekraninda urun gorunuyor mu?
-5. Merkez urunu pasif yap -> sube urunu goruyor ama siparis veremiyor mu?
-6. Merkez tumunu pasif yap -> hicbir urunden siparis gonderilemiyor mu?
-7. Merkez tumunu aktif yap -> urunlerden tekrar siparis verilebiliyor mu?
-8. Sube bazli +/-% uygula -> sadece o subede fiyat farki dogru mu?
-9. Sube pasif yap -> siparis gonderimi engelleniyor mu?
-10. Merkezde tarih sec -> secilen tarihteki siparisler, toplamlar ve toplu onay islemi dogru filtreleniyor mu?
-
-## 11. Backend Gecis Yol Haritasi (Node.js + Express/Fastify + MSSQL)
-
-Bu adimlar, localStorage prototipini backend API mimarisina sorunsuz tasimak icin onerilen sira ile verilmistir.
-
-1. Proje iskeleti
-   - Node.js backend projesi olustur (`Express` veya `Fastify`).
-   - Yapilari ayir: `config`, `modules`, `common`, `db/migrations`.
-   - Ortak hata/sonuc modeli ve global error middleware ekle.
-
-2. Kimlik dogrulama ve rol modeli
-   - `users` tablosunda rol alanini (`sube`, `merkez`, `admin`) netlestir.
-   - JWT tabanli giris/cikis akisini ekle.
-   - Roller: `sube`, `merkez`, `admin`.
-
-3. Domain modelleri
-   - Modelleri tanimla: `Branch`, `Product`, `BranchPriceAdjustment`, `Order`, `OrderItem`, `User`, `AuditLog`.
-   - `Product` icin `code`, `name`, `base_price`, `is_active` alanlarini zorunlu tut.
-   - `OrderItem` icin siparis anindaki birim fiyati (`unit_price`) sakla.
-
-4. MSSQL ve migration konfigurasyonu
-   - SQL Server baglantisi + migration araci (`Prisma` veya `Knex`) sec.
-   - Iliskiler, kisitlar ve indexleri migration ile yonet.
-   - Indexler:
-     - `orders.order_no` (unique)
-     - `orders.branch_id`
-     - `orders.created_at`
-     - `products.code` (unique)
-
-5. Migration ve seed
-   - Ilk migration olustur ve SQL Server'a uygula.
-   - Cekirdek verileri seed et:
-     - Varsayilan urunler
-     - Ornek subeler
-     - Roller ve test kullanicilari
-
-6. Urun API'si (merkez)
-   - `GET /products`
-   - `POST /products`
-   - `PUT /products/:id`
-   - `PUT /products/:id/status`
-   - `PUT /products/status-bulk`
-   - Kural: pasif urun siparise dahil edilemez.
-
-7. Sube ve fiyat farki API'si
-   - `PUT /branches/:id/status`
-   - `PUT /branches/:id/price-adjustment`
-   - Kural: pasif sube siparis gonderemez.
-
-8. Siparis API'si
-   - `POST /orders`, `GET /orders?branch_id=...`, `GET /orders?date=today`
-   - `PUT /orders/:id/approve`, `PUT /orders/approve-bulk`
-   - Siparis olusturma aninda backend dogrulamalari:
-     - Sube aktif mi?
-     - Urun aktif mi?
-     - Fiyat hesaplamasi dogru mu? (global + sube yuzdesi)
-
-9. Is kurallari servis katmani
-   - Fiyat hesaplama ve aktif/pasif kontrollerini tek bir domain/application servisinde topla.
-   - Frontend'e guvenme; tum kritik validasyon backend'de tekrar calissin.
-
-10. Test ve kalite
-   - Unit test: fiyat hesaplama, durum gecisleri, aktif/pasif kurallari.
-   - Integration test: temel API akislari.
-   - Swagger/OpenAPI dokumani ve ornek request/response'lar.
-   - Logging, audit alanlari (`created_by`, `updated_by`) ve temel izleme.
-
-11. Frontend entegrasyon gecisi
-   - LocalStorage okuma/yazmalarini asamali olarak API cagrilarina cevir.
-   - Ilk etapta yalniz urun/fiyat modulu, sonra siparis modulu tasinabilir.
-   - Geriye uyumluluk icin gecici feature flag veya adaptor katmani kullan.
-
----
-
-Bu README, backend/veritabani tasarimina gecmeden once mevcut isleyisin tek referans noktasi olarak kullanilabilir.
+## License
+Bu proje icin lisans secimi henuz yapilmamistir.
+Uygun lisans secildiginde bu bolum guncellenecektir.
