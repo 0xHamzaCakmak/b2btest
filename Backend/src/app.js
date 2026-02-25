@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const path = require("path");
+const fs = require("fs");
 const { env } = require("./config/env");
 const { prisma } = require("./config/prisma");
 const { authRouter } = require("./modules/auth/auth.routes");
@@ -17,7 +18,16 @@ const { settingsRouter } = require("./modules/settings/settings.routes");
 const { maintenanceMode } = require("./common/middlewares/maintenance-mode");
 
 const app = express();
-const frontendRoot = path.join(__dirname, "../../Frontend");
+const frontendCandidates = [
+  path.resolve(process.cwd(), "../Frontend"),
+  path.resolve(__dirname, "../../Frontend"),
+  path.resolve(process.cwd(), "Frontend"),
+  path.resolve(__dirname, "../public")
+];
+const frontendRoot = frontendCandidates.find((p) => fs.existsSync(p));
+if (!frontendRoot) {
+  console.warn("[frontend] static root not found. Checked:", frontendCandidates);
+}
 const allowedOrigins = String(env.CORS_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim())
@@ -65,7 +75,9 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "12mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
-app.use(express.static(frontendRoot));
+if (frontendRoot) {
+  app.use(express.static(frontendRoot));
+}
 
 function buildAuditPayload(req, res, durationMs) {
   const pathOnly = String(req.originalUrl || "").split("?")[0] || "";
