@@ -17,6 +17,7 @@ const { settingsRouter } = require("./modules/settings/settings.routes");
 const { maintenanceMode } = require("./common/middlewares/maintenance-mode");
 
 const app = express();
+const frontendRoot = path.join(__dirname, "../../Frontend");
 const allowedOrigins = String(env.CORS_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim())
@@ -64,6 +65,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "12mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use(express.static(frontendRoot));
 
 function buildAuditPayload(req, res, durationMs) {
   const pathOnly = String(req.originalUrl || "").split("?")[0] || "";
@@ -144,12 +146,7 @@ app.use((req, res, next) => {
 app.use(maintenanceMode);
 
 app.get("/", (_req, res) => {
-  res.status(200).json({
-    ok: true,
-    service: "b2b-borek-backend",
-    message: "Backend is running. Use frontend login page for UI.",
-    endpoints: ["/health", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/me", "/api/products", "/api/branches", "/api/centers", "/api/orders", "/api/profile/me", "/api/admin/users", "/api/admin/logs", "/api/admin/settings"]
-  });
+  res.redirect("/login.html");
 });
 
 app.get("/health", (_req, res) => {
