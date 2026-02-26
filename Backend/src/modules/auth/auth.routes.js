@@ -42,13 +42,15 @@ function getRefreshExpiryDate() {
 }
 
 async function createRefreshSession(userId, req, jti) {
+  const ipAddress = String(getClientIp(req) || "").slice(0, 191) || null;
+  const userAgent = String(req.headers["user-agent"] || "").slice(0, 191) || null;
   await prisma.refreshSession.create({
     data: {
       jti,
       userId,
       expiresAt: getRefreshExpiryDate(),
-      ipAddress: getClientIp(req) || null,
-      userAgent: String(req.headers["user-agent"] || "").slice(0, 1000) || null
+      ipAddress,
+      userAgent
     }
   });
 }
@@ -298,8 +300,8 @@ authRouter.post("/refresh", refreshRateLimiter, async (req, res, next) => {
           jti: nextRefreshJti,
           userId: user.id,
           expiresAt: getRefreshExpiryDate(),
-          ipAddress: getClientIp(req) || null,
-          userAgent: String(req.headers["user-agent"] || "").slice(0, 1000) || null
+          ipAddress: String(getClientIp(req) || "").slice(0, 191) || null,
+          userAgent: String(req.headers["user-agent"] || "").slice(0, 191) || null
         }
       })
     ]);
