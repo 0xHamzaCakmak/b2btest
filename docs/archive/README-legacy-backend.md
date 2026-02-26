@@ -1059,8 +1059,7 @@ Secenek A (onerilen): Docker ile calistir.
 1. Docker + Compose kur.
 2. Projeyi sunucuya cek:
    - `git clone <repo_url> app && cd app`
-3. Uretim env dosyasi olustur:
-   - `Backend/.env.production`
+3. Uretim env degiskenlerini hosting panelinden tanimla:`r`n   - `Backend/.env` (lokal)`r`n   - `Backend/.env.example` (ornek/sablon)
 
 Zorunlu env ornegi:
 
@@ -1179,3 +1178,4 @@ Canliya cikmadan once:
   3. `npm i ioredis`
   4. `npm run redis:smoke`
   5. Login + siparis + admin smoke testleri
+

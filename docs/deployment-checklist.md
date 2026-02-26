@@ -44,7 +44,7 @@ Amac: domain ve VPS almadan once release'i risksiz hale getirmek.
 ## Faz 3 - Uygulama Deploy
 
 - [ ] 3.1 Repo clone
-- [ ] 3.2 `Backend/.env.production` olusturma
+- [ ] 3.2 `Backend/.env (lokal) + Hosting Environment Variables` olusturma
 - [ ] 3.3 `npm ci`
 - [ ] 3.4 `prisma generate`
 - [ ] 3.5 `prisma migrate deploy`
@@ -76,3 +76,4 @@ Amac: domain ve VPS almadan once release'i risksiz hale getirmek.
 
 - Su an `memory` strategy ile devam edilebilir.
 - Redis'e gecis, birden fazla instance veya yuksek trafik oldugunda acilmalidir.
+

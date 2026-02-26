@@ -19,10 +19,11 @@ const { maintenanceMode } = require("./common/middlewares/maintenance-mode");
 
 const app = express();
 const frontendCandidates = [
+  path.resolve(__dirname, "../public"),
+  path.resolve(process.cwd(), "public"),
   path.resolve(process.cwd(), "../Frontend"),
   path.resolve(__dirname, "../../Frontend"),
-  path.resolve(process.cwd(), "Frontend"),
-  path.resolve(__dirname, "../public")
+  path.resolve(process.cwd(), "Frontend")
 ];
 const frontendRoot = frontendCandidates.find((p) => fs.existsSync(p));
 if (!frontendRoot) {
@@ -162,6 +163,15 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/health", (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: "b2b-borek-backend",
+    env: env.NODE_ENV,
+    time: new Date().toISOString()
+  });
+});
+
+app.get("/api/health", (_req, res) => {
   res.status(200).json({
     ok: true,
     service: "b2b-borek-backend",

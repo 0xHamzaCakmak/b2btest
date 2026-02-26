@@ -19,13 +19,13 @@ Merkez, sube ve admin rollerine sahip; siparis, fiyat ve operasyon yonetimi odak
   - Urun/siparis/log/sistem ayarlari
 - Backend API:
   - Node.js + Express
-  - Prisma ORM + SQL Server
+  - Prisma ORM + MySQL
   - JWT tabanli kimlik dogrulama
 
 ## Tech Stack
 - Frontend: Vanilla HTML/CSS/JS (`Frontend/`)
 - Backend: Node.js + Express (`Backend/`)
-- Database: Microsoft SQL Server
+- Database: MySQL
 - ORM: Prisma
 
 ## Project Structure
@@ -99,7 +99,7 @@ Ornek liste:
 ## Deployment (Summary)
 - Frontend ve backend ayri servis olarak yayinlanir.
 - Frontend static hosting ile sunulur.
-- Backend API, SQL Server ile ayni private network/VPC uzerinde calisir.
+- Backend API, MySQL ile ayni private network/VPC uzerinde calisir.
 - Reverse proxy ile tek domain routing yapilabilir.
 - HTTPS zorunlu olmalidir.
 
