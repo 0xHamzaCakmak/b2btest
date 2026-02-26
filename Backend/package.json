@@ -5,9 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
-    "postinstall": "npm run sync:frontend && npm run prisma:generate",
+    "postinstall": "npm run prisma:generate",
     "start": "node src/server.js",
-    "sync:frontend": "node scripts/sync-frontend.js",
     "seed": "node prisma/seed.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

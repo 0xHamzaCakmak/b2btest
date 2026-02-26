@@ -19,8 +19,6 @@ const { maintenanceMode } = require("./common/middlewares/maintenance-mode");
 
 const app = express();
 const frontendCandidates = [
-  path.resolve(__dirname, "../public"),
-  path.resolve(process.cwd(), "public"),
   path.resolve(process.cwd(), "../Frontend"),
   path.resolve(__dirname, "../../Frontend"),
   path.resolve(process.cwd(), "Frontend")
