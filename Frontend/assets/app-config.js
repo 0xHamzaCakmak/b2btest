@@ -1,36 +1,12 @@
 (function () {
-  var explicitApiBaseUrl = "";
-  if (typeof window.__APP_ENV__ === "object" && window.__APP_ENV__ && window.__APP_ENV__.API_BASE_URL) {
-    explicitApiBaseUrl = String(window.__APP_ENV__.API_BASE_URL).trim();
-  }
-  if (!explicitApiBaseUrl && window.API_BASE_URL) {
-    explicitApiBaseUrl = String(window.API_BASE_URL).trim();
-  }
-
-  var locationObj = window.location || {};
-  var host = locationObj.hostname || "localhost";
-  var protocol = locationObj.protocol || "http:";
-  var port = locationObj.port || "";
-  var isLocalHost = host === "localhost" || host === "127.0.0.1";
-  var productionApiBaseUrl = "https://api.subesiparis.com/api";
-  var apiBaseUrl = "";
-
-  if (explicitApiBaseUrl) {
-    apiBaseUrl = explicitApiBaseUrl;
-  } else if (isLocalHost && port && port !== "4000") {
-    // Live Server gibi lokal farkli portlarda backend varsayilan olarak 4000 kabul edilir.
-    apiBaseUrl = protocol + "//" + host + ":4000/api";
-  } else if (!isLocalHost) {
-    // Canli ortamda frontend ve backend farkli subdomain kullanir.
-    apiBaseUrl = productionApiBaseUrl;
-  } else {
-    // Tek domain deploy veya backend'in ayni origin'de servis ettigi frontend.
-    apiBaseUrl = (locationObj.origin || (protocol + "//" + host)) + "/api";
-  }
+  var PROD_API_BASE_URL = "https://api.subesiparis.com/api";
+  var isLocalHost = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname || "");
+  var localApiBaseUrl = (window.location.protocol || "http:") + "//" + (window.location.hostname || "localhost") + ":4000/api";
 
   window.APP_CONFIG = {
+    CONFIG_VERSION: "2026-02-26-prod1",
     TEST_MODE: false,
-    API_BASE_URL: apiBaseUrl,
+    API_BASE_URL: isLocalHost ? localApiBaseUrl : PROD_API_BASE_URL,
     DEFAULT_TEST_ROLE: "admin",
     DEFAULT_PROD_ROLE: "sube",
     ROLE_HOME: {
