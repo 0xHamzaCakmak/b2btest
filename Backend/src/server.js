@@ -21,5 +21,12 @@ async function shutdown(signal) {
   });
 }
 
+app.use(express.static(path.join(__dirname, 'frontend')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+});
+
+
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
