@@ -44,6 +44,7 @@ model Center {
   updatedAt  DateTime @updatedAt @map("updated_at")
   users      User[]
   branches   Branch[]
+  products   Product[]
 
   @@map("centers")
 }
@@ -71,18 +72,24 @@ model Branch {
 
 model Product {
   id         String      @id @default(uuid())
-  code       String      @unique
+  centerId   String      @map("center_id")
+  code       String
   name       String
+  unit       String      @default("TEPSI")
   basePrice  Decimal     @map("base_price") @db.Decimal(12, 2)
   imageUrl   String?     @map("image_url")
   imageKey   String?     @map("image_key")
   isActive   Boolean     @default(true) @map("is_active")
   createdAt  DateTime    @default(now()) @map("created_at")
   updatedAt  DateTime    @updatedAt @map("updated_at")
+  center     Center      @relation(fields: [centerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   orderItems OrderItem[]
   carryovers OrderCarryover[]
   branchAdjustments BranchProductAdjustment[]
 
+  @@index([centerId], map: "idx_products_center_id")
+  @@unique([centerId, code], map: "uq_products_center_code")
+  @@unique([centerId, name], map: "uq_products_center_name")
   @@map("products")
 }
 

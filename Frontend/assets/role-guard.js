@@ -224,7 +224,7 @@
   function routeRoles(page) {
     var path = window.location.pathname.replace(/\\/g, "/");
     var subePages = ["siparis.html", "siparislerim.html"];
-    var merkezPages = ["merkez.html", "merkez-urun-fiyat.html", "merkez-subeler.html"];
+    var merkezManagerPages = ["merkez-urun-fiyat.html", "merkez-subeler.html", "merkez-raporlar.html"];
     var publicPages = ["login.html"];
 
     if (page.indexOf("admin") === 0 || window.location.pathname.replace(/\\/g, "/").indexOf("/admin/") > -1) {
@@ -234,7 +234,8 @@
     if (page === "profil.html" && path.indexOf("/merkez/") > -1) return ["merkez", "admin"];
     if (publicPages.indexOf(page) > -1) return null;
     if (subePages.indexOf(page) > -1) return ["sube", "admin"];
-    if (merkezPages.indexOf(page) > -1) return ["merkez", "admin"];
+    if (page === "merkez.html") return ["merkez", "merkez_alt", "admin"];
+    if (merkezManagerPages.indexOf(page) > -1) return ["merkez", "admin"];
     return null;
   }
 
@@ -374,6 +375,7 @@
   function profileLinkByRole(role) {
     if (role === "sube") return toRootPage("sube/profil.html");
     if (role === "merkez") return toRootPage("merkez/profil.html");
+    if (role === "merkez_alt") return toRootPage("merkez/merkez.html");
     if (role === "admin") return toRootPage("admin/profile.html");
     return toRootPage("login.html");
   }

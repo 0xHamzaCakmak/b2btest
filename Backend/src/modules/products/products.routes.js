@@ -28,6 +28,7 @@ const productUploadRateLimiter = createSimpleRateLimiter({
 const uploadsBaseDir = path.resolve(path.join(__dirname, "../../../uploads"));
 const productUploadsDir = path.join(uploadsBaseDir, "products");
 const maxImageBytes = 5 * 1024 * 1024;
+const PRODUCT_UNITS = ["TEPSI", "KG", "ADET", "PALET"];
 
 const mimeToExt = {
   "image/jpeg": ".jpg",
@@ -48,8 +49,10 @@ function toCode(text) {
 function mapProduct(product) {
   return {
     id: product.id,
+    centerId: product.centerId || null,
     code: product.code,
     name: product.name,
+    unit: String(product.unit || "TEPSI").toUpperCase(),
     basePrice: Number(product.basePrice),
     imageUrl: product.imageUrl || null,
     imageKey: product.imageKey || null,
@@ -61,6 +64,7 @@ function mapProduct(product) {
 
 const createSchema = z.object({
   name: z.string().min(2).max(64),
+  unit: z.enum(PRODUCT_UNITS).optional(),
   basePrice: z.number().positive(),
   code: z.string().min(2).max(64).optional(),
   imageUrl: z.string().max(1000).optional(),
@@ -69,6 +73,7 @@ const createSchema = z.object({
 
 const updateSchema = z.object({
   name: z.string().min(2).max(64).optional(),
+  unit: z.enum(PRODUCT_UNITS).optional(),
   basePrice: z.number().positive().optional(),
   imageUrl: z.string().max(1000).nullable().optional(),
   imageKey: z.string().max(1000).nullable().optional(),
@@ -83,6 +88,10 @@ const uploadImageSchema = z.object({
   fileName: z.string().min(1).max(180),
   mimeType: z.string().min(5).max(120),
   dataBase64: z.string().min(20)
+});
+
+const centerQuerySchema = z.object({
+  centerId: z.string().uuid().optional()
 });
 
 function imageUrlFromKey(req, key) {
@@ -106,6 +115,70 @@ async function deleteImageIfExists(imageKey) {
   } catch (err) {
     if (!err || err.code !== "ENOENT") throw err;
   }
+}
+
+function resolveCenterIdForUser(req) {
+  if (!req || !req.user) return "";
+  const role = String(req.user.role || "").toLowerCase();
+  if (role === "sube") {
+    return req.user.branch && req.user.branch.centerId ? String(req.user.branch.centerId) : "";
+  }
+  if (role === "merkez" || role === "admin") {
+    return req.user.centerId ? String(req.user.centerId) : "";
+  }
+  return "";
+}
+
+function ensureCenterBoundUser(req, res) {
+  const centerId = resolveCenterIdForUser(req);
+  if (!centerId) {
+    res.status(400).json({
+      ok: false,
+      error: "CENTER_REQUIRED",
+      message: "Current user is not linked to a center"
+    });
+    return null;
+  }
+  return centerId;
+}
+
+async function findProductOrForbidden(productId, req, res) {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, centerId: true, imageKey: true }
+  });
+  if (!product) {
+    res.status(404).json({
+      ok: false,
+      error: "NOT_FOUND",
+      message: "Product not found"
+    });
+    return null;
+  }
+
+  const role = String(req.user && req.user.role || "").toLowerCase();
+  if (role === "admin") {
+    const adminCenterId = resolveCenterIdForUser(req);
+    if (!adminCenterId || adminCenterId === product.centerId) return product;
+    res.status(403).json({
+      ok: false,
+      error: "FORBIDDEN",
+      message: "Bu urun baska bir merkeze bagli."
+    });
+    return null;
+  }
+
+  const centerId = ensureCenterBoundUser(req, res);
+  if (!centerId) return null;
+  if (product.centerId !== centerId) {
+    res.status(403).json({
+      ok: false,
+      error: "FORBIDDEN",
+      message: "Bu urun baska bir merkeze bagli."
+    });
+    return null;
+  }
+  return product;
 }
 
 productsRouter.post("/upload-image", requireAuth, requireRole("merkez", "admin"), productUploadRateLimiter, async (req, res, next) => {
@@ -167,15 +240,58 @@ productsRouter.post("/upload-image", requireAuth, requireRole("merkez", "admin")
   }
 });
 
-productsRouter.get("/", requireAuth, async (_req, res, next) => {
+productsRouter.get("/", requireAuth, async (req, res, next) => {
   try {
+    const role = String(req.user.role || "").toLowerCase();
+    const where = {};
+    if (role === "admin") {
+      const parsed = centerQuerySchema.safeParse(req.query || {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          ok: false,
+          error: "VALIDATION_ERROR",
+          message: "Invalid centerId query",
+          details: parsed.error.flatten()
+        });
+      }
+      if (parsed.data.centerId) where.centerId = parsed.data.centerId;
+    } else {
+      const centerId = ensureCenterBoundUser(req, res);
+      if (!centerId) return;
+      where.centerId = centerId;
+    }
+
     const products = await prisma.product.findMany({
+      where,
       orderBy: [{ createdAt: "asc" }]
     });
 
     return res.status(200).json({
       ok: true,
       data: products.map(mapProduct)
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+productsRouter.get("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const role = String(req.user.role || "").toLowerCase();
+    if (!["admin", "merkez", "sube"].includes(role)) {
+      return res.status(403).json({
+        ok: false,
+        error: "FORBIDDEN",
+        message: "Bu islem icin yetkiniz yok."
+      });
+    }
+
+    const current = await findProductOrForbidden(req.params.id, req, res);
+    if (!current) return;
+    const product = await prisma.product.findUnique({ where: { id: current.id } });
+    return res.status(200).json({
+      ok: true,
+      data: mapProduct(product)
     });
   } catch (err) {
     return next(err);
@@ -194,6 +310,9 @@ productsRouter.post("/", requireAuth, requireRole("merkez", "admin"), productMut
       });
     }
 
+    const centerId = ensureCenterBoundUser(req, res);
+    if (!centerId) return;
+
     const payload = parsed.data;
     const code = payload.code ? toCode(payload.code) : toCode(payload.name);
     if (!code) {
@@ -204,7 +323,7 @@ productsRouter.post("/", requireAuth, requireRole("merkez", "admin"), productMut
       });
     }
 
-    const exists = await prisma.product.findUnique({ where: { code } });
+    const exists = await prisma.product.findFirst({ where: { centerId, code } });
     if (exists) {
       return res.status(409).json({
         ok: false,
@@ -215,8 +334,10 @@ productsRouter.post("/", requireAuth, requireRole("merkez", "admin"), productMut
 
     const created = await prisma.product.create({
       data: {
+        centerId,
         code,
         name: payload.name.trim(),
+        unit: String(payload.unit || "TEPSI").toUpperCase(),
         basePrice: payload.basePrice,
         imageUrl: payload.imageUrl ? payload.imageUrl.trim() : null,
         imageKey: payload.imageKey ? payload.imageKey.trim() : null,
@@ -229,6 +350,13 @@ productsRouter.post("/", requireAuth, requireRole("merkez", "admin"), productMut
       data: mapProduct(created)
     });
   } catch (err) {
+    if (err && err.code === "P2002") {
+      return res.status(409).json({
+        ok: false,
+        error: "PRODUCT_EXISTS",
+        message: "Ayni merkezde bu isim veya kodda urun zaten var."
+      });
+    }
     return next(err);
   }
 });
@@ -245,7 +373,11 @@ productsRouter.put("/status-bulk", requireAuth, requireRole("merkez", "admin"), 
       });
     }
 
+    const centerId = ensureCenterBoundUser(req, res);
+    if (!centerId) return;
+
     const result = await prisma.product.updateMany({
+      where: { centerId },
       data: { isActive: parsed.data.isActive }
     });
 
@@ -270,20 +402,12 @@ productsRouter.put("/:id", requireAuth, requireRole("merkez", "admin"), productM
       });
     }
 
-    const current = await prisma.product.findUnique({
-      where: { id: req.params.id },
-      select: { id: true, imageKey: true }
-    });
-    if (!current) {
-      return res.status(404).json({
-        ok: false,
-        error: "NOT_FOUND",
-        message: "Product not found"
-      });
-    }
+    const current = await findProductOrForbidden(req.params.id, req, res);
+    if (!current) return;
 
     const data = {};
     if (typeof parsed.data.name === "string") data.name = parsed.data.name.trim();
+    if (typeof parsed.data.unit === "string") data.unit = String(parsed.data.unit).toUpperCase();
     if (typeof parsed.data.basePrice === "number") data.basePrice = parsed.data.basePrice;
     if (parsed.data.removeImage === true) {
       data.imageUrl = null;
@@ -324,6 +448,13 @@ productsRouter.put("/:id", requireAuth, requireRole("merkez", "admin"), productM
         message: "Product not found"
       });
     }
+    if (err && err.code === "P2002") {
+      return res.status(409).json({
+        ok: false,
+        error: "PRODUCT_EXISTS",
+        message: "Ayni merkezde bu isim veya kodda urun zaten var."
+      });
+    }
     return next(err);
   }
 });
@@ -339,6 +470,9 @@ productsRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), p
         details: parsed.error.flatten()
       });
     }
+
+    const current = await findProductOrForbidden(req.params.id, req, res);
+    if (!current) return;
 
     const updated = await prisma.product.update({
       where: { id: req.params.id },
@@ -363,15 +497,20 @@ productsRouter.put("/:id/status", requireAuth, requireRole("merkez", "admin"), p
 
 productsRouter.delete("/:id", requireAuth, requireRole("merkez", "admin"), productMutationRateLimiter, async (req, res, next) => {
   try {
-    const current = await prisma.product.findUnique({
-      where: { id: req.params.id },
-      select: { id: true, imageKey: true }
-    });
-    if (!current) {
-      return res.status(404).json({
+    const current = await findProductOrForbidden(req.params.id, req, res);
+    if (!current) return;
+
+    const refs = await prisma.$transaction([
+      prisma.orderItem.count({ where: { productId: req.params.id } }),
+      prisma.orderCarryover.count({ where: { productId: req.params.id } })
+    ]);
+    const orderItemRefCount = Number(refs[0] || 0);
+    const carryoverRefCount = Number(refs[1] || 0);
+    if (orderItemRefCount > 0 || carryoverRefCount > 0) {
+      return res.status(409).json({
         ok: false,
-        error: "NOT_FOUND",
-        message: "Product not found"
+        error: "PRODUCT_IN_USE",
+        message: "Bu urunden daha once siparis verildigi icin silinemedi."
       });
     }
 
@@ -404,4 +543,3 @@ productsRouter.delete("/:id", requireAuth, requireRole("merkez", "admin"), produ
 });
 
 module.exports = { productsRouter };
-

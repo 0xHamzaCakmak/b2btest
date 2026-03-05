@@ -5,6 +5,7 @@ const { prisma } = require("../../config/prisma");
 const { requireAuth } = require("../../common/middlewares/require-auth");
 const { normalizePhone, isStrictTrPhone } = require("../../common/utils/phone");
 const { createSimpleRateLimiter } = require("../../common/middlewares/rate-limit");
+const { requireRole } = require("../../common/middlewares/require-role");
 
 const profileRouter = express.Router();
 const profileUpdateRateLimiter = createSimpleRateLimiter({
@@ -49,6 +50,27 @@ const changePasswordSchema = z.object({
   currentPassword: z.string().min(6),
   newPassword: z.string().min(6).max(128)
 });
+const createCenterSubUserSchema = z.object({
+  email: z.string().email(),
+  phone: z.string().min(7).max(50).optional(),
+  password: z.string().min(6).max(128),
+  displayName: z.string().min(2).max(120).optional(),
+  isActive: z.boolean().optional()
+});
+const centerSubUserStatusSchema = z.object({
+  isActive: z.boolean()
+});
+const centerSubUserResetPasswordSchema = z.object({
+  newPassword: z.string().min(6).max(128).optional()
+});
+const centerSubUserMutationRateLimiter = createSimpleRateLimiter({
+  max: 80,
+  windowMs: 5 * 60 * 1000,
+  message: "Cok fazla merkez alt kullanici islemi. Lutfen kisa sure sonra tekrar deneyin.",
+  keyFn(req) {
+    return `${req.user && req.user.id ? req.user.id : req.ip || "ip"}:center-sub-user-mutation`;
+  }
+});
 
 function mapProfile(user) {
   return {
@@ -77,6 +99,21 @@ function mapProfile(user) {
       address: user.branch.address || "",
       isActive: user.branch.isActive
     } : null
+  };
+}
+
+function mapCenterSubUser(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    phone: user.phone || null,
+    displayName: user.displayName || "",
+    role: user.role,
+    centerId: user.centerId || null,
+    centerName: user.center ? user.center.name : null,
+    isActive: user.isActive,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
   };
 }
 
@@ -288,6 +325,203 @@ profileRouter.put("/password", requireAuth, passwordChangeRateLimiter, async (re
     return res.status(200).json({
       ok: true,
       data: { updated: true }
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+profileRouter.get("/center-sub-users", requireAuth, requireRole("merkez"), async (req, res, next) => {
+  try {
+    if (!req.user.centerId) {
+      return res.status(400).json({
+        ok: false,
+        error: "CENTER_REQUIRED",
+        message: "Current merkez user is not linked to a center"
+      });
+    }
+    const users = await prisma.user.findMany({
+      where: {
+        role: "merkez_alt",
+        centerId: req.user.centerId
+      },
+      orderBy: [{ createdAt: "asc" }],
+      include: { center: true }
+    });
+    return res.status(200).json({
+      ok: true,
+      data: users.map(mapCenterSubUser)
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+profileRouter.post("/center-sub-users", requireAuth, requireRole("merkez"), centerSubUserMutationRateLimiter, async (req, res, next) => {
+  try {
+    if (!req.user.centerId) {
+      return res.status(400).json({
+        ok: false,
+        error: "CENTER_REQUIRED",
+        message: "Current merkez user is not linked to a center"
+      });
+    }
+    const parsed = createCenterSubUserSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Invalid center sub user payload",
+        details: parsed.error.flatten()
+      });
+    }
+    const payload = parsed.data;
+    const normalizedPhone = payload.phone ? normalizePhone(payload.phone) : null;
+    if (normalizedPhone && !isStrictTrPhone(normalizedPhone)) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Telefon 90 ile baslamali ve 10 hane icermelidir."
+      });
+    }
+    if (normalizedPhone) {
+      const phoneOwner = await prisma.user.findFirst({
+        where: { phone: normalizedPhone },
+        select: { id: true }
+      });
+      if (phoneOwner) {
+        return res.status(409).json({
+          ok: false,
+          error: "PHONE_IN_USE",
+          message: "Bu telefon numarasi zaten kullaniliyor."
+        });
+      }
+    }
+    const hash = await bcrypt.hash(payload.password, 10);
+    const created = await prisma.user.create({
+      data: {
+        email: payload.email.trim().toLowerCase(),
+        phone: normalizedPhone || null,
+        passwordHash: hash,
+        displayName: payload.displayName ? payload.displayName.trim() : null,
+        role: "merkez_alt",
+        centerId: req.user.centerId,
+        branchId: null,
+        isActive: payload.isActive !== false
+      },
+      include: { center: true }
+    });
+    return res.status(201).json({
+      ok: true,
+      data: mapCenterSubUser(created)
+    });
+  } catch (err) {
+    if (err && err.code === "P2002") {
+      return res.status(409).json({
+        ok: false,
+        error: "EMAIL_IN_USE",
+        message: "Bu e-posta zaten kullaniliyor."
+      });
+    }
+    return next(err);
+  }
+});
+
+profileRouter.put("/center-sub-users/:id/status", requireAuth, requireRole("merkez"), centerSubUserMutationRateLimiter, async (req, res, next) => {
+  try {
+    if (!req.user.centerId) {
+      return res.status(400).json({
+        ok: false,
+        error: "CENTER_REQUIRED",
+        message: "Current merkez user is not linked to a center"
+      });
+    }
+    const parsed = centerSubUserStatusSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Invalid status payload",
+        details: parsed.error.flatten()
+      });
+    }
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, role: true, centerId: true }
+    });
+    if (!target) {
+      return res.status(404).json({
+        ok: false,
+        error: "NOT_FOUND",
+        message: "User not found"
+      });
+    }
+    if (target.role !== "merkez_alt" || target.centerId !== req.user.centerId) {
+      return res.status(403).json({
+        ok: false,
+        error: "FORBIDDEN",
+        message: "Bu kullanici baska bir merkeze bagli."
+      });
+    }
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { isActive: parsed.data.isActive },
+      include: { center: true }
+    });
+    return res.status(200).json({
+      ok: true,
+      data: mapCenterSubUser(updated)
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+profileRouter.put("/center-sub-users/:id/reset-password", requireAuth, requireRole("merkez"), centerSubUserMutationRateLimiter, async (req, res, next) => {
+  try {
+    if (!req.user.centerId) {
+      return res.status(400).json({
+        ok: false,
+        error: "CENTER_REQUIRED",
+        message: "Current merkez user is not linked to a center"
+      });
+    }
+    const parsed = centerSubUserResetPasswordSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({
+        ok: false,
+        error: "VALIDATION_ERROR",
+        message: "Invalid reset password payload",
+        details: parsed.error.flatten()
+      });
+    }
+    const target = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, role: true, centerId: true }
+    });
+    if (!target) {
+      return res.status(404).json({
+        ok: false,
+        error: "NOT_FOUND",
+        message: "User not found"
+      });
+    }
+    if (target.role !== "merkez_alt" || target.centerId !== req.user.centerId) {
+      return res.status(403).json({
+        ok: false,
+        error: "FORBIDDEN",
+        message: "Bu kullanici baska bir merkeze bagli."
+      });
+    }
+    const nextPassword = parsed.data.newPassword || "12345678";
+    const hash = await bcrypt.hash(nextPassword, 10);
+    await prisma.user.update({
+      where: { id: target.id },
+      data: { passwordHash: hash }
+    });
+    return res.status(200).json({
+      ok: true,
+      data: { userId: target.id, tempPassword: nextPassword }
     });
   } catch (err) {
     return next(err);

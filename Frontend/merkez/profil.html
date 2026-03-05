@@ -167,6 +167,24 @@
       font-size: .83rem;
       opacity: .78;
     }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid rgba(19, 34, 31, .14);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .86);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 620px;
+    }
+    th, td {
+      border-bottom: 1px solid rgba(19, 34, 31, .1);
+      padding: .42rem .48rem;
+      font-size: .84rem;
+      text-align: left;
+    }
+    th { background: rgba(255, 255, 255, .95); }
   </style>
 </head>
 <body>
@@ -265,6 +283,41 @@
             <button class="btn" type="submit">Merkez Bilgilerini Guncelle</button>
             <div class="msg" id="centerMsg">Merkez bilgileri guncellendi.</div>
           </form>
+
+          <hr style="border:none;border-top:1px solid rgba(19,34,31,.15);margin:1rem 0;">
+
+          <h3>Merkez Alt Kullanicilari</h3>
+          <form id="subUserForm">
+            <label>Ad Soyad
+              <input type="text" id="subUserDisplayName" placeholder="Orn: Operasyon Sorumlusu" required>
+            </label>
+            <label>E-posta
+              <input type="email" id="subUserEmail" placeholder="ornek@firma.com" required>
+            </label>
+            <label>Telefon (opsiyonel)
+              <input type="tel" id="subUserPhone" placeholder="05xx xxx xx xx">
+            </label>
+            <label>Ilk Sifre
+              <input type="text" id="subUserPassword" value="12345678" required minlength="6">
+            </label>
+            <button class="btn" type="submit">Kullanici Ekle (rol: merkez_alt)</button>
+            <div class="msg" id="subUserMsg">Alt kullanici olusturuldu.</div>
+          </form>
+
+          <div class="table-wrap" style="margin-top:.75rem;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ad</th>
+                  <th>E-posta</th>
+                  <th>Telefon</th>
+                  <th>Durum</th>
+                  <th>Islem</th>
+                </tr>
+              </thead>
+              <tbody id="subUsersBody"></tbody>
+            </table>
+          </div>
         </article>
       </section>
     </main>
@@ -279,6 +332,13 @@
     const userMsg = document.getElementById("userMsg");
     const centerMsg = document.getElementById("centerMsg");
     const passwordMsg = document.getElementById("passwordMsg");
+    const subUserForm = document.getElementById("subUserForm");
+    const subUserMsg = document.getElementById("subUserMsg");
+    const subUsersBody = document.getElementById("subUsersBody");
+    const subUserDisplayName = document.getElementById("subUserDisplayName");
+    const subUserEmail = document.getElementById("subUserEmail");
+    const subUserPhone = document.getElementById("subUserPhone");
+    const subUserPassword = document.getElementById("subUserPassword");
 
     const displayName = document.getElementById("displayName");
     const userEmail = document.getElementById("userEmail");
@@ -334,6 +394,29 @@
       setTimeout(function () {
         el.style.display = "none";
       }, 2300);
+    }
+
+    function renderSubUsers(users) {
+      const rows = (users || []).map(function (u) {
+        const isActive = u.isActive !== false;
+        return '' +
+          '<tr>' +
+          '<td>' + (u.displayName || "-") + '</td>' +
+          '<td>' + (u.email || "-") + '</td>' +
+          '<td>' + (u.phone || "-") + '</td>' +
+          '<td>' + (isActive ? "Aktif" : "Pasif") + '</td>' +
+          '<td>' +
+            '<button class="btn secondary" type="button" data-sub-user-status="' + u.id + '" data-next="' + (isActive ? "false" : "true") + '">' + (isActive ? "Pasif Yap" : "Aktif Yap") + '</button> ' +
+            '<button class="btn secondary" type="button" data-sub-user-reset="' + u.id + '">Sifre Sifirla</button>' +
+          '</td>' +
+          '</tr>';
+      }).join("");
+      subUsersBody.innerHTML = rows || "<tr><td colspan='5'>Alt kullanici yok.</td></tr>";
+    }
+
+    async function loadSubUsers() {
+      const users = await apiRequest("/profile/center-sub-users", { method: "GET" });
+      renderSubUsers(users);
     }
 
     function applyProfileData(data) {
@@ -467,7 +550,57 @@
       });
     });
 
-    Promise.all([loadProfile(), loadStats()]).catch(function (_err) {
+    subUserForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      try {
+        await apiRequest("/profile/center-sub-users", {
+          method: "POST",
+          body: JSON.stringify({
+            displayName: String(subUserDisplayName.value || "").trim(),
+            email: String(subUserEmail.value || "").trim(),
+            phone: String(subUserPhone.value || "").trim(),
+            password: String(subUserPassword.value || "")
+          })
+        });
+        subUserForm.reset();
+        subUserPassword.value = "12345678";
+        await loadSubUsers();
+        showMessage(subUserMsg, "Merkez alt kullanicisi olusturuldu.");
+      } catch (err) {
+        showMessage(subUserMsg, err.message || "Alt kullanici olusturulamadi.");
+      }
+    });
+
+    subUsersBody.addEventListener("click", async function (event) {
+      const statusBtn = event.target && event.target.closest("button[data-sub-user-status]");
+      const resetBtn = event.target && event.target.closest("button[data-sub-user-reset]");
+      try {
+        if (statusBtn) {
+          const id = statusBtn.getAttribute("data-sub-user-status");
+          const next = statusBtn.getAttribute("data-next") === "true";
+          await apiRequest("/profile/center-sub-users/" + encodeURIComponent(id) + "/status", {
+            method: "PUT",
+            body: JSON.stringify({ isActive: next })
+          });
+          await loadSubUsers();
+          showMessage(subUserMsg, next ? "Kullanici aktif yapildi." : "Kullanici pasif yapildi.");
+          return;
+        }
+        if (resetBtn) {
+          const id = resetBtn.getAttribute("data-sub-user-reset");
+          const result = await apiRequest("/profile/center-sub-users/" + encodeURIComponent(id) + "/reset-password", {
+            method: "PUT",
+            body: JSON.stringify({})
+          });
+          const temp = result && result.tempPassword ? result.tempPassword : "12345678";
+          showMessage(subUserMsg, "Sifre sifirlandi. Gecici sifre: " + temp);
+        }
+      } catch (err) {
+        showMessage(subUserMsg, err.message || "Islem basarisiz.");
+      }
+    });
+
+    Promise.all([loadProfile(), loadStats(), loadSubUsers()]).catch(function (_err) {
       showMessage(userMsg, "Profil verileri alinamadi.");
     });
   </script>

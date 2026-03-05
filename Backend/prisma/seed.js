@@ -45,17 +45,6 @@ async function upsertUser(email, data) {
   });
 }
 
-async function upsertProduct(code, data) {
-  return prisma.product.upsert({
-    where: { code },
-    update: data,
-    create: {
-      code,
-      ...data
-    }
-  });
-}
-
 async function main() {
   const passwordHash = await bcrypt.hash("12345678", 10);
   const center01 = await ensureCenter({
@@ -110,51 +99,8 @@ async function main() {
     });
   }
 
-  await upsertProduct("su_boregi", {
-    name: "Su Boregi",
-    basePrice: 700,
-    isActive: true
-  });
-  await upsertProduct("peynirli_borek", {
-    name: "Peynirli Borek",
-    basePrice: 650,
-    isActive: true
-  });
-  await upsertProduct("kiymali_borek", {
-    name: "Kiymali Borek",
-    basePrice: 730,
-    isActive: true
-  });
-  await upsertProduct("patatesli_borek", {
-    name: "Patatesli Borek",
-    basePrice: 610,
-    isActive: true
-  });
-  await upsertProduct("ispanakli_borek", {
-    name: "Ispanakli Borek",
-    basePrice: 640,
-    isActive: true
-  });
-  await upsertProduct("kasarli_borek", {
-    name: "Kasarli Borek",
-    basePrice: 680,
-    isActive: true
-  });
-  await upsertProduct("kol_boregi", {
-    name: "Kol Boregi",
-    basePrice: 760,
-    isActive: true
-  });
-  await upsertProduct("karisik_borek", {
-    name: "Karisik Borek",
-    basePrice: 790,
-    isActive: true
-  });
-  await upsertProduct("biberli_ekmek", {
-    name: "Biberli Ekmek",
-    basePrice: 1150,
-    isActive: true
-  });
+  // Varsayilan olarak urun seed edilmez.
+  // Merkezler urunlerini panelden kendileri olusturur.
 
   await upsertUser("admin@borekci.com", {
     passwordHash,
@@ -163,7 +109,7 @@ async function main() {
     role: "admin",
     isActive: true,
     branchId: null,
-    centerId: null
+    centerId: center01.id
   });
   await upsertUser("merkez@borekci.com", {
     passwordHash,

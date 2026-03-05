@@ -76,6 +76,25 @@ Giris:
 
 > Guvenlik notu: README icinde gercek secret, token, sifre veya sunucu bilgisi paylasilmaz.
 
+## Multi-tenant Product Isolation
+- `products` artik `center_id` ile merkeze baglidir.
+- `products.unit` alani eklendi (`TEPSI`, `ADET`, `KG`, `PALET`).
+- Her urun sadece tek bir merkeze aittir; center bazli unique kurallari:
+  - `(center_id, code)`
+  - `(center_id, name)`
+- `GET /api/products` rol bazli izolasyon uygular:
+  - `admin`: tum urunler, opsiyonel `?centerId=...` filtresi
+  - `merkez`: sadece kendi merkezi
+  - `sube`: bagli oldugu subenin merkezi
+- Product CRUD (`POST/PUT/DELETE/status`) center izolasyonludur; merkez disi urun id'sinde `403` doner.
+- Urun olusturma/guncellemede birim secimi urun bazlidir (her urun farkli birim olabilir).
+- Siparis olusturma ve sube context urun listesi de center bazli filtrelenir.
+- Migration/backfill:
+  - Eski global urunler `Default Center` altina tasinir.
+  - `Backend/prisma/migrations/20260305143000_product_center_isolation/migration.sql`
+- Ek test:
+  - `npm run test:product-isolation`
+
 ## API (High Level)
 - Auth: `/api/auth/*`
 - Profile: `/api/profile/*`

@@ -515,6 +515,9 @@ branchesRouter.get("/my-context", requireAuth, async (req, res, next) => {
     }
 
     const products = await prisma.product.findMany({
+      where: {
+        centerId: branch.centerId || ""
+      },
       orderBy: [{ createdAt: "asc" }]
     });
 
@@ -536,6 +539,7 @@ branchesRouter.get("/my-context", requireAuth, async (req, res, next) => {
         id: p.id,
         code: p.code,
         name: p.name,
+        unit: String(p.unit || "TEPSI").toUpperCase(),
         basePrice,
         extraAmount,
         adjustedPrice: applyPricing(basePrice, percent, extraAmount),
@@ -594,6 +598,9 @@ branchesRouter.get("/:id/product-adjustments", requireAuth, requireRole("merkez"
     }
 
     const products = await prisma.product.findMany({
+      where: {
+        centerId: branch.centerId || ""
+      },
       orderBy: [{ createdAt: "asc" }]
     });
     const rows = await prisma.branchProductAdjustment.findMany({
@@ -617,6 +624,7 @@ branchesRouter.get("/:id/product-adjustments", requireAuth, requireRole("merkez"
             productId: p.id,
             code: p.code,
             name: p.name,
+            unit: String(p.unit || "TEPSI").toUpperCase(),
             basePrice,
             extraAmount,
             hasOverride: byProductId.has(p.id),
@@ -673,13 +681,20 @@ branchesRouter.put("/:id/product-adjustments/:productId", requireAuth, requireRo
 
     const product = await prisma.product.findUnique({
       where: { id: req.params.productId },
-      select: { id: true, code: true, name: true, basePrice: true }
+      select: { id: true, code: true, name: true, unit: true, basePrice: true, centerId: true }
     });
     if (!product) {
       return res.status(404).json({
         ok: false,
         error: "NOT_FOUND",
         message: "Product not found"
+      });
+    }
+    if (product.centerId !== branch.centerId) {
+      return res.status(403).json({
+        ok: false,
+        error: "FORBIDDEN",
+        message: "Bu urun baska bir merkeze bagli."
       });
     }
 
@@ -716,6 +731,7 @@ branchesRouter.put("/:id/product-adjustments/:productId", requireAuth, requireRo
         productId: product.id,
         productCode: product.code,
         productName: product.name,
+        unit: String(product.unit || "TEPSI").toUpperCase(),
         extraAmount,
         adjustedPrice: applyPricing(toNumber(product.basePrice, 0), percent, extraAmount)
       }

@@ -17,13 +17,13 @@ const userAdminMutationRateLimiter = createSimpleRateLimiter({
   }
 });
 
-const roles = ["sube", "merkez", "admin"];
+const roles = ["sube", "merkez", "merkez_alt", "admin"];
 
 const createUserSchema = z.object({
   email: z.string().email(),
   phone: z.string().min(7).max(50).optional(),
   password: z.string().min(6).max(128),
-  role: z.enum(["sube", "merkez", "admin"]),
+  role: z.enum(["sube", "merkez", "merkez_alt", "admin"]),
   displayName: z.string().min(2).max(120).optional(),
   branchId: z.string().uuid().nullable().optional(),
   centerId: z.string().uuid().nullable().optional(),
@@ -33,7 +33,7 @@ const createUserSchema = z.object({
 const updateUserSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().min(7).max(50).nullable().optional(),
-  role: z.enum(["sube", "merkez", "admin"]).optional(),
+  role: z.enum(["sube", "merkez", "merkez_alt", "admin"]).optional(),
   displayName: z.string().min(2).max(120).optional(),
   branchId: z.string().uuid().nullable().optional(),
   centerId: z.string().uuid().nullable().optional()
@@ -76,7 +76,7 @@ async function ensureRelationsIfNeeded(role, branchId, centerId) {
     return { ok: true };
   }
 
-  if (role === "merkez") {
+  if (role === "merkez" || role === "merkez_alt") {
     if (!centerId) {
       return { ok: false, error: "Merkez kullanicisi icin centerId zorunlu." };
     }
@@ -141,7 +141,7 @@ usersRouter.post("/", requireAuth, requireRole("admin"), userAdminMutationRateLi
     }
     const role = payload.role;
     const branchId = role === "sube" ? (payload.branchId || null) : null;
-    const centerId = role === "merkez" ? (payload.centerId || null) : null;
+    const centerId = (role === "merkez" || role === "merkez_alt") ? (payload.centerId || null) : null;
     const relationCheck = await ensureRelationsIfNeeded(role, branchId, centerId);
     if (!relationCheck.ok) {
       return res.status(400).json({
@@ -234,7 +234,7 @@ usersRouter.put("/:id", requireAuth, requireRole("admin"), userAdminMutationRate
     const branchId = role === "sube"
       ? (Object.prototype.hasOwnProperty.call(payload, "branchId") ? payload.branchId : current.branchId)
       : null;
-    const centerId = role === "merkez"
+    const centerId = (role === "merkez" || role === "merkez_alt")
       ? (Object.prototype.hasOwnProperty.call(payload, "centerId") ? payload.centerId : current.centerId)
       : null;
 

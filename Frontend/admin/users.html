@@ -148,6 +148,7 @@
               <select id="createRole" required>
                 <option value="sube">sube</option>
                 <option value="merkez">merkez</option>
+                <option value="merkez_alt">merkez_alt</option>
                 <option value="admin">admin</option>
               </select>
             </label>
@@ -184,6 +185,7 @@
               <select id="editRole" required>
                 <option value="sube">sube</option>
                 <option value="merkez">merkez</option>
+                <option value="merkez_alt">merkez_alt</option>
                 <option value="admin">admin</option>
               </select>
             </label>
@@ -356,7 +358,7 @@
     function syncRelationState(roleSelectEl, branchSelectEl, centerSelectEl) {
       const role = roleSelectEl.value;
       const isSube = role === "sube";
-      const isMerkez = role === "merkez";
+      const isMerkez = role === "merkez" || role === "merkez_alt";
       branchSelectEl.disabled = !isSube;
       centerSelectEl.disabled = !isMerkez;
       if (!isSube) branchSelectEl.value = "";

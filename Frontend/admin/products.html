@@ -156,6 +156,14 @@
             <label>Baz Fiyat (TL)
               <input type="number" id="createBasePrice" min="0.01" step="0.01" required>
             </label>
+            <label>Birim
+              <select id="createUnit">
+                <option value="TEPSI">Tepsi</option>
+                <option value="ADET">Adet</option>
+                <option value="KG">KG</option>
+                <option value="PALET">Palet</option>
+              </select>
+            </label>
           </form>
           <div class="actions">
             <button class="btn primary" id="createBtn" type="button">Urun Olustur</button>
@@ -175,6 +183,14 @@
             </label>
             <label>Baz Fiyat (TL)
               <input type="number" id="editBasePrice" min="0.01" step="0.01" required>
+            </label>
+            <label>Birim
+              <select id="editUnit">
+                <option value="TEPSI">Tepsi</option>
+                <option value="ADET">Adet</option>
+                <option value="KG">KG</option>
+                <option value="PALET">Palet</option>
+              </select>
             </label>
             <label>Durum
               <select id="editActive">
@@ -203,6 +219,7 @@
                 <th>Sec</th>
                 <th>Kod</th>
                 <th>Ad</th>
+                <th>Birim</th>
                 <th>Baz Fiyat</th>
                 <th>Durum</th>
                 <th>Olusturma</th>
@@ -301,6 +318,7 @@
           "<td><button class='btn' data-select-product='" + p.id + "'>Sec</button></td>" +
           "<td>" + (p.code || "-") + "</td>" +
           "<td>" + (p.name || "-") + "</td>" +
+          "<td>" + unitLabel(p.unit) + "</td>" +
           "<td>" + toMoney(p.basePrice) + "</td>" +
           "<td><span class='badge " + activeCls + "'>" + activeText + "</span></td>" +
           "<td>" + toDateText(p.createdAt) + "</td>" +
@@ -308,7 +326,7 @@
           "<td><button class='btn warn' data-delete-product='" + p.id + "'>Sil</button></td>" +
           "</tr>";
       }).join("");
-      productsBody.innerHTML = html || "<tr><td colspan='8'>Urun bulunamadi.</td></tr>";
+      productsBody.innerHTML = html || "<tr><td colspan='9'>Urun bulunamadi.</td></tr>";
       productsBody.querySelectorAll("[data-select-product]").forEach(function (btn) {
         btn.addEventListener("click", function () {
           selectedProductId = btn.getAttribute("data-select-product") || "";
@@ -353,11 +371,16 @@
       document.getElementById("editName").value = item.name || "";
       document.getElementById("editCode").value = item.code || "";
       document.getElementById("editBasePrice").value = String(item.basePrice || "");
+      document.getElementById("editUnit").value = normalizeUnit(item.unit);
       document.getElementById("editActive").value = item.isActive ? "true" : "false";
     }
 
     async function loadProducts() {
-      const data = await apiRequest("/products", { method: "GET" });
+      const session = getSession();
+      const centerQuery = session && session.centerId
+        ? ("?centerId=" + encodeURIComponent(String(session.centerId)))
+        : "";
+      const data = await apiRequest("/products" + centerQuery, { method: "GET" });
       products = Array.isArray(data) ? data.slice() : [];
       if (!selectedProduct() && products.length) selectedProductId = products[0].id;
       applySelectedToForm();
@@ -367,12 +390,13 @@
     async function createProduct() {
       const name = document.getElementById("createName").value.trim();
       const code = document.getElementById("createCode").value.trim();
+      const unit = normalizeUnit(document.getElementById("createUnit").value);
       const basePrice = Number(document.getElementById("createBasePrice").value);
       if (!name || !Number.isFinite(basePrice) || basePrice <= 0) {
         throw new Error("Urun adi ve gecerli fiyat girin.");
       }
 
-      const payload = { name: name, basePrice: basePrice };
+      const payload = { name: name, unit: unit, basePrice: basePrice };
       if (code) payload.code = code;
 
       const created = await apiRequest("/products", {
@@ -392,6 +416,7 @@
       const item = selectedProduct();
       if (!item) throw new Error("Lutfen listeden urun secin.");
       const name = document.getElementById("editName").value.trim();
+      const unit = normalizeUnit(document.getElementById("editUnit").value);
       const basePrice = Number(document.getElementById("editBasePrice").value);
       const isActive = document.getElementById("editActive").value === "true";
       if (!name || !Number.isFinite(basePrice) || basePrice <= 0) {
@@ -399,7 +424,7 @@
       }
       let updated = await apiRequest("/products/" + item.id, {
         method: "PUT",
-        body: JSON.stringify({ name: name, basePrice: basePrice })
+        body: JSON.stringify({ name: name, unit: unit, basePrice: basePrice })
       });
       if (updated.isActive !== isActive) {
         updated = await apiRequest("/products/" + item.id + "/status", {
@@ -478,3 +503,14 @@
 
 
 
+    function normalizeUnit(value) {
+      const v = String(value || "TEPSI").toUpperCase();
+      return ["TEPSI", "ADET", "KG", "PALET"].includes(v) ? v : "TEPSI";
+    }
+    function unitLabel(value) {
+      const v = normalizeUnit(value);
+      if (v === "ADET") return "Adet";
+      if (v === "KG") return "KG";
+      if (v === "PALET") return "Palet";
+      return "Tepsi";
+    }

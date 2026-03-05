@@ -125,7 +125,7 @@
       font-size: .92rem;
       font-weight: 600;
     }
-    input {
+    input, select {
       width: 100%;
       border: 1px solid var(--border);
       background: rgba(255, 255, 255, .85);
@@ -157,13 +157,50 @@
       background: rgba(255, 255, 255, .8);
       color: var(--ink);
     }
-    .msg {
+    .notice-modal {
+      position: fixed;
+      inset: 0;
       display: none;
-      border: 1px solid rgba(19, 34, 31, .2);
-      background: rgba(216, 240, 227, .75);
-      border-radius: 12px;
-      padding: .75rem .85rem;
-      font-weight: 600;
+      align-items: center;
+      justify-content: center;
+      background: rgba(19, 34, 31, .34);
+      z-index: 1200;
+      padding: 1rem;
+    }
+    .notice-modal.show {
+      display: flex;
+    }
+    .notice-card {
+      width: min(440px, 100%);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: #fff;
+      padding: 1rem;
+      box-shadow: 0 18px 40px rgba(19, 34, 31, .18);
+    }
+    .notice-card.error {
+      border-color: rgba(171, 47, 47, .35);
+      background: #fff5f5;
+    }
+    .notice-card.success {
+      border-color: rgba(28, 95, 79, .35);
+      background: #f3fff9;
+    }
+    .notice-title {
+      margin: 0 0 .45rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+    .notice-text {
+      margin: 0;
+      font-size: .95rem;
+      line-height: 1.4;
+    }
+    .notice-actions {
+      margin-top: .95rem;
+      display: flex;
+      justify-content: flex-end;
+      gap: .55rem;
     }
     .inline-form {
       display: grid;
@@ -303,6 +340,14 @@
             <label>Baslangic Fiyati (TL)
               <input type="number" id="newProductPrice" min="1" step="1" value="500">
             </label>
+            <label>Birim
+              <select id="newProductUnit">
+                <option value="TEPSI">Tepsi</option>
+                <option value="ADET">Adet</option>
+                <option value="KG">KG</option>
+                <option value="PALET">Palet</option>
+              </select>
+            </label>
             <label>Urun Gorseli
               <input type="file" id="newProductImage" accept="image/*">
             </label>
@@ -319,9 +364,27 @@
           <button class="btn primary" type="submit">Fiyatlari Kaydet</button>
           <button class="btn ghost" type="button" id="resetBtn">Varsayilana Don</button>
         </div>
-        <div class="msg" id="saveMsg">Fiyatlar guncellendi. Subeler yeni fiyatlari gorecek.</div>
       </form>
     </main>
+  </div>
+  <div id="noticeModal" class="notice-modal" role="dialog" aria-modal="true">
+    <div id="noticeCard" class="notice-card">
+      <h4 id="noticeTitle" class="notice-title">Bilgi</h4>
+      <p id="noticeText" class="notice-text"></p>
+      <div class="notice-actions">
+        <button id="noticeCloseBtn" class="btn ghost small" type="button">Tamam</button>
+      </div>
+    </div>
+  </div>
+  <div id="confirmModal" class="notice-modal" role="dialog" aria-modal="true">
+    <div class="notice-card">
+      <h4 class="notice-title">Onay</h4>
+      <p id="confirmText" class="notice-text"></p>
+      <div class="notice-actions">
+        <button id="confirmCancelBtn" class="btn ghost small" type="button">Iptal</button>
+        <button id="confirmOkBtn" class="btn danger small" type="button">Sil</button>
+      </div>
+    </div>
   </div>
 
   <script src="../assets/app-config.js?v=20260226c"></script>
@@ -329,13 +392,22 @@
   <script>
     const priceForm = document.getElementById("priceForm");
     const resetBtn = document.getElementById("resetBtn");
-    const saveMsg = document.getElementById("saveMsg");
+    const noticeModal = document.getElementById("noticeModal");
+    const noticeCard = document.getElementById("noticeCard");
+    const noticeTitle = document.getElementById("noticeTitle");
+    const noticeText = document.getElementById("noticeText");
+    const noticeCloseBtn = document.getElementById("noticeCloseBtn");
+    const confirmModal = document.getElementById("confirmModal");
+    const confirmText = document.getElementById("confirmText");
+    const confirmOkBtn = document.getElementById("confirmOkBtn");
+    const confirmCancelBtn = document.getElementById("confirmCancelBtn");
     const productGrid = document.getElementById("productGrid");
     const addProductBtn = document.getElementById("addProductBtn");
     const allActiveBtn = document.getElementById("allActiveBtn");
     const allPassiveBtn = document.getElementById("allPassiveBtn");
     const newProductName = document.getElementById("newProductName");
     const newProductPrice = document.getElementById("newProductPrice");
+    const newProductUnit = document.getElementById("newProductUnit");
     const newProductImage = document.getElementById("newProductImage");
     const cfg = window.APP_CONFIG || {};
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");    let apiProducts = [];
@@ -350,13 +422,55 @@
       { key: "kol_boregi", name: "Kol Boregi", price: 760 },
       { key: "karisik_borek", name: "Karisik Borek", price: 790 }
     ];
-    function showMessage(message) {
-      saveMsg.style.display = "block";
-      saveMsg.textContent = message;
-      setTimeout(function () {
-        saveMsg.style.display = "none";
-        saveMsg.textContent = "Fiyatlar guncellendi. Subeler yeni fiyatlari gorecek.";
-      }, 2300);
+    const unitLabelMap = {
+      TEPSI: "Tepsi",
+      ADET: "Adet",
+      KG: "KG",
+      PALET: "Palet"
+    };
+    function normalizeUnit(value) {
+      const key = String(value || "TEPSI").toUpperCase();
+      return unitLabelMap[key] ? key : "TEPSI";
+    }
+    function showMessage(message, kind) {
+      const type = kind || "info";
+      noticeCard.classList.toggle("error", type === "error");
+      noticeCard.classList.toggle("success", type === "success");
+      noticeTitle.textContent = type === "error" ? "Uyari" : (type === "success" ? "Basarili" : "Bilgi");
+      noticeText.textContent = String(message || "Islem sonucu yok.");
+      noticeModal.classList.add("show");
+    }
+
+    function closeNotice() {
+      noticeModal.classList.remove("show");
+    }
+
+    function showConfirm(message) {
+      confirmText.textContent = String(message || "Devam edilsin mi?");
+      confirmModal.classList.add("show");
+      return new Promise(function (resolve) {
+        function cleanup() {
+          confirmOkBtn.removeEventListener("click", onOk);
+          confirmCancelBtn.removeEventListener("click", onCancel);
+          confirmModal.removeEventListener("click", onBackdrop);
+        }
+        function onOk() {
+          cleanup();
+          confirmModal.classList.remove("show");
+          resolve(true);
+        }
+        function onCancel() {
+          cleanup();
+          confirmModal.classList.remove("show");
+          resolve(false);
+        }
+        function onBackdrop(event) {
+          if (event.target === confirmModal) onCancel();
+        }
+        confirmOkBtn.addEventListener("click", onOk);
+        confirmCancelBtn.addEventListener("click", onCancel);
+        confirmModal.addEventListener("click", onBackdrop);
+      });
     }
 
     function escapeHtml(text) {
@@ -435,6 +549,7 @@
           const id = product.id;
           const name = escapeHtml(product.name || "-");
           const value = Number(product.basePrice || 1);
+          const unit = normalizeUnit(product.unit);
           const isActive = product.isActive !== false;
           const isEditing = editingProductId === id;
           const imageUrl = product.imageUrl ? escapeHtml(product.imageUrl) : "";
@@ -444,6 +559,12 @@
               ? ('<img class="thumb" src="' + imageUrl + '" alt="' + name + '">')
               : '<div class="thumb empty">Gorsel Yok</div>') +
             '<label>Urun Adi<input type="text" maxlength="64" data-product-name-id="' + id + '" value="' + name + '" required' + (isEditing ? "" : " disabled") + '></label>' +
+            '<label>Birim<select data-product-unit-id="' + id + '"' + (isEditing ? "" : " disabled") + '>' +
+            '<option value="TEPSI"' + (unit === "TEPSI" ? " selected" : "") + '>Tepsi</option>' +
+            '<option value="ADET"' + (unit === "ADET" ? " selected" : "") + '>Adet</option>' +
+            '<option value="KG"' + (unit === "KG" ? " selected" : "") + '>KG</option>' +
+            '<option value="PALET"' + (unit === "PALET" ? " selected" : "") + '>Palet</option>' +
+            '</select></label>' +
             '<label>Fiyat (TL)<input type="number" min="1" step="1" data-product-id="' + id + '" value="' + value + '" required' + (isEditing ? "" : " disabled") + '></label>' +
             '<label>Gorsel<input type="file" accept="image/*" data-product-image-id="' + id + '"' + (isEditing ? "" : " disabled") + '></label>' +
             (isEditing && imageUrl ? '<label class="remove-image-wrap"><input type="checkbox" data-remove-image-id="' + id + '"> Mevcut resmi kaldir</label>' : '') +
@@ -472,11 +593,14 @@
       const priceInput = productGrid.querySelector('input[data-product-id="' + id + '"]');
       if (!nameInput || !priceInput) return null;
       const name = String(nameInput.value || "").trim();
+      const unitInput = productGrid.querySelector('select[data-product-unit-id="' + id + '"]');
+      const unit = normalizeUnit(unitInput ? unitInput.value : "TEPSI");
       const basePrice = Math.max(1, Number(priceInput.value || 1));
       if (!name || Number.isNaN(basePrice)) return null;
       const removeImageInput = productGrid.querySelector('input[data-remove-image-id="' + id + '"]');
       return {
         name: name,
+        unit: unit,
         basePrice: basePrice,
         removeImage: !!(removeImageInput && removeImageInput.checked)
       };
@@ -490,6 +614,7 @@
       }
       const payload = {};
       if (String(old.name || "") !== draft.name) payload.name = draft.name;
+      if (normalizeUnit(old.unit) !== draft.unit) payload.unit = draft.unit;
       if (Number(old.basePrice) !== Number(draft.basePrice)) payload.basePrice = draft.basePrice;
       const imageInput = productGrid.querySelector('input[data-product-image-id="' + id + '"]');
       const selectedFile = imageInput && imageInput.files && imageInput.files[0] ? imageInput.files[0] : null;
@@ -518,14 +643,15 @@
       }
       await fetchProductsFromApi();
       renderPriceInputs();
-      showMessage(changedCount > 0 ? "Urun degisiklikleri kaydedildi." : "Degisiklik yok.");
+      showMessage(changedCount > 0 ? "Urun degisiklikleri kaydedildi." : "Degisiklik yok.", "success");
     }
 
     async function addNewProduct() {
       const name = String(newProductName.value || "").trim();
       const startPrice = Math.max(1, Number(newProductPrice.value || 0));
+      const unit = normalizeUnit(newProductUnit && newProductUnit.value ? newProductUnit.value : "TEPSI");
       if (!name || Number.isNaN(startPrice)) {
-        showMessage("Urun adi ve gecerli bir fiyat girin.");
+        showMessage("Urun adi ve gecerli bir fiyat girin.", "error");
         return;
       }
 
@@ -539,6 +665,7 @@
           method: "POST",
           body: JSON.stringify({
             name: name,
+            unit: unit,
             basePrice: startPrice,
             imageUrl: imagePayload ? imagePayload.imageUrl : undefined,
             imageKey: imagePayload ? imagePayload.imageKey : undefined
@@ -548,10 +675,11 @@
         renderPriceInputs();
         newProductName.value = "";
         newProductPrice.value = "500";
+        if (newProductUnit) newProductUnit.value = "TEPSI";
         if (newProductImage) newProductImage.value = "";
-        showMessage("Yeni urun veritabanina eklendi.");
+        showMessage("Yeni urun veritabanina eklendi.", "success");
       } catch (err) {
-        showMessage(err.message || "Urun eklenemedi.");
+        showMessage(err.message || "Urun eklenemedi.", "error");
       }
     }
 
@@ -563,9 +691,9 @@
         });
         await fetchProductsFromApi();
         renderPriceInputs();
-        showMessage(isActive ? "Tum urunler aktif yapildi." : "Tum urunler pasif yapildi.");
+        showMessage(isActive ? "Tum urunler aktif yapildi." : "Tum urunler pasif yapildi.", "success");
       } catch (err) {
-        showMessage(err.message || "Toplu durum guncellenemedi.");
+        showMessage(err.message || "Toplu durum guncellenemedi.", "error");
       }
     }
 
@@ -574,7 +702,7 @@
       try {
         await saveForm();
       } catch (err) {
-        showMessage(err.message || "Fiyatlar kaydedilemedi.");
+        showMessage(err.message || "Fiyatlar kaydedilemedi.", "error");
       }
     });
 
@@ -597,9 +725,9 @@
         await Promise.all(updates);
         await fetchProductsFromApi();
         renderPriceInputs();
-        showMessage("Cekirdek urunler varsayilan fiyata donduruldu.");
+        showMessage("Cekirdek urunler varsayilan fiyata donduruldu.", "success");
       } catch (err) {
-        showMessage(err.message || "Varsayilan fiyatlara donulemedi.");
+        showMessage(err.message || "Varsayilan fiyatlara donulemedi.", "error");
       }
     });
 
@@ -624,7 +752,7 @@
 
       if (action === "save") {
         if (editingProductId !== id) {
-          showMessage("Once kalem ikonuna basarak karti duzenleme moduna alin.");
+          showMessage("Once kalem ikonuna basarak karti duzenleme moduna alin.", "error");
           return;
         }
         try {
@@ -632,24 +760,24 @@
           editingProductId = null;
           await fetchProductsFromApi();
           renderPriceInputs();
-          showMessage(changed ? "Urun bilgisi guncellendi." : "Degisiklik yok.");
+          showMessage(changed ? "Urun bilgisi guncellendi." : "Degisiklik yok.", changed ? "success" : "info");
         } catch (err) {
-          showMessage(err.message || "Urun guncellenemedi.");
+          showMessage(err.message || "Urun guncellenemedi.", "error");
         }
         return;
       }
 
       if (action === "delete") {
-        const confirmed = window.confirm("Bu urun silinecek. Bu islem geri alinamaz. Devam edilsin mi?");
+        const confirmed = await showConfirm("Bu urun silinecek. Bu islem geri alinamaz. Devam edilsin mi?");
         if (!confirmed) return;
         try {
           await apiRequest("/products/" + id, { method: "DELETE" });
           if (editingProductId === id) editingProductId = null;
           await fetchProductsFromApi();
           renderPriceInputs();
-          showMessage("Urun silindi.");
+          showMessage("Urun silindi.", "success");
         } catch (err) {
-          showMessage(err.message || "Urun silinemedi.");
+          showMessage(err.message || "Urun silinemedi.", "error");
         }
       }
     });
@@ -672,10 +800,10 @@
             badgeApi.textContent = target.checked ? "Aktif" : "Pasif";
             badgeApi.classList.toggle("passive", !target.checked);
           }
-          showMessage(target.checked ? "Urun aktif yapildi." : "Urun pasif yapildi.");
+          showMessage(target.checked ? "Urun aktif yapildi." : "Urun pasif yapildi.", "success");
         } catch (err) {
           target.checked = !target.checked;
-          showMessage(err.message || "Urun durumu guncellenemedi.");
+          showMessage(err.message || "Urun durumu guncellenemedi.", "error");
         }
         return;
       }
@@ -684,8 +812,13 @@
     fetchProductsFromApi()
       .then(renderPriceInputs)
       .catch(function (err) {
-        showMessage((err && err.message) || "Urunler API'den alinamadi.");
+        showMessage((err && err.message) || "Urunler API'den alinamadi.", "error");
       });
+
+    noticeCloseBtn.addEventListener("click", closeNotice);
+    noticeModal.addEventListener("click", function (event) {
+      if (event.target === noticeModal) closeNotice();
+    });
   </script>
 </body>
 </html>

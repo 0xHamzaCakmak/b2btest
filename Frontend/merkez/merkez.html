@@ -356,22 +356,34 @@
     .item-table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 560px;
+      table-layout: fixed;
+      min-width: 620px;
     }
     .item-table th,
     .item-table td {
       border-bottom: 1px solid rgba(19, 34, 31, .1);
-      padding: .36rem .45rem;
+      padding: .34rem .34rem;
       text-align: left;
-      font-size: .86rem;
+      font-size: .82rem;
       vertical-align: middle;
+      word-break: break-word;
     }
     .item-table th {
       background: rgba(255, 255, 255, .96);
       position: sticky;
       top: 0;
       z-index: 1;
+      font-size: .79rem;
+      line-height: 1.12;
+      white-space: normal;
     }
+    .item-table th.col-product { width: 21%; }
+    .item-table th.col-demand { width: 13%; }
+    .item-table th.col-approved { width: 27%; }
+    .item-table th.col-price { width: 14%; }
+    .item-table th.col-status { width: 15%; }
+    .item-table th.col-check { width: 10%; text-align: center; }
+    .item-table td:last-child { text-align: center; }
     .item-status-pill {
       border: 1px solid var(--border);
       border-radius: 999px;
@@ -391,6 +403,61 @@
     .item-status-pill.partial {
       background: rgba(255, 243, 221, .95);
       border-color: rgba(196, 143, 56, .35);
+    }
+    .qty-stepper {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      border: 1px solid rgba(19, 34, 31, .18);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .9);
+      padding: .15rem .25rem;
+    }
+    .qty-stepper.disabled {
+      opacity: .58;
+      pointer-events: none;
+    }
+    .qty-btn {
+      width: 24px;
+      height: 24px;
+      border: 1px solid rgba(19, 34, 31, .22);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, .92);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .qty-val {
+      min-width: 30px;
+      text-align: center;
+      font-weight: 700;
+      font-size: .84rem;
+      color: rgba(19, 34, 31, .92);
+    }
+    .total-row-multi {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .84rem;
+      font-weight: 700;
+      color: rgba(19, 34, 31, .88);
+    }
+    .total-chip {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .08rem .45rem;
+      background: rgba(255, 255, 255, .85);
+      white-space: nowrap;
+    }
+    .total-chip.ok {
+      background: rgba(216, 240, 227, .92);
+      border-color: rgba(74, 140, 92, .35);
     }
     .totals {
       display: grid;
@@ -521,7 +588,7 @@
           <div class="orders" id="ordersList"></div>
         </article>
         <article class="card">
-          <h3>Total Uretim Ihtiyaci (Tepsi)</h3>
+          <h3>Toplam Uretim Ihtiyaci (Tepsi)</h3>
           <div class="totals" id="totalByProduct"></div>
         </article>
       </section>
@@ -568,6 +635,9 @@
     const openOrderNos = new Set();
     let currentFilteredOrders = [];
     let currentProductTotals = {};
+    const pendingApprovedQtyMap = new Map();
+    const activeRole = (window.AuthSession && window.AuthSession.role ? window.AuthSession.role() : null) || "";
+    const isMerkezAltRole = String(activeRole || "").toLowerCase() === "merkez_alt";
     const cfg = window.APP_CONFIG || {};
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
     function getAuthSession() {
@@ -632,6 +702,97 @@
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;");
+    }
+
+    function itemKey(orderNo, itemId) {
+      return String(orderNo || "") + "::" + String(itemId || "");
+    }
+
+    function clampApprovedQty(value) {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return 0;
+      const qty = Math.round(parsed);
+      if (qty <= 0) return 0;
+      if (qty >= 100000) return 100000;
+      return qty;
+    }
+
+    function getPendingApprovedQty(orderNo, itemId, requestedQty, currentApprovedQty) {
+      const key = itemKey(orderNo, itemId);
+      if (pendingApprovedQtyMap.has(key)) {
+        return clampApprovedQty(pendingApprovedQtyMap.get(key));
+      }
+      const fallback = currentApprovedQty === null || currentApprovedQty === undefined
+        ? requestedQty
+        : Number(currentApprovedQty);
+      const normalized = clampApprovedQty(fallback);
+      pendingApprovedQtyMap.set(key, normalized);
+      return normalized;
+    }
+
+    function setPendingApprovedQty(orderNo, itemId, requestedQty, nextQty) {
+      const key = itemKey(orderNo, itemId);
+      const normalized = clampApprovedQty(nextQty);
+      pendingApprovedQtyMap.set(key, normalized);
+      return normalized;
+    }
+
+    function clearPendingApprovedQty(orderNo, itemId) {
+      pendingApprovedQtyMap.delete(itemKey(orderNo, itemId));
+    }
+
+    function syncRowControls(orderNo, itemId, requestedQty, nextQty) {
+      const normalized = setPendingApprovedQty(orderNo, itemId, requestedQty, nextQty);
+      document.querySelectorAll('.qty-val[data-order-no="' + orderNo + '"][data-item-id="' + itemId + '"]').forEach(function (el) {
+        el.textContent = String(normalized);
+      });
+      document.querySelectorAll('.item-check[data-order-no="' + orderNo + '"][data-item-id="' + itemId + '"]').forEach(function (cb) {
+        cb.checked = normalized > 0;
+      });
+      const liveTotals = buildProductTotals(currentFilteredOrders);
+      currentProductTotals = Object.assign({}, liveTotals);
+      renderProductTotals(liveTotals);
+      return normalized;
+    }
+
+    function buildProductTotals(orders) {
+      const out = {};
+      (orders || []).forEach(function (order) {
+        const isPendingOrder = normalizeStatus(order.status) === "Onay Bekliyor";
+        (order.items || []).forEach(function (item) {
+          const unit = String(item.unit || "TEPSI").toUpperCase();
+          const key = (item.name || "Urun") + "||" + unit;
+          const requestedQty = Number(item.qty || 0);
+          const approvedQty = isPendingOrder
+            ? getPendingApprovedQty(order.orderNo || "", item.id || "", requestedQty, item.approvedQty)
+            : clampApprovedQty(Number(item.approvedQty || 0));
+          if (!out[key]) out[key] = { name: item.name || "Urun", unit: unit, requested: 0, approved: 0 };
+          out[key].requested += requestedQty;
+          out[key].approved += approvedQty;
+        });
+      });
+      return out;
+    }
+
+    function renderProductTotals(productTotals) {
+      const entries = Object.entries(productTotals || {});
+      if (!entries.length) {
+        totalByProduct.innerHTML = '<div class="empty">Toplam alani siparis geldikce dolacak.</div>';
+        return;
+      }
+      totalByProduct.innerHTML = entries
+        .sort(function (a, b) { return (b[1].requested + b[1].approved) - (a[1].requested + a[1].approved); })
+        .map(function (entry) {
+          return '' +
+            '<div class="total-row">' +
+            '<span>' + entry[1].name + ' <small>(' + String(entry[1].unit || "TEPSI").toLowerCase() + ')</small></span>' +
+            '<span class="total-row-multi">' +
+            '<span class="total-chip">Gelen: ' + Number(entry[1].requested || 0) + '</span>' +
+            '<span class="total-chip ok">Onaylanan: ' + Number(entry[1].approved || 0) + '</span>' +
+            '</span>' +
+            '</div>';
+        })
+        .join("");
     }
 
     function showConfirmDialog(title, text, confirmText, cancelText) {
@@ -730,7 +891,7 @@
         filteredOrders = await apiRequest("/orders?date=" + encodeURIComponent(activeDateKey), { method: "GET" });
       } catch (err) {
         ordersList.innerHTML = '<div class="empty">' + ((err && err.message) || "Siparisler alinamadi.") + '</div>';
-        totalByProduct.innerHTML = '<div class="empty">Total alani siparis geldikce dolacak.</div>';
+        totalByProduct.innerHTML = '<div class="empty">Toplam alani siparis geldikce dolacak.</div>';
         return;
       }
       currentFilteredOrders = filteredOrders.slice();
@@ -758,9 +919,11 @@
         totalAmount += Number(order.totalAmount || 0);
 
         (order.items || []).forEach(function (item) {
-          const name = item.name || "Urun";
-          const qty = Number(item.qty || 0);
-          productTotals[name] = (productTotals[name] || 0) + qty;
+          const unit = String(item.unit || "TEPSI").toUpperCase();
+          const key = (item.name || "Urun") + "||" + unit;
+          const requestedQty = Number(item.qty || 0);
+          if (!productTotals[key]) productTotals[key] = { name: item.name || "Urun", unit: unit, requested: 0, approved: 0 };
+          productTotals[key].requested += requestedQty;
         });
         const normalizedStatus = normalizeStatus(order.status);
         if (normalizedStatus === "Onaylandi") approved += 1;
@@ -790,7 +953,7 @@
 
       if (!filteredOrders.length) {
         ordersList.innerHTML = '<div class="empty">Secilen tarihte henuz siparis yok.</div>';
-        totalByProduct.innerHTML = '<div class="empty">Total alani siparis geldikce dolacak.</div>';
+        totalByProduct.innerHTML = '<div class="empty">Toplam alani siparis geldikce dolacak.</div>';
         updateApproveAllButtonState(0, 0, 0, 0);
         updateDeliverAllButtonState(0, 0);
         return;
@@ -817,17 +980,37 @@
               ? "ok"
               : (itemStatus === "Onaylanmadi" ? "reject" : (itemStatus === "Kismen Onaylandi" ? "partial" : ""));
             const requestedQty = Number(item.qty || 0);
-            const approvedQty = item.approvedQty === null || item.approvedQty === undefined ? "-" : String(Number(item.approvedQty));
-            const rowChecked = isPending ? " checked" : ((itemStatus === "Onaylandi" || itemStatus === "Kismen Onaylandi") ? " checked" : "");
+            const editableApprovedQty = isPending
+              ? getPendingApprovedQty(order.orderNo || "", item.id || "", requestedQty, item.approvedQty)
+              : clampApprovedQty(Number(item.approvedQty || 0));
+            const approvedQtyText = item.approvedQty === null || item.approvedQty === undefined
+              ? (isPending ? String(editableApprovedQty) : "-")
+              : String(Number(item.approvedQty));
+            const rowChecked = isPending
+              ? (editableApprovedQty > 0 ? " checked" : "")
+              : ((itemStatus === "Onaylandi" || itemStatus === "Kismen Onaylandi") ? " checked" : "");
             const rowDisabled = isPending ? "" : " disabled";
+            const qtyControls = isPending
+              ? (
+                '<div class="qty-stepper" data-order-no="' + (order.orderNo || "") + '" data-item-id="' + (item.id || "") + '" data-requested-qty="' + requestedQty + '">' +
+                '<button class="qty-btn qty-minus" type="button" data-order-no="' + (order.orderNo || "") + '" data-item-id="' + (item.id || "") + '" data-requested-qty="' + requestedQty + '">-</button>' +
+                '<span class="qty-val" data-order-no="' + (order.orderNo || "") + '" data-item-id="' + (item.id || "") + '">' + String(editableApprovedQty) + '</span>' +
+                '<button class="qty-btn qty-plus" type="button" data-order-no="' + (order.orderNo || "") + '" data-item-id="' + (item.id || "") + '" data-requested-qty="' + requestedQty + '">+</button>' +
+                '</div> <span>' + String(item.unit || "TEPSI").toLowerCase() + '</span>'
+              )
+              : '<div class="qty-stepper disabled"><span class="qty-val">-</span></div>';
             return '' +
               '<tr>' +
               '<td>' + escapeHtml(item.name || "-") + '</td>' +
-              '<td>' + requestedQty + '</td>' +
-              '<td>' + escapeHtml(approvedQty) + '</td>' +
+              '<td>' + requestedQty + ' ' + String(item.unit || "TEPSI").toLowerCase() + '</td>' +
+              '<td>' +
+                (isPending
+                  ? qtyControls
+                  : ('<span>' + escapeHtml(approvedQtyText) + ' ' + String(item.unit || "TEPSI").toLowerCase() + '</span>')) +
+              '</td>' +
               '<td>' + escapeHtml(formatTL(Number(item.unitPrice || 0))) + '</td>' +
               '<td><span class="item-status-pill ' + itemStatusClass + '">' + escapeHtml(itemStatus) + '</span></td>' +
-              '<td><input class="item-check" type="checkbox" data-order-no="' + (order.orderNo || "") + '" data-item-id="' + (item.id || "") + '"' + rowChecked + rowDisabled + '></td>' +
+              '<td><input class="item-check" type="checkbox" data-order-no="' + (order.orderNo || "") + '" data-item-id="' + (item.id || "") + '" data-requested-qty="' + requestedQty + '"' + rowChecked + rowDisabled + '></td>' +
               '</tr>';
           }).join("");
           const carryoverLines = (order.carryovers || []).map(function (entry) {
@@ -844,7 +1027,7 @@
           const safeAmount = escapeHtml(formatTL(Number(order.totalAmount || 0)));
           const safeDeliveredAt = escapeHtml(formatDate(order.deliveredAt));
           const safeDeliveredBy = escapeHtml(order.deliveredByName || "-");
-          const deliveryBtnDisabled = ((!isApproved && !isPartial) || isDelivered) ? " disabled" : "";
+          const deliveryBtnDisabled = (isMerkezAltRole || (!isApproved && !isPartial) || isDelivered) ? " disabled" : "";
           const deliveryBtnText = isDelivered ? "Teslim Edildi" : "Teslim Edildi Isaretle";
           const orderStateClass = (isApproved || isPartial) ? "approved" : (isRejected ? "rejected" : "pending");
           const statusClass = isApproved ? "ok" : (isPartial ? "partial" : (isRejected ? "reject" : ""));
@@ -871,7 +1054,7 @@
             '  <div class="subline">Olusturma: ' + safeCreated + ' | Teslimat: ' + safeDelivery + '</div>' +
             '  <div class="detail-body">' +
             '    <div><strong>Siparis Kalemleri:</strong></div>' +
-            '    <div class="item-table-wrap"><table class="item-table"><thead><tr><th>Urun</th><th>Talep</th><th>Onaylanan</th><th>Birim Fiyat</th><th>Durum</th><th>Onay</th></tr></thead><tbody>' + itemLines + '</tbody></table></div>' +
+            '    <div class="item-table-wrap"><table class="item-table"><thead><tr><th class="col-product">Urun</th><th class="col-demand">Talep<br>(Sube)</th><th class="col-approved">Onaylanan<br>(Merkez)</th><th class="col-price">Birim Fiyat</th><th class="col-status">Durum</th><th class="col-check">Onay</th></tr></thead><tbody>' + itemLines + '</tbody></table></div>' +
             (carryoverLines ? '    <div><strong>Elde Kalan (Dunden):</strong><br>' + carryoverLines + '</div>' : '') +
             '    <div><strong>Siparis Toplami:</strong> ' + escapeHtml(formatTL(Number(order.totalAmount || 0))) + ' (' + Number(order.totalTray || 0) + ' tepsi)</div>' +
             '    <div><strong>Bu Subenin Secilen Tarih Toplami:</strong> ' + escapeHtml(formatTL(branchTotal)) + '</div>' +
@@ -885,13 +1068,9 @@
         .join("");
       ordersList.innerHTML = ordersHtml;
 
-      const totalsHtml = Object.entries(productTotals)
-        .sort(function (a, b) { return b[1] - a[1]; })
-        .map(function (entry) {
-          return '<div class="total-row"><span>' + entry[0] + '</span><span>' + entry[1] + ' tepsi</span></div>';
-        })
-        .join("");
-      totalByProduct.innerHTML = totalsHtml;
+      const liveTotals = buildProductTotals(filteredOrders);
+      currentProductTotals = Object.assign({}, liveTotals);
+      renderProductTotals(liveTotals);
 
       document.querySelectorAll("details.order").forEach(function (detailsEl) {
         detailsEl.addEventListener("toggle", function () {
@@ -912,6 +1091,35 @@
         checkbox.addEventListener("click", function (event) {
           event.stopPropagation();
         });
+        checkbox.addEventListener("change", function () {
+          const orderNo = checkbox.dataset.orderNo || "";
+          const itemId = checkbox.dataset.itemId || "";
+          const requestedQty = Number(checkbox.dataset.requestedQty || 0);
+          const currentQty = getPendingApprovedQty(orderNo, itemId, requestedQty, requestedQty);
+          syncRowControls(orderNo, itemId, requestedQty, checkbox.checked ? Math.max(1, currentQty) : 0);
+        });
+      });
+      document.querySelectorAll(".qty-minus").forEach(function (btn) {
+        btn.addEventListener("click", function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          const orderNo = btn.dataset.orderNo || "";
+          const itemId = btn.dataset.itemId || "";
+          const requestedQty = Number(btn.dataset.requestedQty || 0);
+          const currentQty = getPendingApprovedQty(orderNo, itemId, requestedQty, requestedQty);
+          syncRowControls(orderNo, itemId, requestedQty, currentQty - 1);
+        });
+      });
+      document.querySelectorAll(".qty-plus").forEach(function (btn) {
+        btn.addEventListener("click", function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          const orderNo = btn.dataset.orderNo || "";
+          const itemId = btn.dataset.itemId || "";
+          const requestedQty = Number(btn.dataset.requestedQty || 0);
+          const currentQty = getPendingApprovedQty(orderNo, itemId, requestedQty, requestedQty);
+          syncRowControls(orderNo, itemId, requestedQty, currentQty + 1);
+        });
       });
       syncSelectAllState();
 
@@ -931,6 +1139,7 @@
       });
       document.querySelectorAll(".deliver-one-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
+          if (isMerkezAltRole) return;
           const orderNo = btn.dataset.orderNo || "";
           if (!orderNo) return;
           deliverOrdersByNos([orderNo]);
@@ -949,19 +1158,26 @@
         .filter(function (order) { return normalizeStatus(order.status) === "Onay Bekliyor"; })
         .map(function (order) {
           const itemCheckboxes = Array.from(document.querySelectorAll('.item-check[data-order-no="' + (order.orderNo || "") + '"]'));
-          const approveItemIds = itemCheckboxes
-            .filter(function (cb) { return cb.checked; })
-            .map(function (cb) { return cb.dataset.itemId || ""; })
-            .filter(Boolean);
-          const rejectItemIds = itemCheckboxes
-            .filter(function (cb) { return !cb.checked; })
-            .map(function (cb) { return cb.dataset.itemId || ""; })
-            .filter(Boolean);
+          const itemApprovals = itemCheckboxes.map(function (cb) {
+            const itemId = cb.dataset.itemId || "";
+            const requestedQty = Number(cb.dataset.requestedQty || 0);
+            const approvedQtyTray = cb.checked
+              ? getPendingApprovedQty(order.orderNo || "", itemId, requestedQty, requestedQty)
+              : 0;
+            return { itemId: itemId, approvedQtyTray: approvedQtyTray };
+          }).filter(function (row) { return !!row.itemId; });
+          const approveItemIds = itemApprovals
+            .filter(function (row) { return Number(row.approvedQtyTray || 0) > 0; })
+            .map(function (row) { return row.itemId; });
+          const rejectItemIds = itemApprovals
+            .filter(function (row) { return Number(row.approvedQtyTray || 0) <= 0; })
+            .map(function (row) { return row.itemId; });
           const fallbackIds = (order.items || []).map(function (item) { return item.id; }).filter(Boolean);
           return {
             orderId: order.id,
             approveItemIds: itemCheckboxes.length ? approveItemIds : fallbackIds,
-            rejectItemIds: itemCheckboxes.length ? rejectItemIds : []
+            rejectItemIds: itemCheckboxes.length ? rejectItemIds : [],
+            itemApprovals: itemCheckboxes.length ? itemApprovals : []
           };
         });
       if (!orderItemDecisions.length) return;
@@ -1063,26 +1279,34 @@
         }
         approveOrderNos.push(key);
         const itemCheckboxes = Array.from(document.querySelectorAll('.item-check[data-order-no="' + key + '"]'));
-        const approveItemIds = itemCheckboxes
-          .filter(function (cb) { return cb.checked; })
-          .map(function (cb) { return cb.dataset.itemId || ""; })
-          .filter(Boolean);
-        const rejectItemIds = itemCheckboxes
-          .filter(function (cb) { return !cb.checked; })
-          .map(function (cb) { return cb.dataset.itemId || ""; })
-          .filter(Boolean);
+        const itemApprovals = itemCheckboxes.map(function (cb) {
+          const itemId = cb.dataset.itemId || "";
+          const requestedQty = Number(cb.dataset.requestedQty || 0);
+          const approvedQtyTray = cb.checked
+            ? getPendingApprovedQty(key, itemId, requestedQty, requestedQty)
+            : 0;
+          return { itemId: itemId, approvedQtyTray: approvedQtyTray };
+        }).filter(function (row) { return !!row.itemId; });
+        const approveItemIds = itemApprovals
+          .filter(function (row) { return Number(row.approvedQtyTray || 0) > 0; })
+          .map(function (row) { return row.itemId; });
+        const rejectItemIds = itemApprovals
+          .filter(function (row) { return Number(row.approvedQtyTray || 0) <= 0; })
+          .map(function (row) { return row.itemId; });
         if (!itemCheckboxes.length) {
           const ids = (order.items || []).map(function (item) { return item.id; }).filter(Boolean);
           orderItemDecisions.push({
             orderId: order.id,
             approveItemIds: ids,
-            rejectItemIds: []
+            rejectItemIds: [],
+            itemApprovals: []
           });
         } else {
           orderItemDecisions.push({
             orderId: order.id,
             approveItemIds: approveItemIds,
-            rejectItemIds: rejectItemIds
+            rejectItemIds: rejectItemIds,
+            itemApprovals: itemApprovals
           });
         }
       });
@@ -1162,6 +1386,13 @@
     }
 
     function updateDeliverAllButtonState(approvableOrderCount, deliveryPendingCount) {
+      if (isMerkezAltRole) {
+        deliverAllBtn.textContent = "Teslim yetkisi yok";
+        deliverAllBtn.disabled = true;
+        deliverAllBtn.classList.remove("warn", "success");
+        deliverAllBtn.classList.add("success");
+        return;
+      }
       deliverAllBtn.classList.remove("warn", "success");
       if (deliveryPendingCount > 0) {
         deliverAllBtn.classList.add("warn");
@@ -1197,6 +1428,7 @@
     rejectSelectedBtn.addEventListener("click", rejectSelected);
     approveAllBtn.addEventListener("click", approveAllForSelectedDate);
     deliverAllBtn.addEventListener("click", function () {
+      if (isMerkezAltRole) return;
       deliverAllApprovedForSelectedDate().catch(function () {});
     });
     refreshBtn.addEventListener("click", render);

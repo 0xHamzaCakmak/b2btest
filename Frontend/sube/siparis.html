@@ -346,7 +346,7 @@
       <div class="top">
         <div>
           <h1>Borekci Siparis Paneli</h1>
-          <p class="muted">Secilen borekler tepsi adedi ile merkeze iletilir.</p>
+          <p class="muted">Secilen urunler birim adedi ile merkeze iletilir.</p>
         </div>
         <nav class="nav">
           <a href="siparis.html">Siparis Ver</a>
@@ -375,7 +375,7 @@
           <button class="btn primary" type="submit">Siparisi Merkeze Gonder</button>
           <a class="btn secondary" href="siparislerim.html">Siparislerimi Gor</a>
         </div>
-        <div class="cart-total" id="cartTotal">Sepet Tutari: 0 TL (0 tepsi)</div>
+        <div class="cart-total" id="cartTotal">Sepet Tutari: 0 TL (0 birim)</div>
       </form>
     </main>
   </div>
@@ -508,7 +508,7 @@
         return '' +
           '<article class="carryover-row">' +
           '  <strong>' + escapeHtml(row.name || "-") + '</strong>' +
-          '  <div class="mini">Dun siparis: ' + Number(row.yesterdayTray || 0) + ' tepsi</div>' +
+          '  <div class="mini">Dun siparis: ' + Number(row.yesterdayTray || 0) + ' birim</div>' +
           '  <label>Kalan (kg)<input class="carryover-kg-input" type="number" min="0" step="0.1" value="' + Number(row.defaultKg || 0) + '" data-product-code="' + escapeHtml(row.productCode || "") + '" data-name="' + escapeHtml(row.name || "") + '"></label>' +
           '</article>';
       }).join("");
@@ -542,8 +542,22 @@
         totalTray += qty;
         totalAmount += qty * price;
       });
-      cartTotal.textContent = "Sepet Tutari: " + formatTL(totalAmount) + " (" + totalTray + " tepsi)";
+      cartTotal.textContent = "Sepet Tutari: " + formatTL(totalAmount) + " (" + totalTray + " birim)";
       return { totalTray: totalTray, totalAmount: totalAmount };
+    }
+
+    const unitLabelMap = {
+      TEPSI: "tepsi",
+      ADET: "adet",
+      KG: "kg",
+      PALET: "palet"
+    };
+    function normalizeUnit(value) {
+      const key = String(value || "TEPSI").toUpperCase();
+      return unitLabelMap[key] ? key : "TEPSI";
+    }
+    function unitLabel(value) {
+      return unitLabelMap[normalizeUnit(value)];
     }
 
     function setDefaultDeliveryDate() {
@@ -600,6 +614,8 @@
           const key = product.code;
           const safeName = escapeHtml(product.name);
           const price = Number(product.adjustedPrice || 0);
+          const unit = normalizeUnit(product.unit);
+          const unitText = unitLabel(unit);
           const isActive = product.isActive !== false;
           const imageUrl = product.imageUrl ? escapeHtml(product.imageUrl) : "";
           return '' +
@@ -609,8 +625,8 @@
               : '<div class="item-thumb empty">Resim Yok</div>') +
             '  <strong>' + safeName + '</strong>' +
             '  ' + (isActive ? "" : '<div class="passive-note">Pasif - Tedarik Saglanamiyor</div>') +
-            '  <div class="price">Tepsi Fiyati: <span>' + price + '</span> TL</div>' +
-            '  <label>Tepsi Sayisi<input type="number" name="' + key + '_tepsi" min="0" step="1" value="0" data-name="' + safeName + '" data-product="' + key + '" data-price="' + price + '" data-active="' + (isActive ? "true" : "false") + '"></label>' +
+            '  <div class="price">Birim Fiyati (' + unitText + '): <span>' + price + '</span> TL</div>' +
+            '  <label>Miktar (' + unitText + ')<input type="number" name="' + key + '_qty" min="0" step="1" value="0" data-name="' + safeName + '" data-product="' + key + '" data-unit="' + unit + '" data-price="' + price + '" data-active="' + (isActive ? "true" : "false") + '"></label>' +
             '</article>';
         })
         .join("");
@@ -644,7 +660,7 @@
 
       const totals = updateCartTotal();
       if (totals.totalTray === 0) {
-        showNotice("error", "En az bir urun icin tepsi sayisi girmelisin.");
+        showNotice("error", "En az bir urun icin miktar girmelisin.");
         return;
       }
 

@@ -16,6 +16,7 @@
     "prisma:validate": "prisma validate",
     "redis:smoke": "node scripts/redis-smoke.js",
     "test:auth-regression": "node tests/auth-regression.test.js",
+    "test:product-isolation": "node tests/product-isolation.test.js",
     "test": "npm run test:auth-regression"
   },
   "keywords": [],

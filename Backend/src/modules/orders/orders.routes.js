@@ -48,7 +48,11 @@ const bulkApproveSchema = z.object({
   orderItemDecisions: z.array(z.object({
     orderId: z.string().uuid(),
     approveItemIds: z.array(z.string().uuid()).optional(),
-    rejectItemIds: z.array(z.string().uuid()).optional()
+    rejectItemIds: z.array(z.string().uuid()).optional(),
+    itemApprovals: z.array(z.object({
+      itemId: z.string().uuid(),
+      approvedQtyTray: z.number().int().min(0).max(100000)
+    })).optional()
   })).optional()
 }).refine((value) => {
   const ids = Array.isArray(value.ids) ? value.ids.length : 0;
@@ -124,6 +128,7 @@ function mapOrder(order) {
       productId: item.productId,
       productCode: item.product ? item.product.code : null,
       name: item.product ? item.product.name : "-",
+      unit: item.product ? String(item.product.unit || "TEPSI").toUpperCase() : "TEPSI",
       qty: item.qtyTray,
       approvedQty: item.approvedQtyTray === null || item.approvedQtyTray === undefined
         ? null
@@ -142,6 +147,7 @@ function mapOrder(order) {
       productId: entry.productId,
       productCode: entry.product ? entry.product.code : null,
       name: entry.product ? entry.product.name : "-",
+      unit: entry.product ? String(entry.product.unit || "TEPSI").toUpperCase() : "TEPSI",
       qtyKg: Number(entry.qtyKg)
     }))
   };
@@ -156,6 +162,11 @@ function toOrderStatusByItemCounts(approvedCount, totalCount) {
 function allowedDeliveryStatus(dbStatus) {
   const v = String(dbStatus || "").toUpperCase();
   return v === "ONAYLANDI" || v === "KISMEN_ONAYLANDI";
+}
+
+function isCenterScopedUser(user) {
+  const role = String(user && user.role || "").toLowerCase();
+  return role === "merkez" || role === "merkez_alt";
 }
 
 function parseDateStrict(dateText, mode) {
@@ -218,6 +229,13 @@ ordersRouter.post("/", requireAuth, requireRole("sube", "admin"), createOrderRat
         message: "Branch is inactive and cannot create orders"
       });
     }
+    if (!branch.centerId) {
+      return res.status(400).json({
+        ok: false,
+        error: "CENTER_REQUIRED",
+        message: "Branch is not linked to a center"
+      });
+    }
 
     const payload = parsed.data;
     const qtyByCode = payload.items.reduce((acc, item) => {
@@ -237,7 +255,10 @@ ordersRouter.post("/", requireAuth, requireRole("sube", "admin"), createOrderRat
     const codes = Array.from(new Set(orderCodes.concat(carryoverCodes)));
 
     const products = await prisma.product.findMany({
-      where: { code: { in: codes } }
+      where: {
+        code: { in: codes },
+        centerId: branch.centerId
+      }
     });
     const productMap = products.reduce((acc, p) => {
       acc[p.code] = p;
@@ -471,13 +492,13 @@ ordersRouter.get("/my/carryover-candidates", requireAuth, requireRole("sube", "a
   }
 });
 
-ordersRouter.get("/", requireAuth, requireRole("merkez", "admin"), async (req, res, next) => {
+ordersRouter.get("/", requireAuth, requireRole("merkez", "merkez_alt", "admin"), async (req, res, next) => {
   try {
     const date = typeof req.query.date === "string" ? req.query.date : "";
     const from = typeof req.query.from === "string" ? req.query.from : "";
     const to = typeof req.query.to === "string" ? req.query.to : "";
     const where = {};
-    if (req.user.role === "merkez") {
+    if (isCenterScopedUser(req.user)) {
       if (!req.user.centerId) {
         return res.status(400).json({
           ok: false,
@@ -544,7 +565,7 @@ ordersRouter.get("/", requireAuth, requireRole("merkez", "admin"), async (req, r
   }
 });
 
-ordersRouter.put("/:id/approve", requireAuth, requireRole("merkez", "admin"), centerActionRateLimiter, async (req, res, next) => {
+ordersRouter.put("/:id/approve", requireAuth, requireRole("merkez", "merkez_alt", "admin"), centerActionRateLimiter, async (req, res, next) => {
   try {
     const orderForTotals = await prisma.order.findUnique({
       where: { id: req.params.id },
@@ -560,7 +581,7 @@ ordersRouter.put("/:id/approve", requireAuth, requireRole("merkez", "admin"), ce
         message: "Order not found"
       });
     }
-    if (req.user.role === "merkez") {
+    if (isCenterScopedUser(req.user)) {
       if (!req.user.centerId) {
         return res.status(400).json({
           ok: false,
@@ -626,7 +647,7 @@ ordersRouter.put("/:id/approve", requireAuth, requireRole("merkez", "admin"), ce
 
 ordersRouter.put("/:id/deliver", requireAuth, requireRole("merkez", "admin"), centerActionRateLimiter, async (req, res, next) => {
   try {
-    if (req.user.role === "merkez" && !req.user.centerId) {
+    if (isCenterScopedUser(req.user) && !req.user.centerId) {
       return res.status(400).json({
         ok: false,
         error: "CENTER_REQUIRED",
@@ -645,7 +666,7 @@ ordersRouter.put("/:id/deliver", requireAuth, requireRole("merkez", "admin"), ce
         message: "Order not found"
       });
     }
-    if (req.user.role === "merkez" && (!order.branch || order.branch.centerId !== req.user.centerId)) {
+    if (isCenterScopedUser(req.user) && (!order.branch || order.branch.centerId !== req.user.centerId)) {
       return res.status(403).json({
         ok: false,
         error: "FORBIDDEN",
@@ -691,7 +712,7 @@ ordersRouter.put("/:id/deliver", requireAuth, requireRole("merkez", "admin"), ce
   }
 });
 
-ordersRouter.put("/approve-bulk", requireAuth, requireRole("merkez", "admin"), centerActionRateLimiter, async (req, res, next) => {
+ordersRouter.put("/approve-bulk", requireAuth, requireRole("merkez", "merkez_alt", "admin"), centerActionRateLimiter, async (req, res, next) => {
   try {
     const parsed = bulkApproveSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -704,7 +725,7 @@ ordersRouter.put("/approve-bulk", requireAuth, requireRole("merkez", "admin"), c
     }
 
     let centerId = null;
-    if (req.user.role === "merkez") {
+    if (isCenterScopedUser(req.user)) {
       if (!req.user.centerId) {
         return res.status(400).json({
           ok: false,
@@ -764,26 +785,52 @@ ordersRouter.put("/approve-bulk", requireAuth, requireRole("merkez", "admin"), c
           (Array.isArray(decision.rejectItemIds) ? decision.rejectItemIds : [])
             .filter((id) => validItemIds.has(id) && !approveItemSet.has(id))
         );
+        const approvalRows = Array.isArray(decision.itemApprovals) ? decision.itemApprovals : [];
+        const explicitQtyByItemId = new Map();
+        approvalRows.forEach((row) => {
+          if (!row || !validItemIds.has(row.itemId)) return;
+          const rawQty = Number(row.approvedQtyTray || 0);
+          const safeQty = Number.isFinite(rawQty) ? Math.max(0, Math.min(100000, Math.round(rawQty))) : 0;
+          explicitQtyByItemId.set(row.itemId, safeQty);
+        });
 
         order.items.forEach((item) => {
-          if (!approveItemSet.has(item.id) && !rejectItemSet.has(item.id)) {
+          if (!explicitQtyByItemId.size && !approveItemSet.has(item.id) && !rejectItemSet.has(item.id)) {
             rejectItemSet.add(item.id);
           }
         });
 
-        const approvedItems = order.items.filter((item) => approveItemSet.has(item.id));
+        const approvedQtyByItemId = new Map();
+        order.items.forEach((item) => {
+          if (explicitQtyByItemId.size) {
+            const explicitQty = explicitQtyByItemId.has(item.id) ? explicitQtyByItemId.get(item.id) : null;
+            if (explicitQty !== null) {
+              approvedQtyByItemId.set(item.id, explicitQty);
+              return;
+            }
+          }
+          if (approveItemSet.has(item.id)) {
+            approvedQtyByItemId.set(item.id, Number(item.qtyTray || 0));
+          } else if (rejectItemSet.has(item.id)) {
+            approvedQtyByItemId.set(item.id, 0);
+          } else {
+            approvedQtyByItemId.set(item.id, 0);
+          }
+        });
+
+        const approvedItems = order.items.filter((item) => Number(approvedQtyByItemId.get(item.id) || 0) > 0);
         const approvedItemCount = approvedItems.length;
         const status = toOrderStatusByItemCounts(approvedItemCount, order.items.length);
-        const totalTray = approvedItems.reduce((sum, item) => sum + Number(item.qtyTray || 0), 0);
+        const totalTray = order.items.reduce((sum, item) => sum + Number(approvedQtyByItemId.get(item.id) || 0), 0);
         const totalAmount = approvedItems.reduce((sum, item) => {
-          return sum + (Number(item.qtyTray || 0) * Number(item.unitPrice || 0));
+          return sum + (Number(approvedQtyByItemId.get(item.id) || 0) * Number(item.unitPrice || 0));
         }, 0);
 
         await prisma.$transaction(async (tx) => {
           for (const item of order.items) {
             await tx.orderItem.update({
               where: { id: item.id },
-              data: { approvedQtyTray: approveItemSet.has(item.id) ? Number(item.qtyTray || 0) : 0 }
+              data: { approvedQtyTray: Number(approvedQtyByItemId.get(item.id) || 0) }
             });
           }
           await tx.order.update({
