@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Borekci Siparis | B2B Tedarik</title>
+  <title>Tedarik Siparis Platformu | B2B Tedarik</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -345,12 +345,12 @@
     <main class="panel">
       <div class="top">
         <div>
-          <h1>Borekci Siparis Paneli</h1>
-          <p class="muted">Secilen urunler birim adedi ile merkeze iletilir.</p>
+          <h1>Tedarik Siparis Platformu</h1>
+          <p class="muted">Sectiginiz urunler birimleriyle merkeze iletilir.</p>
         </div>
         <nav class="nav">
-          <a href="siparis.html">Siparis Ver</a>
-          <a href="siparislerim.html">Siparislerim</a>
+          <a href="siparis.html">Siparis Olustur</a>
+          <a href="siparislerim.html">Siparis Gecmisi</a>
           <a href="../merkez/merkez.html">Merkez Paneli</a>
         </nav>
       </div>
@@ -367,13 +367,13 @@
           </label>
         </section>
 
-        <label>Merkeze Not
-          <textarea name="merkez_notu" id="merkezNotu" rows="3" placeholder="Orn: Sabah sevkiyatina dahil edin."></textarea>
+        <label>Siparis Notu
+          <textarea name="merkez_notu" id="merkezNotu" rows="3" placeholder="Orn: Teslimatla ilgili not ekleyebilirsiniz."></textarea>
         </label>
 
         <div class="actions">
-          <button class="btn primary" type="submit">Siparisi Merkeze Gonder</button>
-          <a class="btn secondary" href="siparislerim.html">Siparislerimi Gor</a>
+          <button class="btn primary" type="submit">Siparisi Gonder</button>
+          <a class="btn secondary" href="siparislerim.html">Siparis Gecmisini Gor</a>
         </div>
         <div class="cart-total" id="cartTotal">Sepet Tutari: 0 TL (0 birim)</div>
       </form>
@@ -418,7 +418,7 @@
     const carryoverConfirmBtn = document.getElementById("carryoverConfirmBtn");
     const cfg = window.APP_CONFIG || {};
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");    const session = window.AuthSession && window.AuthSession.get ? window.AuthSession.get() : null;
-    const branchName = (session && session.branchName) ? session.branchName : "Borekci Sube 01";
+    const branchName = (session && session.branchName) ? session.branchName : "Sube 01";
     let numberInputs = [];
     let branchContext = null;
     let pendingSubmit = null;

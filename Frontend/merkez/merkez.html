@@ -529,8 +529,8 @@
           <h1>Bugünün Siparisleri</h1>
         </div>
         <nav class="nav">
-          <a href="../sube/siparis.html">Sipariş Ver</a>
-          <a href="../sube/siparislerim.html">Siparişlerim</a>
+          <a href="../sube/siparis.html">Siparis Olustur</a>
+          <a href="../sube/siparislerim.html">Siparis Gecmisi</a>
           <a href="merkez.html">Merkez Paneli</a>
           <a href="merkez-raporlar.html">Raporlar</a>
           <a href="merkez-urun-fiyat.html">Ürünler</a>
@@ -588,7 +588,7 @@
           <div class="orders" id="ordersList"></div>
         </article>
         <article class="card">
-          <h3>Toplam Uretim Ihtiyaci (Tepsi)</h3>
+          <h3>Toplam Talep Ozeti</h3>
           <div class="totals" id="totalByProduct"></div>
         </article>
       </section>
@@ -777,7 +777,7 @@
     function renderProductTotals(productTotals) {
       const entries = Object.entries(productTotals || {});
       if (!entries.length) {
-        totalByProduct.innerHTML = '<div class="empty">Toplam alani siparis geldikce dolacak.</div>';
+        totalByProduct.innerHTML = '<div class="empty">Bu alan siparis geldikce otomatik dolacak.</div>';
         return;
       }
       totalByProduct.innerHTML = entries
@@ -891,7 +891,7 @@
         filteredOrders = await apiRequest("/orders?date=" + encodeURIComponent(activeDateKey), { method: "GET" });
       } catch (err) {
         ordersList.innerHTML = '<div class="empty">' + ((err && err.message) || "Siparisler alinamadi.") + '</div>';
-        totalByProduct.innerHTML = '<div class="empty">Toplam alani siparis geldikce dolacak.</div>';
+        totalByProduct.innerHTML = '<div class="empty">Bu alan siparis geldikce otomatik dolacak.</div>';
         return;
       }
       currentFilteredOrders = filteredOrders.slice();
@@ -953,7 +953,7 @@
 
       if (!filteredOrders.length) {
         ordersList.innerHTML = '<div class="empty">Secilen tarihte henuz siparis yok.</div>';
-        totalByProduct.innerHTML = '<div class="empty">Toplam alani siparis geldikce dolacak.</div>';
+        totalByProduct.innerHTML = '<div class="empty">Bu alan siparis geldikce otomatik dolacak.</div>';
         updateApproveAllButtonState(0, 0, 0, 0);
         updateDeliverAllButtonState(0, 0);
         return;
