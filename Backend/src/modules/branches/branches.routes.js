@@ -40,6 +40,14 @@ const updateBranchSchema = z.object({
   centerId: z.string().uuid().optional()
 });
 
+const centerBranchEditSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  manager: z.string().trim().min(2).max(120),
+  phone: z.string().trim().min(1).max(40),
+  email: z.string().trim().email(),
+  address: z.string().trim().min(2).max(500)
+});
+
 const adjustmentSchema = z.object({
   percent: z.number().min(-90).max(200)
 });
@@ -261,9 +269,10 @@ branchesRouter.post("/", requireAuth, requireRole("admin"), branchMutationRateLi
   }
 });
 
-branchesRouter.put("/:id", requireAuth, requireRole("admin"), branchMutationRateLimiter, async (req, res, next) => {
+branchesRouter.put("/:id", requireAuth, requireRole("merkez", "admin"), branchMutationRateLimiter, async (req, res, next) => {
   try {
-    const parsed = updateBranchSchema.safeParse(req.body);
+    const isMerkez = req.user.role === "merkez";
+    const parsed = (isMerkez ? centerBranchEditSchema : updateBranchSchema).safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
         ok: false,
@@ -275,6 +284,35 @@ branchesRouter.put("/:id", requireAuth, requireRole("admin"), branchMutationRate
 
     const payload = parsed.data;
     const data = {};
+    if (isMerkez) {
+      if (!req.user.centerId) {
+        return res.status(400).json({
+          ok: false,
+          error: "CENTER_REQUIRED",
+          message: "Current merkez user is not linked to a center"
+        });
+      }
+
+      const target = await prisma.branch.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, centerId: true }
+      });
+      if (!target) {
+        return res.status(404).json({
+          ok: false,
+          error: "NOT_FOUND",
+          message: "Branch not found"
+        });
+      }
+      if (target.centerId !== req.user.centerId) {
+        return res.status(403).json({
+          ok: false,
+          error: "FORBIDDEN",
+          message: "Bu sube baska bir merkeze bagli."
+        });
+      }
+    }
+
     if (typeof payload.name === "string") data.name = payload.name.trim();
     if (typeof payload.manager === "string") data.manager = payload.manager.trim();
     if (typeof payload.phone === "string") {
@@ -290,7 +328,7 @@ branchesRouter.put("/:id", requireAuth, requireRole("admin"), branchMutationRate
     }
     if (typeof payload.email === "string") data.email = payload.email.trim().toLowerCase();
     if (typeof payload.address === "string") data.address = payload.address.trim();
-    if (typeof payload.centerId === "string") {
+    if (!isMerkez && typeof payload.centerId === "string") {
       const centerCheck = await ensureCenter(payload.centerId);
       if (!centerCheck.ok) {
         return res.status(400).json({

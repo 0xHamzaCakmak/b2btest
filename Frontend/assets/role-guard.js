@@ -388,8 +388,13 @@
     var session = getSession() || {};
     var displayName = session.displayName || session.branchName || session.centerName || session.email || ("Rol: " + (role || "-"));
     var subline = (role || "-").toUpperCase();
-    if (session.branchName) subline += " | " + session.branchName;
-    if (session.centerName) subline += " | " + session.centerName;
+    if (role === "sube") {
+      displayName = session.branchName || session.displayName || session.email || "Sube";
+      subline += " | " + (session.displayName || session.email || "-");
+    } else {
+      if (session.branchName) subline += " | " + session.branchName;
+      if (session.centerName) subline += " | " + session.centerName;
+    }
 
     ensureProfileMenuStyles();
 

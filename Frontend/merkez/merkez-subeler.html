@@ -139,6 +139,66 @@
       opacity: .8;
       letter-spacing: .02em;
     }
+    .detail-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap: .65rem;
+      margin: .85rem 0;
+      padding: .85rem;
+      border: 1px solid rgba(19, 34, 31, .12);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .74);
+    }
+    .detail-form.hidden {
+      display: none;
+    }
+    .detail-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin: .75rem 0 .2rem;
+    }
+    .detail-head strong {
+      font-size: .95rem;
+      letter-spacing: .02em;
+    }
+    .detail-form label {
+      display: block;
+      font-size: .88rem;
+      font-weight: 600;
+    }
+    .detail-form label.wide {
+      grid-column: 1 / -1;
+    }
+    .detail-form input,
+    .detail-form textarea {
+      width: 100%;
+      margin-top: .25rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: .62rem .72rem;
+      font: inherit;
+      background: rgba(255, 255, 255, .9);
+      color: var(--ink);
+    }
+    .detail-form textarea {
+      min-height: 86px;
+      resize: vertical;
+    }
+    .detail-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: .5rem;
+      flex-wrap: wrap;
+      grid-column: 1 / -1;
+    }
+    @media (max-width: 760px) {
+      .detail-form {
+        grid-template-columns: 1fr;
+      }
+    }
     .status-pill {
       display: inline-block;
       border: 1px solid var(--border);
@@ -312,6 +372,31 @@
           <div class="field"><strong>E-posta</strong><span id="dEmail">-</span></div>
           <div class="field"><strong>Adres</strong><span id="dAddress">-</span></div>
           <div class="field"><strong>Durum</strong><span id="dStatus" class="status-pill">Aktif</span></div>
+          <div class="detail-head">
+            <strong>Duzenleme</strong>
+            <button class="btn" id="toggleEditBtn" type="button">Bilgileri Guncelle</button>
+          </div>
+          <form id="branchEditForm" class="detail-form hidden" novalidate>
+            <label>Sube Adi
+              <input id="editName" type="text" required>
+            </label>
+            <label>Yetkili
+              <input id="editManager" type="text" required>
+            </label>
+            <label>Telefon
+              <input id="editPhone" type="tel" required>
+            </label>
+            <label>E-posta
+              <input id="editEmail" type="email" required>
+            </label>
+            <label class="wide">Adres
+              <textarea id="editAddress" required></textarea>
+            </label>
+            <div class="detail-actions">
+              <button class="btn" id="cancelEditBtn" type="button">Iptal</button>
+              <button class="btn primary" id="saveDetailBtn" type="submit">Bilgileri Kaydet</button>
+            </div>
+          </form>
           <div class="control-row">
             <button class="btn primary" id="setActiveBtn" type="button">Aktif Yap</button>
             <button class="btn" id="setPassiveBtn" type="button">Pasif Yap</button>
@@ -353,6 +438,7 @@
 
   <script src="../assets/app-config.js?v=20260226c"></script>
   <script src="../assets/role-guard.js"></script>
+  <script src="../assets/form-validators.js"></script>
   <div id="confirmModal" class="confirm-modal" role="dialog" aria-modal="true">
     <div class="confirm-card">
       <h4>Degisikligi Onayla</h4>
@@ -372,6 +458,14 @@
     const dEmail = document.getElementById("dEmail");
     const dAddress = document.getElementById("dAddress");
     const dStatus = document.getElementById("dStatus");
+    const toggleEditBtn = document.getElementById("toggleEditBtn");
+    const branchEditForm = document.getElementById("branchEditForm");
+    const cancelEditBtn = document.getElementById("cancelEditBtn");
+    const editName = document.getElementById("editName");
+    const editManager = document.getElementById("editManager");
+    const editPhone = document.getElementById("editPhone");
+    const editEmail = document.getElementById("editEmail");
+    const editAddress = document.getElementById("editAddress");
     const setActiveBtn = document.getElementById("setActiveBtn");
     const setPassiveBtn = document.getElementById("setPassiveBtn");
     const percentInput = document.getElementById("percentInput");
@@ -388,25 +482,16 @@
     const confirmOkBtn = document.getElementById("confirmOkBtn");
 
     const cfg = window.APP_CONFIG || {};
+    const validators = window.FormValidators || null;
     const testMode = !!cfg.TEST_MODE;
     const apiBaseUrl = (cfg.API_BASE_URL || "http://localhost:4000/api").replace(/\/$/, "");
-    const defaultBasePrices = {
-      su_boregi: { name: "Su Boregi", price: 700 },
-      peynirli_borek: { name: "Peynirli Borek", price: 650 },
-      kiymali_borek: { name: "Kiymali Borek", price: 730 },
-      patatesli_borek: { name: "Patatesli Borek", price: 610 },
-      ispanakli_borek: { name: "Ispanakli Borek", price: 640 },
-      kasarli_borek: { name: "Kasarli Borek", price: 680 },
-      kol_boregi: { name: "Kol Boregi", price: 760 },
-      karisik_borek: { name: "Karisik Borek", price: 790 }
-    };
-
     let branches = [];
     let products = [];
     let selectedBranchId = null;
     let branchProductRows = [];
     let editingProductId = null;
     let pendingProductAdjustment = null;
+    let isEditFormOpen = false;
 
     function getAuthSession() {
       try {
@@ -438,6 +523,21 @@
       return branches.find(function (b) { return b.id === selectedBranchId; }) || null;
     }
 
+    function fillEditForm(branch) {
+      editName.value = branch && branch.name ? branch.name : "";
+      editManager.value = branch && branch.manager ? branch.manager : "";
+      editPhone.value = branch && branch.phone ? branch.phone : "90";
+      editEmail.value = branch && branch.email ? branch.email : "";
+      editAddress.value = branch && branch.address ? branch.address : "";
+    }
+
+    function syncEditFormVisibility() {
+      const hasBranch = !!getSelectedBranch();
+      branchEditForm.classList.toggle("hidden", !isEditFormOpen || !hasBranch);
+      toggleEditBtn.disabled = !hasBranch;
+      toggleEditBtn.textContent = isEditFormOpen && hasBranch ? "Duzenlemeyi Gizle" : "Bilgileri Guncelle";
+    }
+
     function applyPercent(base, percent) {
       return Math.max(1, Math.round(base * (1 + percent / 100)));
     }
@@ -455,6 +555,7 @@
       branchListEl.querySelectorAll(".branch-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
           selectedBranchId = btn.dataset.branchId || null;
+          isEditFormOpen = false;
           renderSelectedBranch();
           renderBranchList();
         });
@@ -476,13 +577,7 @@
           return { name: p.name, basePrice: Number(p.basePrice || 0), extraAmount: 0 };
         });
       }
-      return Object.keys(defaultBasePrices).map(function (key) {
-        return {
-          name: defaultBasePrices[key].name,
-          basePrice: Number(defaultBasePrices[key].price),
-          extraAmount: 0
-        };
-      });
+      return [];
     }
 
     function renderPreview() {
@@ -491,8 +586,13 @@
         pricePreview.innerHTML = "";
         return;
       }
+      const previewProducts = getPreviewProducts();
+      if (!previewProducts.length) {
+        pricePreview.innerHTML = "<li>Bu merkeze ait urun henuz tanimlanmadi.</li>";
+        return;
+      }
       const pct = Number(percentInput.value || 0);
-      const previewHtml = getPreviewProducts().map(function (product) {
+      const previewHtml = previewProducts.map(function (product) {
         const extra = Number(product.extraAmount || 0);
         const adjusted = Math.max(1, Math.round((Number(product.basePrice) * (1 + pct / 100)) + extra));
         return "<li>" + product.name + ": " + adjusted + " TL</li>";
@@ -604,22 +704,108 @@
         dStatus.textContent = "-";
         dStatus.className = "status-pill";
         percentInput.value = "0";
+        fillEditForm(null);
+        syncEditFormVisibility();
         renderPreview();
         return;
       }
       const pct = Number(selectedBranch.priceAdjustmentPercent || 0);
       dName.textContent = selectedBranch.name;
-      dManager.textContent = selectedBranch.manager;
-      dPhone.textContent = selectedBranch.phone;
-      dEmail.textContent = selectedBranch.userEmail || selectedBranch.email || "-";
-      dAddress.textContent = selectedBranch.address;
+      dManager.textContent = selectedBranch.manager || "-";
+      dPhone.textContent = selectedBranch.phone || "-";
+      dEmail.textContent = selectedBranch.email || selectedBranch.userEmail || "-";
+      dAddress.textContent = selectedBranch.address || "-";
       dStatus.textContent = selectedBranch.isActive ? "Aktif" : "Pasif";
       dStatus.className = selectedBranch.isActive ? "status-pill" : "status-pill passive";
       percentInput.value = String(pct);
+      fillEditForm(selectedBranch);
+      syncEditFormVisibility();
       renderPreview();
       loadProductAdjustments().catch(function (err) {
         showMessage((err && err.message) || "Urun bazli fiyat farklari alinamadi.");
       });
+    }
+
+    async function saveSelectedBranchDetails() {
+      const selectedBranch = getSelectedBranch();
+      if (!selectedBranch) {
+        showMessage("Lutfen listeden bir sube secin.");
+        return;
+      }
+
+      const name = String(editName.value || "").trim();
+      const manager = String(editManager.value || "").trim();
+      const address = String(editAddress.value || "").trim();
+      const emailResult = validators
+        ? validators.validateEmailInput(editEmail, { required: true, label: "E-posta" })
+        : { ok: !!String(editEmail.value || "").trim(), message: "E-posta zorunludur.", value: String(editEmail.value || "").trim().toLowerCase() };
+      const phoneResult = validators
+        ? validators.validatePhoneInput(editPhone, { required: true, label: "Telefon" })
+        : { ok: !!String(editPhone.value || "").trim(), message: "Telefon zorunludur.", value: String(editPhone.value || "").trim() };
+
+      if (!name) {
+        editName.reportValidity();
+        showMessage("Sube adi zorunludur.");
+        return;
+      }
+      if (!manager) {
+        editManager.reportValidity();
+        showMessage("Yetkili bilgisi zorunludur.");
+        return;
+      }
+      if (!phoneResult.ok) {
+        editPhone.reportValidity();
+        showMessage(phoneResult.message || "Telefon zorunludur.");
+        return;
+      }
+      if (!emailResult.ok) {
+        editEmail.reportValidity();
+        showMessage(emailResult.message || "E-posta zorunludur.");
+        return;
+      }
+      if (!address) {
+        editAddress.reportValidity();
+        showMessage("Adres zorunludur.");
+        return;
+      }
+
+      if (!testMode) {
+        try {
+          const updated = await apiRequest("/branches/" + selectedBranch.id, {
+            method: "PUT",
+            body: JSON.stringify({
+              name: name,
+              manager: manager,
+              phone: phoneResult.value,
+              email: emailResult.value,
+              address: address
+            })
+          });
+          branches = branches.map(function (branch) {
+            return branch.id === updated.id ? updated : branch;
+          });
+        } catch (err) {
+          showMessage((err && err.message) || "Sube detaylari kaydedilemedi.");
+          return;
+        }
+      } else {
+        branches = branches.map(function (branch) {
+          if (branch.id !== selectedBranch.id) return branch;
+          return Object.assign({}, branch, {
+            name: name,
+            manager: manager,
+            phone: phoneResult.value,
+            email: emailResult.value,
+            address: address
+          });
+        });
+      }
+
+      renderSelectedBranch();
+      renderBranchList();
+      isEditFormOpen = false;
+      syncEditFormVisibility();
+      showMessage("Sube detaylari guncellendi.");
     }
 
     async function setSelectedBranchActive(isActive) {
@@ -704,6 +890,24 @@
     percentInput.addEventListener("input", renderPreview);
     setActiveBtn.addEventListener("click", function () { setSelectedBranchActive(true); });
     setPassiveBtn.addEventListener("click", function () { setSelectedBranchActive(false); });
+    toggleEditBtn.addEventListener("click", function () {
+      if (!getSelectedBranch()) {
+        showMessage("Lutfen listeden bir sube secin.");
+        return;
+      }
+      isEditFormOpen = !isEditFormOpen;
+      if (isEditFormOpen) fillEditForm(getSelectedBranch());
+      syncEditFormVisibility();
+    });
+    cancelEditBtn.addEventListener("click", function () {
+      isEditFormOpen = false;
+      fillEditForm(getSelectedBranch());
+      syncEditFormVisibility();
+    });
+    branchEditForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      saveSelectedBranchDetails();
+    });
 
     confirmCancelBtn.addEventListener("click", function () {
       pendingProductAdjustment = null;
@@ -747,7 +951,7 @@
         });
       }
       branches = list;
-      products = getPreviewProducts();
+      products = [];
       selectedBranchId = branches.length ? branches[0].id : null;
       renderBranchList();
       renderSelectedBranch();
@@ -769,6 +973,17 @@
     } else {
       loadLocalFallbackData();
     }
+
+    if (validators) {
+      validators.initStrictPhoneInput(editPhone);
+    }
+
+    [editName, editManager, editPhone, editEmail, editAddress].forEach(function (field) {
+      if (!field) return;
+      field.addEventListener("input", function () {
+        field.setCustomValidity("");
+      });
+    });
   </script>
 </body>
 </html>
